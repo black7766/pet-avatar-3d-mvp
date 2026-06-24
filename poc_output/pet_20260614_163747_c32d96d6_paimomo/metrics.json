@@ -1,0 +1,381 @@
+{
+  "stylize": [
+    {
+      "model": "doubao-seedream-4-5-251128",
+      "style": "paimomo3d",
+      "file": "paimomo3d_1.jpeg",
+      "seconds": 47.1,
+      "usage": {
+        "generated_images": 1,
+        "output_tokens": 16384,
+        "total_tokens": 16384
+      }
+    }
+  ],
+  "animate": [
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "idle",
+      "task": "cgt-20260614164308-rgggs",
+      "seconds": 56.9,
+      "generate_audio": false,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    },
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "happy",
+      "task": "cgt-20260614164429-hfxwp",
+      "seconds": 52.6,
+      "generate_audio": false,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    },
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "eat",
+      "task": "cgt-20260614164541-chnps",
+      "seconds": 55.0,
+      "generate_audio": false,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    },
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "sleep",
+      "task": "cgt-20260624143505-6hgsv",
+      "seconds": 57.7,
+      "generate_audio": false,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    },
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "walk",
+      "task": "cgt-20260624143503-blm99",
+      "seconds": 39.1,
+      "generate_audio": false,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    },
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "run",
+      "task": "cgt-20260624143502-gw6vz",
+      "seconds": 57.9,
+      "generate_audio": false,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    }
+  ],
+  "matte": [
+    {
+      "clip": "idle",
+      "key_color": "0x0AE60F",
+      "frames": 120,
+      "webp_frames": 128,
+      "loop_close_frames": 8,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 90,
+      "webp_method": 2,
+      "webp_mb": 5.22,
+      "seconds": 23.1,
+      "similarity": "0.085",
+      "green_residual": 0.0
+    },
+    {
+      "clip": "happy",
+      "key_color": "0x0AE10D",
+      "frames": 120,
+      "webp_frames": 128,
+      "loop_close_frames": 8,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 90,
+      "webp_method": 2,
+      "webp_mb": 5.11,
+      "seconds": 19.9,
+      "similarity": "0.085",
+      "green_residual": 0.0
+    },
+    {
+      "clip": "eat",
+      "key_color": "0x20FE18",
+      "frames": 120,
+      "webp_frames": 128,
+      "loop_close_frames": 8,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 90,
+      "webp_method": 2,
+      "webp_mb": 4.71,
+      "seconds": 25.8,
+      "similarity": "0.085",
+      "green_residual": 0.0
+    },
+    {
+      "clip": "sleep",
+      "key_color": "0x19FD16",
+      "frames": 120,
+      "webp_frames": 128,
+      "loop_close_frames": 8,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 90,
+      "webp_method": 2,
+      "webp_mb": 5.92,
+      "seconds": 41.9,
+      "similarity": "0.085",
+      "green_residual": 0.0,
+      "reframe": {
+        "source_bbox": [
+          27,
+          32,
+          614,
+          580
+        ],
+        "source_margins": {
+          "left": 27,
+          "top": 32,
+          "right": 26,
+          "bottom": 60
+        },
+        "source_edge_risk": {
+          "left": false,
+          "top": false,
+          "right": false,
+          "bottom": false
+        },
+        "crop": [
+          1,
+          6,
+          640,
+          606
+        ],
+        "scale": 0.8317,
+        "paste": [
+          54,
+          103
+        ],
+        "target_size": [
+          531,
+          499
+        ]
+      }
+    },
+    {
+      "clip": "run",
+      "key_color": "0x3DC538",
+      "frames": 120,
+      "webp_frames": 128,
+      "loop_close_frames": 8,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 90,
+      "webp_method": 2,
+      "webp_mb": 4.61,
+      "seconds": 44.8,
+      "similarity": "0.085",
+      "green_residual": 0.0,
+      "reframe": {
+        "source_bbox": [
+          0,
+          0,
+          620,
+          640
+        ],
+        "source_margins": {
+          "left": 0,
+          "top": 0,
+          "right": 20,
+          "bottom": 0
+        },
+        "source_edge_risk": {
+          "left": true,
+          "top": true,
+          "right": false,
+          "bottom": true
+        },
+        "crop": [
+          0,
+          0,
+          640,
+          640
+        ],
+        "scale": 0.7797,
+        "paste": [
+          70,
+          103
+        ],
+        "target_size": [
+          499,
+          499
+        ]
+      }
+    },
+    {
+      "clip": "walk",
+      "key_color": "0x30E72F",
+      "frames": 120,
+      "webp_frames": 128,
+      "loop_close_frames": 8,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 90,
+      "webp_method": 2,
+      "webp_mb": 4.13,
+      "seconds": 46.0,
+      "similarity": "0.085",
+      "green_residual": 0.0,
+      "reframe": {
+        "source_bbox": [
+          29,
+          125,
+          604,
+          611
+        ],
+        "source_margins": {
+          "left": 29,
+          "top": 125,
+          "right": 36,
+          "bottom": 29
+        },
+        "source_edge_risk": {
+          "left": false,
+          "top": false,
+          "right": false,
+          "bottom": false
+        },
+        "crop": [
+          4,
+          100,
+          629,
+          636
+        ],
+        "scale": 0.88,
+        "paste": [
+          45,
+          130
+        ],
+        "target_size": [
+          550,
+          472
+        ]
+      }
+    }
+  ],
+  "state_frame": [
+    {
+      "model": "doubao-seedream-4-5-251128",
+      "clip": "run",
+      "file": "state_run.png",
+      "seconds": 18.2,
+      "safe": true,
+      "bounds": {
+        "bbox": [
+          345,
+          366,
+          1718,
+          1666
+        ],
+        "margins": {
+          "left": 345,
+          "top": 366,
+          "right": 330,
+          "bottom": 382
+        },
+        "size": [
+          2048,
+          2048
+        ],
+        "min_required_margin": 81,
+        "safe": true
+      },
+      "attempts": 1,
+      "usage": {
+        "generated_images": 1,
+        "output_tokens": 16384,
+        "total_tokens": 16384
+      }
+    },
+    {
+      "model": "doubao-seedream-4-5-251128",
+      "clip": "walk",
+      "file": "state_walk.png",
+      "seconds": 18.6,
+      "safe": true,
+      "bounds": {
+        "bbox": [
+          328,
+          511,
+          1896,
+          1836
+        ],
+        "margins": {
+          "left": 328,
+          "top": 511,
+          "right": 152,
+          "bottom": 212
+        },
+        "size": [
+          2048,
+          2048
+        ],
+        "min_required_margin": 81,
+        "safe": true
+      },
+      "attempts": 1,
+      "usage": {
+        "generated_images": 1,
+        "output_tokens": 16384,
+        "total_tokens": 16384
+      }
+    },
+    {
+      "model": "doubao-seedream-4-5-251128",
+      "clip": "sleep",
+      "file": "state_sleep.png",
+      "seconds": 41.9,
+      "safe": true,
+      "bounds": {
+        "bbox": [
+          91,
+          125,
+          1957,
+          1851
+        ],
+        "margins": {
+          "left": 91,
+          "top": 125,
+          "right": 91,
+          "bottom": 197
+        },
+        "size": [
+          2048,
+          2048
+        ],
+        "min_required_margin": 81,
+        "safe": true
+      },
+      "attempts": 2,
+      "usage": {
+        "generated_images": 1,
+        "output_tokens": 16384,
+        "total_tokens": 16384
+      }
+    }
+  ]
+}

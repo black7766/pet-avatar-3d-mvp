@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>萌宠动态形象 PoC Demo — 片段状态机</title>
+<style>
+  body{font-family:-apple-system,"PingFang SC",sans-serif;background:#FFF7EE;display:flex;flex-direction:column;align-items:center;padding:24px;margin:0}
+  h3{color:#3a2e22;margin:0 0 4px}
+  .sub{color:#9a8c7c;font-size:13px;margin-bottom:14px}
+  #stage{position:relative;width:480px;height:480px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  #pet{width:100%;height:100%;position:relative;z-index:2;transition:transform .12s ease}
+  #stage:active #pet{transform:scale(.97) rotateX(2deg)}
+  /* 伪3D三件套之②：程序化接触阴影（随呼吸缩放） */
+  #shadow{position:absolute;bottom:30px;left:50%;transform:translateX(-50%);width:46%;height:34px;
+          background:radial-gradient(ellipse at center,rgba(60,40,20,.25),transparent 70%);
+          border-radius:50%;z-index:1;animation:breath 2.8s ease-in-out infinite}
+  @keyframes breath{0%,100%{transform:translateX(-50%) scaleX(1)}50%{transform:translateX(-50%) scaleX(1.07)}}
+  .btns{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+  button{padding:9px 16px;border-radius:12px;border:1px solid #f0e4d6;background:#fff;font-size:14px;color:#3a2e22;cursor:pointer}
+  button.on{background:#FB9B2D;border-color:#FB9B2D;color:#fff}
+  #tip{color:#b3a392;font-size:12px;margin-top:10px}
+  #status{color:#FB9B2D;font-size:13px;margin-top:6px;min-height:18px;font-weight:600}
+</style>
+</head>
+<body>
+  <h3>ORIGIN 萌宠动态形象 PoC</h3>
+  <div class="sub">点宠物 = 亲昵互动（touch 插播）；下方按钮 = 模拟项圈传感数据切状态；全部片段同首尾帧无缝切换</div>
+  <div class="btns" id="pets">
+    <button data-pet="pet1" class="on">🐶 狗</button>
+    <button data-pet="pet2">🐱 猫</button>
+  </div>
+  <div id="stage"><div id="shadow"></div><img id="pet" src="pet1/anim_idle.webp" alt="pet"></div>
+  <div id="status"></div>
+  <div class="btns" id="states">
+    <button data-clip="idle" class="on">待机 idle</button>
+    <button data-clip="active">活跃 active（项圈:运动中）</button>
+    <button data-clip="sleep">睡觉 sleep（项圈:静息）</button>
+  </div>
+  <div id="tip">提示：webp 循环约 5s；touch 插播 5s 后自动回到当前状态（生产端由播放器控制单次播放）</div>
+<script>
+  let pet = 'pet1', state = 'idle', touching = false, touchTimer = null;
+  const img = document.getElementById('pet');
+  const status = document.getElementById('status');
+  function play(clip){ img.src = pet + '/anim_' + clip + '.webp?t=' + Date.now(); }
+  function setState(s){
+    state = s;
+    document.querySelectorAll('#states button').forEach(b => b.classList.toggle('on', b.dataset.clip === s));
+    if (!touching) { play(s); status.textContent = ''; }
+  }
+  document.getElementById('stage').onclick = () => {
+    if (touching) return;
+    touching = true;
+    status.textContent = '❤️ 亲昵互动中…（touch 片段）';
+    play('touch');
+    touchTimer = setTimeout(() => { touching = false; status.textContent = ''; play(state); }, 5000);
+  };
+  document.querySelectorAll('#pets button').forEach(b => b.onclick = () => {
+    pet = b.dataset.pet;
+    document.querySelectorAll('#pets button').forEach(x => x.classList.toggle('on', x === b));
+    clearTimeout(touchTimer); touching = false; status.textContent = '';
+    play(state);
+  });
+  document.querySelectorAll('#states button').forEach(b => b.onclick = () => setState(b.dataset.clip));
+</script>
+</body>
+</html>

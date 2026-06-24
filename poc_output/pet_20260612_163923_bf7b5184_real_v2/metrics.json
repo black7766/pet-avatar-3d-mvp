@@ -1,0 +1,94 @@
+{
+  "stylize": [
+    {
+      "model": "doubao-seedream-4-5-251128",
+      "style": "real",
+      "file": "real_1.jpeg",
+      "seconds": 52.4,
+      "usage": {
+        "generated_images": 1,
+        "output_tokens": 16384,
+        "total_tokens": 16384
+      }
+    }
+  ],
+  "animate": [
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "idle",
+      "task": "cgt-20260612174320-8txtx",
+      "seconds": 55.5,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    },
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "happy",
+      "task": "cgt-20260612174416-xv4f7",
+      "seconds": 56.3,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    },
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "eat",
+      "task": "cgt-20260612174517-84952",
+      "seconds": 63.0,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    }
+  ],
+  "matte": [
+    {
+      "clip": "idle",
+      "key_color": "0x0DE10A",
+      "frames": 120,
+      "webp_frames": 128,
+      "loop_close_frames": 8,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 90,
+      "webp_method": 2,
+      "webp_mb": 3.46,
+      "seconds": 28.3,
+      "similarity": "0.085",
+      "green_residual": 0.0
+    },
+    {
+      "clip": "happy",
+      "key_color": "0x20FC18",
+      "frames": 120,
+      "webp_frames": 128,
+      "loop_close_frames": 8,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 90,
+      "webp_method": 2,
+      "webp_mb": 3.29,
+      "seconds": 28.2,
+      "similarity": "0.085",
+      "green_residual": 0.0
+    },
+    {
+      "clip": "eat",
+      "key_color": "0x1CFD12",
+      "frames": 120,
+      "webp_frames": 128,
+      "loop_close_frames": 8,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 90,
+      "webp_method": 2,
+      "webp_mb": 3.04,
+      "seconds": 21.6,
+      "similarity": "0.085",
+      "green_residual": 0.0
+    }
+  ]
+}

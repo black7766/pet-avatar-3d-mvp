@@ -1,0 +1,120 @@
+{
+  "stylize": [
+    {
+      "model": "doubao-seedream-4-5-251128",
+      "style": "paimomo3d",
+      "file": "paimomo3d_1.jpeg",
+      "seconds": 196.1,
+      "usage": {
+        "generated_images": 1,
+        "output_tokens": 16384,
+        "total_tokens": 16384
+      }
+    }
+  ],
+  "animate": [
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "idle",
+      "task": "cgt-20260612164242-r4l5r",
+      "seconds": 55.6,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    },
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "happy",
+      "task": "cgt-20260612164400-f2x7g",
+      "seconds": 54.5,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    },
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "eat",
+      "task": "cgt-20260612164514-n6mwg",
+      "seconds": 54.4,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    },
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "sleep",
+      "task": "cgt-20260616164657-vvbrm",
+      "seconds": 49.2,
+      "generate_audio": false,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    }
+  ],
+  "matte": [
+    {
+      "clip": "idle",
+      "key_color": "0x1BFC11",
+      "frames": 120,
+      "webp_frames": 128,
+      "loop_close_frames": 8,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 90,
+      "webp_method": 2,
+      "webp_mb": 3.18,
+      "seconds": 41.1,
+      "similarity": "0.085",
+      "green_residual": 0.0
+    },
+    {
+      "clip": "happy",
+      "key_color": "0x06DE0B",
+      "frames": 120,
+      "webp_frames": 128,
+      "loop_close_frames": 8,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 90,
+      "webp_method": 2,
+      "webp_mb": 3.42,
+      "seconds": 40.4,
+      "similarity": "0.085",
+      "green_residual": 0.0
+    },
+    {
+      "clip": "eat",
+      "key_color": "0x08DF06",
+      "frames": 120,
+      "webp_frames": 128,
+      "loop_close_frames": 8,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 90,
+      "webp_method": 2,
+      "webp_mb": 3.47,
+      "seconds": 41.2,
+      "similarity": "0.085",
+      "green_residual": 0.0
+    },
+    {
+      "clip": "sleep",
+      "key_color": "0x04E506",
+      "frames": 120,
+      "webp_frames": 128,
+      "loop_close_frames": 8,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 90,
+      "webp_method": 2,
+      "webp_mb": 3.36,
+      "seconds": 39.6,
+      "similarity": "0.085",
+      "green_residual": 0.0
+    }
+  ]
+}

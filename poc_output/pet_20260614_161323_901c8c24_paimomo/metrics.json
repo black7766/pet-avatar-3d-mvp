@@ -1,0 +1,123 @@
+{
+  "stylize": [
+    {
+      "model": "doubao-seedream-4-5-251128",
+      "style": "paimomo3d",
+      "file": "paimomo3d_1.jpeg",
+      "seconds": 30.0,
+      "usage": {
+        "generated_images": 1,
+        "output_tokens": 16384,
+        "total_tokens": 16384
+      }
+    }
+  ],
+  "animate": [
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "idle",
+      "task": "cgt-20260614161914-2f7jt",
+      "seconds": 37.8,
+      "generate_audio": false,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    },
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "happy",
+      "task": "cgt-20260614162022-grwft",
+      "seconds": 50.3,
+      "generate_audio": false,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    },
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "eat",
+      "task": "cgt-20260614162143-84sbc",
+      "seconds": 54.4,
+      "generate_audio": false,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    },
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "sleep",
+      "task": "cgt-20260616165123-56b9d",
+      "seconds": 50.3,
+      "generate_audio": false,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    }
+  ],
+  "matte": [
+    {
+      "clip": "idle",
+      "key_color": "0x0DE40F",
+      "frames": 120,
+      "webp_frames": 128,
+      "loop_close_frames": 8,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 90,
+      "webp_method": 2,
+      "webp_mb": 4.4,
+      "seconds": 28.8,
+      "similarity": "0.085",
+      "green_residual": 0.0
+    },
+    {
+      "clip": "happy",
+      "key_color": "0x0CDF0C",
+      "frames": 120,
+      "webp_frames": 128,
+      "loop_close_frames": 8,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 90,
+      "webp_method": 2,
+      "webp_mb": 4.45,
+      "seconds": 28.0,
+      "similarity": "0.085",
+      "green_residual": 0.0
+    },
+    {
+      "clip": "eat",
+      "key_color": "0x18FD11",
+      "frames": 120,
+      "webp_frames": 128,
+      "loop_close_frames": 8,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 90,
+      "webp_method": 2,
+      "webp_mb": 4.04,
+      "seconds": 30.6,
+      "similarity": "0.085",
+      "green_residual": 0.0
+    },
+    {
+      "clip": "sleep",
+      "key_color": "0x1AFD12",
+      "frames": 120,
+      "webp_frames": 128,
+      "loop_close_frames": 8,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 90,
+      "webp_method": 2,
+      "webp_mb": 3.71,
+      "seconds": 33.9,
+      "similarity": "0.085",
+      "green_residual": 0.0
+    }
+  ]
+}

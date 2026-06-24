@@ -1,0 +1,177 @@
+{
+  "stylize": [
+    {
+      "model": "doubao-seedream-4-5-251128",
+      "style": "paimomo3d",
+      "file": "paimomo3d_1.jpeg",
+      "seconds": 19.5,
+      "usage": {
+        "generated_images": 1,
+        "output_tokens": 16384,
+        "total_tokens": 16384
+      }
+    }
+  ],
+  "animate": [
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "idle",
+      "task": "cgt-20260623160015-gwbbc",
+      "seconds": 80.7,
+      "generate_audio": false,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    },
+    {
+      "model": "local_fallback_breathing_loop",
+      "clip": "sleep",
+      "seconds": 0,
+      "generate_audio": false,
+      "blocked_remote_reason": "Seedance AccountOverdueError"
+    },
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "run",
+      "task": "cgt-20260623164255-ddzml",
+      "seconds": 52.9,
+      "generate_audio": false,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    },
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "walk",
+      "task": "cgt-20260623164257-m7l6k",
+      "seconds": 70.3,
+      "generate_audio": false,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    }
+  ],
+  "matte": [
+    {
+      "clip": "idle",
+      "key_color": "0x0AE50C",
+      "frames": 120,
+      "webp_frames": 128,
+      "loop_close_frames": 8,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 90,
+      "webp_method": 2,
+      "webp_mb": 5.66,
+      "seconds": 37.2,
+      "similarity": "0.085",
+      "green_residual": 0.0
+    },
+    {
+      "clip": "sleep",
+      "key_color": "#00ff00_state_frame",
+      "frames": 29,
+      "webp_frames": 29,
+      "loop_close_frames": 0,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 90,
+      "webp_method": 2,
+      "webp_mb": 1.1,
+      "seconds": 0,
+      "similarity": "local_state_chromakey",
+      "green_residual": 0,
+      "local_fallback": true
+    },
+    {
+      "clip": "run",
+      "key_color": "0x16C813",
+      "frames": 120,
+      "webp_frames": 128,
+      "loop_close_frames": 8,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 90,
+      "webp_method": 2,
+      "webp_mb": 4.64,
+      "seconds": 52.8,
+      "similarity": "0.085",
+      "green_residual": 0.0
+    },
+    {
+      "clip": "walk",
+      "key_color": "0x10CC13",
+      "frames": 120,
+      "webp_frames": 128,
+      "loop_close_frames": 8,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 90,
+      "webp_method": 2,
+      "webp_mb": 5.62,
+      "seconds": 44.5,
+      "similarity": "0.085",
+      "green_residual": 0.0
+    }
+  ],
+  "state_frame": [
+    {
+      "model": "doubao-seedream-4-5-251128",
+      "clip": "run",
+      "file": "state_run.png",
+      "seconds": 19.9,
+      "usage": {
+        "generated_images": 1,
+        "output_tokens": 16384,
+        "total_tokens": 16384
+      }
+    },
+    {
+      "model": "doubao-seedream-4-5-251128",
+      "clip": "walk",
+      "file": "state_walk.png",
+      "seconds": 23.1,
+      "usage": {
+        "generated_images": 1,
+        "output_tokens": 16384,
+        "total_tokens": 16384
+      }
+    },
+    {
+      "model": "doubao-seedream-4-5-251128",
+      "clip": "sleep",
+      "file": "state_sleep.png",
+      "seconds": 145.3,
+      "safe": true,
+      "bounds": {
+        "bbox": [
+          93,
+          659,
+          1752,
+          1828
+        ],
+        "margins": {
+          "left": 93,
+          "top": 659,
+          "right": 296,
+          "bottom": 220
+        },
+        "size": [
+          2048,
+          2048
+        ],
+        "min_required_margin": 81,
+        "safe": true
+      },
+      "attempts": 3,
+      "usage": {
+        "generated_images": 1,
+        "output_tokens": 16384,
+        "total_tokens": 16384
+      }
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Large/generated intermediates. Final demo assets already copied are kept.
+poc_output/**/frames_*/
+poc_output/**/raw_*.mp4
+poc_output/**/raw_*.mov
+poc_output/**/raw_*.webm
+poc_output/**/state_*_raw.jpeg
+poc_output/**/candidates/
+poc_output/**/*.download
+poc_output/**/*.tmp
+poc_output/*verify*.png
+legacy_webp_mvp/**/__pycache__/
+legacy_webp_mvp/assets/**/frame_*.png
+legacy_webp_mvp/assets/compare/*/frame_*.png
+legacy_webp_mvp/assets/native/*/frame_*.png
+
+# Local runtime scratch.
+artifacts/
+tmp/
+logs/

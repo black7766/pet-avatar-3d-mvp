@@ -1,0 +1,2079 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PaiMomo Pet Compare</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #20211d;
+      --muted: #697069;
+      --soft: #8c968f;
+      --page: #f5f7f3;
+      --panel: #ffffff;
+      --panel-soft: #f9fbf8;
+      --line: rgba(32, 33, 29, .13);
+      --green: #116b5a;
+      --green-soft: #e4f4ee;
+      --blue: #2d5b87;
+      --blue-soft: #e7f0f8;
+      --coral: #c35f4a;
+      --coral-soft: #faebe7;
+      --amber: #c78a1c;
+      --amber-soft: #fff3d9;
+      --danger: #b42318;
+      --danger-soft: #fde7e4;
+      --shadow: 0 18px 50px rgba(32, 33, 29, .10);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, rgba(245, 247, 243, .96), rgba(236, 242, 239, .92)),
+        var(--page);
+      padding: 20px;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .app {
+      width: min(1360px, 100%);
+      margin: 0 auto;
+      min-height: calc(100vh - 40px);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .88);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 16px;
+      align-items: center;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(249, 251, 248, .96);
+    }
+
+    .brand {
+      display: flex;
+      min-width: 0;
+      gap: 11px;
+      align-items: center;
+    }
+
+    .mark {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      background:
+        linear-gradient(135deg, #f3bd46 0%, #d87954 48%, #19806d 100%);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .56);
+      flex: 0 0 auto;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 20px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .segments {
+      position: fixed;
+      top: 50%;
+      right: max(18px, calc((100vw - 1360px) / 2 - 96px));
+      z-index: 30;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 6px;
+      width: 74px;
+      padding: 6px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(249, 251, 248, .92);
+      box-shadow: 0 14px 34px rgba(32, 33, 29, .16);
+      transform: translateY(-50%);
+      backdrop-filter: blur(12px);
+    }
+
+    .segment {
+      min-height: 48px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.1;
+      transition: background .16s ease, color .16s ease, transform .16s ease, box-shadow .16s ease;
+      writing-mode: horizontal-tb;
+    }
+
+    .segment:hover {
+      background: rgba(17, 107, 90, .08);
+      color: var(--green);
+      transform: translateX(-2px);
+    }
+
+    .segment[aria-pressed="true"] {
+      background: var(--green);
+      color: #fff;
+      font-weight: 700;
+      box-shadow: 0 6px 16px rgba(17, 107, 90, .22);
+    }
+
+    .content {
+      display: grid;
+      gap: 14px;
+      padding: 16px;
+    }
+
+    .panel,
+    .card {
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      overflow: hidden;
+    }
+
+    .panel-head,
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+      padding: 14px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel-soft);
+    }
+
+    .panel-title,
+    .card-title {
+      font-size: 16px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    .panel-note,
+    .card-path {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .card-path {
+      font-family: Consolas, "SFMono-Regular", monospace;
+      overflow-wrap: anywhere;
+    }
+
+    .pill {
+      flex: 0 0 auto;
+      border-radius: 999px;
+      padding: 5px 8px;
+      border: 1px solid rgba(17, 107, 90, .24);
+      background: var(--green-soft);
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.1;
+      white-space: nowrap;
+    }
+
+    .pill.blue {
+      border-color: rgba(45, 91, 135, .24);
+      background: var(--blue-soft);
+      color: var(--blue);
+    }
+
+    .upload-body {
+      display: grid;
+      grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
+      gap: 14px;
+      padding: 14px;
+    }
+
+    .upload-form {
+      display: grid;
+      gap: 10px;
+      align-content: start;
+    }
+
+    .file-box {
+      display: grid;
+      gap: 8px;
+      min-height: 112px;
+      border: 1px dashed rgba(45, 91, 135, .36);
+      border-radius: 8px;
+      background: #f7fafb;
+      padding: 14px;
+      cursor: pointer;
+    }
+
+    .file-box:focus-within {
+      outline: 2px solid rgba(45, 91, 135, .35);
+      outline-offset: 2px;
+    }
+
+    .file-box input {
+      width: 100%;
+      min-width: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .file-main {
+      color: var(--ink);
+      font-weight: 700;
+      line-height: 1.25;
+    }
+
+    .file-name {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+      overflow-wrap: anywhere;
+    }
+
+    .generate-button {
+      min-height: 42px;
+      border: 0;
+      border-radius: 8px;
+      background: var(--green);
+      color: #fff;
+      font-weight: 700;
+      box-shadow: 0 8px 18px rgba(17, 107, 90, .2);
+    }
+
+    .generate-button:disabled {
+      cursor: not-allowed;
+      opacity: .62;
+      box-shadow: none;
+    }
+
+    .progress-area {
+      display: grid;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .status-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      min-height: 34px;
+      padding: 9px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-soft);
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .status-row strong {
+      color: var(--ink);
+      overflow-wrap: anywhere;
+    }
+
+    .status-row[data-tone="error"] {
+      border-color: rgba(180, 35, 24, .28);
+      background: var(--danger-soft);
+      color: var(--danger);
+    }
+
+    .status-row[data-tone="ok"] {
+      border-color: rgba(17, 107, 90, .25);
+      background: var(--green-soft);
+      color: var(--green);
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 10px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #e6ece8;
+    }
+
+    .progress-fill {
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--green), var(--blue));
+      transition: width .2s ease;
+    }
+
+    .job-log {
+      display: grid;
+      gap: 6px;
+      max-height: 118px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      overflow: auto;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .job-log li {
+      padding: 7px 9px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      overflow-wrap: anywhere;
+    }
+
+    .job-log li[data-tone="error"] {
+      border-color: rgba(180, 35, 24, .25);
+      background: var(--danger-soft);
+      color: var(--danger);
+    }
+
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      padding: 0 14px 14px;
+    }
+
+    .history-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: flex-end;
+      padding: 14px 14px 8px;
+      border-top: 1px solid var(--line);
+    }
+
+    .history-head h3 {
+      font-size: 15px;
+      line-height: 1.25;
+    }
+
+    .history-head span {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+      text-align: right;
+    }
+
+    .history-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 10px;
+      padding: 0 14px 14px;
+      max-height: 360px;
+      overflow: auto;
+    }
+
+    .history-card {
+      display: grid;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 9px;
+      cursor: pointer;
+    }
+
+    .history-card:hover,
+    .history-card:focus {
+      border-color: rgba(17, 107, 90, .36);
+      box-shadow: 0 8px 22px rgba(32, 33, 29, .08);
+      outline: none;
+    }
+
+    .history-card h4 {
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+
+    .history-meta {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+      overflow-wrap: anywhere;
+    }
+
+    .history-stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .history-stat {
+      min-width: 0;
+      display: grid;
+      gap: 2px;
+      border: 1px solid rgba(32, 33, 29, .10);
+      border-radius: 8px;
+      background: #f8faf7;
+      padding: 6px;
+    }
+
+    .history-stat span {
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.2;
+    }
+
+    .history-stat strong {
+      color: var(--ink);
+      font-size: 12px;
+      line-height: 1.2;
+      overflow-wrap: anywhere;
+    }
+
+    .history-data {
+      display: grid;
+      gap: 5px;
+      border: 1px solid rgba(32, 33, 29, .10);
+      border-radius: 8px;
+      background: #fbfcfa;
+      max-height: 96px;
+      overflow: auto;
+      padding: 6px;
+    }
+
+    .history-data-row {
+      display: grid;
+      grid-template-columns: 38px repeat(5, minmax(0, 1fr));
+      gap: 5px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.25;
+    }
+
+    .history-data-row:first-child {
+      color: var(--soft);
+      font-weight: 700;
+    }
+
+    .history-data-row strong {
+      color: var(--ink);
+      font-size: 11px;
+      overflow-wrap: anywhere;
+    }
+
+    .history-clips {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .history-clip {
+      display: grid;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.3;
+      text-align: center;
+      cursor: pointer;
+    }
+
+    .history-clip img {
+      width: 100%;
+      height: 60px;
+      object-fit: contain;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background:
+        linear-gradient(45deg, rgba(32, 33, 29, .045) 25%, transparent 25%),
+        linear-gradient(-45deg, rgba(32, 33, 29, .045) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, rgba(32, 33, 29, .045) 75%),
+        linear-gradient(-45deg, transparent 75%, rgba(32, 33, 29, .045) 75%),
+        #fbfdfb;
+      background-size: 16px 16px;
+      background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+    }
+
+    .card.focus-pulse {
+      border-color: rgba(17, 107, 90, .55);
+      box-shadow: 0 0 0 3px rgba(17, 107, 90, .14), var(--shadow);
+    }
+
+    .result-card {
+      display: grid;
+      gap: 8px;
+      min-height: 126px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 10px;
+    }
+
+    .result-card h3 {
+      font-size: 13px;
+      line-height: 1.25;
+    }
+
+    .result-state {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+      overflow-wrap: anywhere;
+    }
+
+    .result-thumb {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-height: 64px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background:
+        linear-gradient(45deg, rgba(32, 33, 29, .045) 25%, transparent 25%),
+        linear-gradient(-45deg, rgba(32, 33, 29, .045) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, rgba(32, 33, 29, .045) 75%),
+        linear-gradient(-45deg, transparent 75%, rgba(32, 33, 29, .045) 75%),
+        #fbfdfb;
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+      color: var(--soft);
+      font-size: 12px;
+      text-align: center;
+      overflow: hidden;
+    }
+
+    .result-thumb img {
+      width: 100%;
+      height: 100%;
+      max-height: 104px;
+      object-fit: contain;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-end;
+    }
+
+    .section-title {
+      font-size: 16px;
+      line-height: 1.25;
+    }
+
+    .section-note {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+      text-align: right;
+    }
+
+    .compare-grid {
+      display: grid;
+      grid-template-columns: minmax(240px, .64fr) repeat(2, minmax(300px, 1fr));
+      gap: 12px;
+      align-items: start;
+    }
+
+    [data-compare-column="source"] { grid-column: 1; }
+    [data-compare-column="real"] { grid-column: 2; }
+    [data-compare-column="paimomo"] { grid-column: 3; }
+
+    .stage {
+      position: relative;
+      aspect-ratio: 4 / 3;
+      margin: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background:
+        linear-gradient(45deg, rgba(32, 33, 29, .045) 25%, transparent 25%),
+        linear-gradient(-45deg, rgba(32, 33, 29, .045) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, rgba(32, 33, 29, .045) 75%),
+        linear-gradient(-45deg, transparent 75%, rgba(32, 33, 29, .045) 75%),
+        #fbfdfb;
+      background-size: 24px 24px;
+      background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+    }
+
+    .source-stage {
+      background: #eef3f0;
+    }
+
+    .pet,
+    .pet-video,
+    .source-photo {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      z-index: 1;
+    }
+
+    .source-photo {
+      object-fit: contain;
+    }
+
+    .placeholder {
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      bottom: 14px;
+      z-index: 2;
+      display: grid;
+      place-items: center;
+      min-height: 44px;
+      padding: 10px 12px;
+      color: var(--muted);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .9);
+      box-shadow: 0 10px 24px rgba(32, 33, 29, .08);
+      text-align: center;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .placeholder[hidden] { display: none; }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+      padding: 0 12px 12px;
+    }
+
+    .metric {
+      min-height: 54px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfdfb;
+      padding: 8px;
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+      margin-bottom: 5px;
+    }
+
+    .metric strong {
+      display: block;
+      color: var(--ink);
+      font-size: 15px;
+      line-height: 1.12;
+      letter-spacing: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .metric.wide {
+      grid-column: auto;
+    }
+
+    .source-meta {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+      padding: 0 12px 12px;
+    }
+
+    .source-meta-item {
+      min-height: 48px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfdfb;
+      padding: 8px;
+    }
+
+    .source-meta-item span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+      margin-bottom: 6px;
+    }
+
+    .source-meta-item strong {
+      display: block;
+      font-size: 13px;
+      line-height: 1.3;
+      overflow-wrap: anywhere;
+    }
+
+    .foot {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      padding: 12px 14px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      background: var(--panel-soft);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .clip-name {
+      font-family: Consolas, "SFMono-Regular", monospace;
+      color: var(--green);
+      font-weight: 700;
+    }
+
+    @media (max-width: 1540px) {
+      .segments {
+        top: auto;
+        right: 18px;
+        bottom: 18px;
+        transform: none;
+      }
+    }
+
+    @media (max-width: 1080px) {
+
+      .upload-body,
+      .compare-grid {
+        grid-template-columns: 1fr;
+      }
+
+      [data-compare-column] {
+        grid-column: auto;
+      }
+
+      .result-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .history-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 760px) {
+      body { padding: 10px; }
+      .app { min-height: calc(100vh - 20px); }
+      .topbar { grid-template-columns: 1fr; }
+      .segments {
+        top: auto;
+        right: 12px;
+        bottom: 12px;
+        left: 12px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        width: auto;
+        transform: none;
+      }
+      .segment {
+        min-height: 40px;
+      }
+      .content { padding: 12px; }
+      .section-head,
+      .panel-head,
+      .card-head,
+      .foot {
+        align-items: stretch;
+        flex-direction: column;
+      }
+      .section-note { text-align: left; }
+      .pill { width: max-content; }
+    }
+
+    @media (max-width: 520px) {
+      .result-grid,
+      .history-grid,
+      .history-clips,
+      .history-stats,
+      .metric-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .history-data-row {
+        grid-template-columns: 42px repeat(2, minmax(0, 1fr));
+      }
+
+      .metric.wide {
+        grid-column: auto;
+      }
+
+      .status-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="mark" aria-hidden="true"></div>
+        <div>
+          <h1>PaiMomo 3D 宠物动作对比</h1>
+          <p class="subtitle">每个宠物统一展示实体版和萌宠版；页面不提供媒体下载入口。</p>
+        </div>
+      </div>
+
+    </header>
+
+    <section class="content">
+      <section class="panel" aria-labelledby="upload-title">
+        <header class="panel-head">
+          <div>
+            <h2 class="panel-title" id="upload-title">上传图片全自动生成</h2>
+            <p class="panel-note">选择图片后提交到本机后端；后端未接入时，错误会显示在进度区域。</p>
+          </div>
+          <span class="pill blue">/api/generate</span>
+        </header>
+
+        <div class="upload-body">
+          <form class="upload-form" id="generateForm">
+            <label class="file-box" for="photoInput">
+              <span class="file-main">选择宠物照片</span>
+              <input id="photoInput" name="image" type="file" accept="image/png,image/jpeg,image/webp" />
+              <span class="file-name" id="fileName">未选择文件</span>
+            </label>
+            <button class="generate-button" id="generateButton" type="submit">生成 静息 / 奔跑 / 走动 / 睡觉</button>
+          </form>
+
+          <div class="progress-area">
+            <div class="status-row" id="jobStatus" role="status" aria-live="polite" data-tone="idle">
+              <strong>等待上传</strong>
+              <span id="jobPercent">0%</span>
+            </div>
+            <div class="progress-track" aria-hidden="true">
+              <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <ol class="job-log" id="jobLog">
+              <li>选择图片后点击生成。</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="result-grid" id="resultGrid" aria-label="生成结果占位">
+          <article class="result-card" data-result-card="source">
+            <h3>上传原图</h3>
+            <div class="result-thumb" data-result-thumb="source">等待选择</div>
+            <p class="result-state" data-result-state="source">未开始</p>
+          </article>
+          <article class="result-card" data-result-card="idle">
+            <h3>静息</h3>
+            <div class="result-thumb" data-result-thumb="idle">待生成</div>
+            <p class="result-state" data-result-state="idle">等待任务</p>
+          </article>
+          <article class="result-card" data-result-card="run">
+            <h3>奔跑</h3>
+            <div class="result-thumb" data-result-thumb="run">待生成</div>
+            <p class="result-state" data-result-state="run">等待任务</p>
+          </article>
+          <article class="result-card" data-result-card="walk">
+            <h3>走动</h3>
+            <div class="result-thumb" data-result-thumb="walk">待生成</div>
+            <p class="result-state" data-result-state="walk">等待任务</p>
+          </article>
+          <article class="result-card" data-result-card="sleep">
+            <h3>睡觉</h3>
+            <div class="result-thumb" data-result-thumb="sleep">待生成</div>
+            <p class="result-state" data-result-state="sleep">等待任务</p>
+          </article>
+        </div>
+
+        <div class="history-head">
+          <div>
+            <h3>生成历史</h3>
+            <span>每次上传完成都会追加在这里，不覆盖之前结果。</span>
+          </div>
+          <span id="historyCount">0 个生成结果</span>
+        </div>
+        <div class="history-grid" id="historyGrid" aria-label="生成历史"></div>
+      </section>
+
+      <nav class="segments" aria-label="动作切换">
+        <button class="segment" type="button" data-clip="idle" aria-pressed="true">静息</button>
+        <button class="segment" type="button" data-clip="run" aria-pressed="false">奔跑</button>
+        <button class="segment" type="button" data-clip="walk" aria-pressed="false">走动</button>
+        <button class="segment" type="button" data-clip="sleep" aria-pressed="false">睡觉</button>
+      </nav>
+
+      <div class="section-head">
+        <h2 class="section-title">原图与动作对比</h2>
+        <p class="section-note">任一版本缺少当前动作时继续展示 idle，并在卡片内提示。</p>
+      </div>
+
+      <section class="compare-grid" aria-label="原图和版本对比">
+        <article class="card source-card" data-compare-column="source">
+          <header class="card-head">
+            <div>
+              <h2 class="card-title">样例原始猫照片</h2>
+              <div class="card-path">poc_output/original_cat.jpg</div>
+            </div>
+            <div class="pill blue">原图</div>
+          </header>
+
+          <div class="stage source-stage">
+            <img class="source-photo" id="sourcePhoto" alt="原始猫照片" />
+            <div class="placeholder" id="sourcePlaceholder">原图加载中</div>
+          </div>
+
+          <div class="source-meta">
+            <div class="source-meta-item">
+              <span>本地路径</span>
+              <strong>poc_output/original_cat.jpg</strong>
+            </div>
+            <div class="source-meta-item">
+              <span>状态</span>
+              <strong id="sourceState">加载中</strong>
+            </div>
+          </div>
+
+          <footer class="foot">
+            <span>不会跳转到媒体地址</span>
+            <span>只在页面内预览</span>
+          </footer>
+        </article>
+
+        <div id="cards" class="compare-grid-inner" style="display: contents;"></div>
+      </section>
+    </section>
+  </main>
+
+  <template id="pet-card-template">
+    <article class="card">
+      <header class="card-head">
+        <div>
+          <h2 class="card-title"></h2>
+          <div class="card-path"></div>
+        </div>
+        <div class="pill"></div>
+      </header>
+
+      <div class="stage">
+        <img class="pet" alt="" />
+        <video class="pet-video" muted playsinline preload="auto" hidden></video>
+        <div class="placeholder" hidden>动画文件未找到</div>
+      </div>
+
+      <div class="metric-grid">
+        <div class="metric wide">
+          <span>stylize 总耗时</span>
+          <strong data-metric="stylizeSeconds">—</strong>
+        </div>
+        <div class="metric">
+          <span>animate seconds</span>
+          <strong data-metric="animateSeconds">—</strong>
+        </div>
+        <div class="metric">
+          <span>matte seconds</span>
+          <strong data-metric="matteSeconds">—</strong>
+        </div>
+        <div class="metric">
+          <span>webp_frames / frames</span>
+          <strong data-metric="frames">—</strong>
+        </div>
+        <div class="metric">
+          <span>webp_mb</span>
+          <strong data-metric="webpMb">—</strong>
+        </div>
+        <div class="metric">
+          <span>green_residual</span>
+          <strong data-metric="greenResidual">—</strong>
+        </div>
+        <div class="metric">
+          <span>webp_fps</span>
+          <strong data-metric="webpFps">—</strong>
+        </div>
+      </div>
+
+      <footer class="foot">
+        <span>当前展示 <span class="clip-name"></span></span>
+        <span class="metrics-state">metrics.json 读取中</span>
+      </footer>
+    </article>
+  </template>
+
+  <script>
+    const WAITING = "—";
+    const clips = ["idle", "run", "walk", "sleep"];
+    const clipLabels = { idle: "静息", run: "奔跑", walk: "走动", sleep: "睡觉" };
+    const assetVersion = String(Date.now());
+    const variantOrder = { real: 0, paimomo: 1 };
+    const variantLabels = { real: "实体版", paimomo: "萌宠版" };
+    const variantBadges = { real: "实体", paimomo: "萌宠" };
+    const pets = [
+      { id: "pet1", title: "示例宠物 实体版", dir: "pet1", badge: "实体", clips: ["idle", "run", "walk", "sleep"], fallbackClip: "idle" },
+      { id: "pet_paimomo", title: "示例宠物 萌宠版", dir: "pet_paimomo", badge: "萌宠", clips: ["idle", "run", "walk", "sleep"], fallbackClip: "idle" }
+    ];
+
+    const sourceCandidates = [
+      "original_cat.jpg",
+      "../inputs/pet_paimomo.jpg",
+      "/inputs/pet_paimomo.jpg",
+      "inputs/pet_paimomo.jpg"
+    ];
+
+    let activeClip = "idle";
+    let selectedPreviewUrl = "";
+    let activeJobToken = 0;
+    const POLL_INTERVAL_MS = 2500;
+    const POLL_RETRY_DELAY_MS = 8000;
+    const MAX_TRANSIENT_POLL_ERRORS = 8;
+
+    function assetUrl(path) {
+      return `${path}${path.includes("?") ? "&" : "?"}v=${assetVersion}`;
+    }
+
+    const cardsRoot = document.getElementById("cards");
+    const template = document.getElementById("pet-card-template");
+    const cardViews = new Map();
+    const sourceCardViews = new Map();
+    const generateForm = document.getElementById("generateForm");
+    const photoInput = document.getElementById("photoInput");
+    const fileName = document.getElementById("fileName");
+    const generateButton = document.getElementById("generateButton");
+    const jobStatus = document.getElementById("jobStatus");
+    const jobPercent = document.getElementById("jobPercent");
+    const progressFill = document.getElementById("progressFill");
+    const jobLog = document.getElementById("jobLog");
+    const historyGrid = document.getElementById("historyGrid");
+    const historyCount = document.getElementById("historyCount");
+    const historyItems = new Map();
+    const compareColumnOrder = { source: 0, real: 1, paimomo: 2 };
+    const compareGroupOrders = new Map([["sample", 0]]);
+    let compareGroupSequence = 1;
+
+    function compareColumnFromPet(pet) {
+      if (pet?.compareColumn) return pet.compareColumn;
+      if (pet?.variant === "real" || pet?.variant === "paimomo") return pet.variant;
+      if (pet?.id === "pet1") return "real";
+      if (pet?.id === "pet_paimomo") return "paimomo";
+      return "";
+    }
+
+    function compareGroupKeyFromPet(pet) {
+      if (pet?.basePetId) return pet.basePetId;
+      if (pet?.base_pet_id) return pet.base_pet_id;
+      if (pet?.id === "pet1" || pet?.id === "pet_paimomo") return "sample";
+      return pet?.id || "unknown";
+    }
+
+    function compareGroupOrderFor(groupKey) {
+      const key = groupKey || "unknown";
+      if (!compareGroupOrders.has(key)) {
+        compareGroupOrders.set(key, compareGroupSequence);
+        compareGroupSequence += 1;
+      }
+      return compareGroupOrders.get(key);
+    }
+
+    function applyComparePlacement(node, groupKey, column) {
+      if (!node || !column) return;
+      node.dataset.compareColumn = column;
+      const groupOrder = compareGroupOrderFor(groupKey);
+      node.style.order = String(groupOrder * 10 + (compareColumnOrder[column] ?? 9));
+    }
+
+    function isNumber(value) {
+      return typeof value === "number" && Number.isFinite(value);
+    }
+
+    function asSeconds(value) {
+      return isNumber(value) ? `${value.toFixed(1)}s` : WAITING;
+    }
+
+    function asDuration(value) {
+      if (!isNumber(value)) return WAITING;
+      if (value < 60) return `${value.toFixed(1)}s`;
+      const minutes = Math.floor(value / 60);
+      const seconds = Math.round(value - minutes * 60);
+      return `${minutes}分${String(seconds).padStart(2, "0")}秒`;
+    }
+
+    function asMb(value) {
+      return isNumber(value) ? `${value.toFixed(2)} MB` : WAITING;
+    }
+
+    function asPercent(value) {
+      return isNumber(value) ? `${(value * 100).toFixed(2)}%` : WAITING;
+    }
+
+    function asPlain(value, digits = 1) {
+      return isNumber(value) ? value.toFixed(digits) : WAITING;
+    }
+
+    function clampPercent(value) {
+      if (!isNumber(value)) return 0;
+      const normalized = value <= 1 ? value * 100 : value;
+      return Math.max(0, Math.min(100, normalized));
+    }
+
+    function sumSeconds(items) {
+      return Array.isArray(items)
+        ? items.reduce((sum, item) => sum + (isNumber(item?.seconds) ? item.seconds : 0), 0)
+        : 0;
+    }
+
+    function formatDateTime(value) {
+      if (!value) return "";
+      const date = typeof value === "number" ? new Date(value * 1000) : new Date(String(value));
+      if (Number.isNaN(date.getTime())) return String(value);
+      const parts = new Intl.DateTimeFormat("zh-CN", {
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false
+      }).formatToParts(date).reduce((acc, part) => {
+        acc[part.type] = part.value;
+        return acc;
+      }, {});
+      return `${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
+    }
+
+    function metricItems(metrics, key) {
+      return Array.isArray(metrics?.[key]) ? metrics[key] : [];
+    }
+
+    function sumStylizeSeconds(metrics) {
+      const total = sumSeconds(metricItems(metrics, "stylize"));
+      return total > 0 ? total : undefined;
+    }
+
+    function findClipItem(metrics, key, clip) {
+      const items = metricItems(metrics, key);
+      return items.find((item) => item?.clip === clip);
+    }
+
+    function displayClipForView(view) {
+      if (!view.availableClips || view.availableClips.size === 0) return null;
+      if (view.availableClips.has(activeClip)) return activeClip;
+      if (view.pet.fallbackClip && view.availableClips.has(view.pet.fallbackClip)) return view.pet.fallbackClip;
+      return [...view.availableClips][0] || null;
+    }
+
+    function metricValue(metrics, clip) {
+      const animate = findClipItem(metrics, "animate", clip);
+      const matte = findClipItem(metrics, "matte", clip);
+      const webpFrames = matte?.webp_frames ?? animate?.webp_frames;
+      const frames = matte?.frames ?? animate?.frames;
+      const frameText = webpFrames != null && frames != null && webpFrames !== frames
+        ? `${webpFrames} / ${frames}`
+        : `${webpFrames ?? frames ?? WAITING}`;
+
+      return {
+        stylizeSeconds: asSeconds(sumStylizeSeconds(metrics)),
+        animateSeconds: asSeconds(animate?.seconds),
+        matteSeconds: asSeconds(matte?.seconds),
+        frames: frameText,
+        webpMb: asMb(matte?.webp_mb ?? animate?.webp_mb),
+        greenResidual: asPercent(matte?.green_residual),
+        webpFps: asPlain(matte?.webp_fps ?? animate?.webp_fps)
+      };
+    }
+
+    function setMetric(card, name, value) {
+      const node = card.querySelector(`[data-metric="${name}"]`);
+      if (node) node.textContent = value ?? WAITING;
+    }
+
+    function renderMetrics(view) {
+      const displayClip = displayClipForView(view);
+      if (!displayClip) {
+        ["stylizeSeconds", "animateSeconds", "matteSeconds", "frames", "webpMb", "greenResidual", "webpFps"]
+          .forEach((name) => setMetric(view.card, name, name === "stylizeSeconds" ? asSeconds(sumStylizeSeconds(view.metrics)) : WAITING));
+        const clipName = view.card.querySelector(".clip-name");
+        if (clipName) clipName.textContent = "尚未生成动作";
+        return;
+      }
+      const values = metricValue(view.metrics, displayClip);
+      Object.entries(values).forEach(([name, value]) => setMetric(view.card, name, value));
+
+      const clipName = view.card.querySelector(".clip-name");
+      if (activeClip === displayClip) {
+        clipName.textContent = clipLabels[displayClip] || displayClip;
+      } else {
+        clipName.textContent = `${clipLabels[displayClip] || displayClip}（${clipLabels[activeClip] || activeClip} 未生成）`;
+      }
+    }
+
+    function setImage(view) {
+      hidePetVideo(view);
+      const img = view.card.querySelector(".pet");
+      const placeholder = view.card.querySelector(".placeholder");
+      const displayClip = displayClipForView(view);
+      if (!displayClip) {
+        img.hidden = true;
+        img.removeAttribute("src");
+        placeholder.hidden = false;
+        placeholder.textContent = "动作生成中";
+        return;
+      }
+      const canPlayClip = view.availableClips?.has(activeClip);
+      const src = assetUrl(`${view.pet.dir}/anim_${displayClip}.webp`);
+
+      placeholder.hidden = canPlayClip;
+      placeholder.textContent = canPlayClip ? "" : `${view.pet.title} 未生成 ${activeClip}，当前展示 ${displayClip}`;
+      img.hidden = false;
+      img.alt = `${view.pet.title} ${displayClip} animation`;
+      img.loading = "lazy";
+      img.decoding = "async";
+      img.onload = () => {
+        placeholder.hidden = canPlayClip;
+        img.hidden = false;
+      };
+      img.onerror = () => {
+        img.hidden = true;
+        placeholder.hidden = false;
+        placeholder.textContent = "动画文件未找到";
+      };
+      img.src = src;
+    }
+
+    async function probeAvailableClips(view) {
+      const found = await Promise.all(clips.map(async (clip) => {
+        try {
+          const response = await fetch(`${view.pet.dir}/anim_${clip}.webp`, {
+            method: "HEAD",
+            cache: "no-store"
+          });
+          return response.ok ? clip : null;
+        } catch (error) {
+          return view.pet.clips.includes(clip) ? clip : null;
+        }
+      }));
+
+      view.availableClips = new Set(found.filter(Boolean));
+      if (view.pet.fallbackClip && view.pet.clips?.includes(view.pet.fallbackClip)) {
+        view.availableClips.add(view.pet.fallbackClip);
+      }
+      renderView(view);
+    }
+
+    function renderView(view) {
+      renderMetrics(view);
+      setImage(view);
+    }
+
+    async function loadMetrics(view) {
+      const state = view.card.querySelector(".metrics-state");
+      try {
+        const response = await fetch(`${view.pet.dir}/metrics.json`, { cache: "no-store" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        view.metrics = await response.json();
+        state.textContent = "metrics.json 已读取";
+      } catch (error) {
+        view.metrics = null;
+        state.textContent = "metrics.json 未读取";
+      }
+      renderMetrics(view);
+    }
+
+    function createCard(pet) {
+      if (cardViews.has(pet.id)) {
+        const view = cardViews.get(pet.id);
+        view.pet = { ...view.pet, ...pet };
+        const compareColumn = compareColumnFromPet(view.pet);
+        if (compareColumn) applyComparePlacement(view.card, compareGroupKeyFromPet(view.pet), compareColumn);
+        view.availableClips = new Set(pet.clips || [...view.availableClips]);
+        if (pet.metrics) {
+          view.metrics = pet.metrics;
+          const state = view.card.querySelector(".metrics-state");
+          if (state) state.textContent = "metrics.json 已读取";
+        }
+        renderView(view);
+        probeAvailableClips(view);
+        loadMetrics(view);
+        return view;
+      }
+
+      const node = template.content.firstElementChild.cloneNode(true);
+      node.querySelector(".card-title").textContent = pet.title;
+      node.querySelector(".card-path").textContent = `poc_output/${pet.dir}`;
+      node.querySelector(".pill").textContent = pet.badge;
+      const compareColumn = compareColumnFromPet(pet);
+      if (compareColumn) applyComparePlacement(node, compareGroupKeyFromPet(pet), compareColumn);
+      cardsRoot.appendChild(node);
+
+      const view = { pet, card: node, metrics: pet.metrics || null, availableClips: new Set(pet.clips) };
+      cardViews.set(pet.id, view);
+      renderView(view);
+      probeAvailableClips(view);
+      loadMetrics(view);
+      return view;
+    }
+
+    function setActiveClip(clip) {
+      if (!clips.includes(clip)) return;
+      cardViews.forEach(hidePetVideo);
+      activeClip = clip;
+      document.querySelectorAll(".segment").forEach((button) => {
+        button.setAttribute("aria-pressed", String(button.dataset.clip === activeClip));
+      });
+      cardViews.forEach(renderView);
+    }
+
+    function hidePetVideo(view) {
+      const video = view?.card?.querySelector(".pet-video");
+      if (!video) return;
+      video.pause();
+      video.onended = null;
+      video.onerror = null;
+      video.onloadeddata = null;
+      video.hidden = true;
+      video.removeAttribute("src");
+      video.load();
+    }
+
+    function loadSourcePhoto() {
+      const img = document.getElementById("sourcePhoto");
+      const placeholder = document.getElementById("sourcePlaceholder");
+      const sourceState = document.getElementById("sourceState");
+      let index = 0;
+
+      function tryNext() {
+        if (index >= sourceCandidates.length) {
+          img.hidden = true;
+          placeholder.hidden = false;
+          placeholder.textContent = "当前服务未暴露 inputs 原图路径";
+          sourceState.textContent = "未加载";
+          return;
+        }
+        img.src = sourceCandidates[index];
+        index += 1;
+      }
+
+      img.onload = () => {
+        img.hidden = false;
+        placeholder.hidden = true;
+        sourceState.textContent = "已加载";
+      };
+      img.onerror = tryNext;
+      tryNext();
+    }
+
+    function setJobStatus(label, options = {}) {
+      const { detail = "", progress = null, tone = "idle" } = options;
+      const currentProgress = progress == null ? Number.parseFloat(progressFill.style.width) || 0 : clampPercent(progress);
+      jobStatus.dataset.tone = tone;
+      jobStatus.querySelector("strong").textContent = detail ? `${label}：${detail}` : label;
+      jobPercent.textContent = `${Math.round(currentProgress)}%`;
+      progressFill.style.width = `${currentProgress}%`;
+    }
+
+    function addLog(message, tone = "idle") {
+      const item = document.createElement("li");
+      item.textContent = message;
+      if (tone !== "idle") item.dataset.tone = tone;
+      jobLog.prepend(item);
+      while (jobLog.children.length > 8) {
+        jobLog.lastElementChild?.remove();
+      }
+    }
+
+    function setResultState(name, state, detail = "") {
+      const stateNode = document.querySelector(`[data-result-state="${name}"]`);
+      const thumbNode = document.querySelector(`[data-result-thumb="${name}"]`);
+      if (stateNode) stateNode.textContent = detail ? `${state}：${detail}` : state;
+      if (thumbNode && name !== "source") thumbNode.textContent = state;
+    }
+
+    function resetGeneratedResults() {
+      clips.forEach((clip) => {
+        setResultState(clip, "等待任务");
+      });
+    }
+
+    function setUploadPreview(file) {
+      const stateNode = document.querySelector('[data-result-state="source"]');
+      const thumbNode = document.querySelector('[data-result-thumb="source"]');
+      if (!stateNode || !thumbNode) return;
+
+      if (selectedPreviewUrl) {
+        URL.revokeObjectURL(selectedPreviewUrl);
+        selectedPreviewUrl = "";
+      }
+
+      thumbNode.textContent = "";
+      if (!file) {
+        thumbNode.textContent = "等待选择";
+        stateNode.textContent = "未开始";
+        return;
+      }
+
+      selectedPreviewUrl = URL.createObjectURL(file);
+      const img = document.createElement("img");
+      img.alt = "上传原图预览";
+      img.loading = "lazy";
+      img.decoding = "async";
+      img.src = selectedPreviewUrl;
+      thumbNode.replaceChildren(img);
+      stateNode.textContent = `${file.name} · ${(file.size / 1024 / 1024).toFixed(2)} MB`;
+    }
+
+    async function fetchJson(url, options = {}) {
+      let response;
+      try {
+        response = await fetch(url, options);
+      } catch (error) {
+        throw new Error(`请求失败：${error.message}`);
+      }
+
+      const text = await response.text();
+      let payload = null;
+      if (text) {
+        try {
+          payload = JSON.parse(text);
+        } catch (error) {
+          payload = null;
+        }
+      }
+
+      if (!response.ok) {
+        const message = payload?.message || payload?.error || text.slice(0, 120) || response.statusText;
+        throw new Error(`HTTP ${response.status} ${message}`);
+      }
+
+      if (!payload) {
+        throw new Error("后端返回非 JSON 响应");
+      }
+      return payload;
+    }
+
+    function normalizeStatus(status) {
+      return String(status || "running").toLowerCase();
+    }
+
+    function updateResultsFromPayload(payload) {
+      const results = payload?.results || payload?.result || {};
+      const clipResults = results?.clips || results;
+
+      clips.forEach((clip) => {
+        const item = clipResults?.[clip];
+        if (!item) return;
+        const state = item.status || item.state || "已返回";
+        const detail = item.message || item.name || item.file || "后端已返回资源";
+        setResultState(clip, state, detail);
+      });
+    }
+
+    function renderUploadedClipPreview(petId, clip, stateText) {
+      const stateNode = document.querySelector(`[data-result-state="${clip}"]`);
+      const thumbNode = document.querySelector(`[data-result-thumb="${clip}"]`);
+      if (!stateNode || !thumbNode) return;
+
+      const img = document.createElement("img");
+      img.alt = `${petId} ${clipLabels[clip] || clip}`;
+      img.loading = "lazy";
+      img.decoding = "async";
+      img.src = `/${encodeURIComponent(petId)}/anim_${clip}.webp?t=${Date.now()}`;
+      img.onload = () => {
+        thumbNode.replaceChildren(img);
+        stateNode.textContent = stateText;
+      };
+      img.onerror = () => {
+        stateNode.textContent = "WebP 尚未生成";
+      };
+    }
+
+    function updateGeneratedPreviewFromJob(payload) {
+      const variantItems = variantItemsFromPayload(payload);
+      if (!variantItems.length) return;
+
+      clips.forEach((clip) => {
+        const readyItems = variantItems.filter((item) => {
+          const matteItems = metricItems(item.metrics || {}, "matte");
+          return matteItems.some((metric) => metric?.clip === clip);
+        });
+        if (readyItems.length) {
+          renderUploadedClipPreview(
+            petIdFromItem(readyItems[0]),
+            clip,
+            `已生成 ${readyItems.length}/${variantItems.length} 版`
+          );
+        } else {
+          setResultState(clip, "生成中");
+        }
+      });
+    }
+
+    function updateLogFromPayload(payload) {
+      const logs = Array.isArray(payload?.logs) ? payload.logs : [];
+      if (!logs.length) return;
+      jobLog.replaceChildren();
+      logs.slice(-8).reverse().forEach((line) => {
+        const item = document.createElement("li");
+        item.textContent = line;
+        if (/failed|error|失败/i.test(line)) item.dataset.tone = "error";
+        jobLog.appendChild(item);
+      });
+    }
+
+    function renderHistoryCount() {
+      const versionCount = historyItems.size;
+      const petCount = new Set(
+        [...historyItems.values()].map((card) => card.dataset.basePetId || card.dataset.petId)
+      ).size;
+      historyCount.textContent = petCount
+        ? `${petCount} 个宠物 / ${versionCount} 个版本`
+        : "0 个宠物";
+    }
+
+    function clipMetricSummary(metrics, clip) {
+      const matte = findClipItem(metrics, "matte", clip);
+      if (!matte) return "未完成";
+      const frames = matte.webp_frames ?? matte.frames ?? WAITING;
+      const mb = isNumber(matte.webp_mb) ? `${matte.webp_mb.toFixed(2)}MB` : WAITING;
+      return `${frames} 帧 / ${mb}`;
+    }
+
+    function totalMetricSeconds(metrics) {
+      return sumSeconds(metricItems(metrics, "stylize"))
+        + sumSeconds(metricItems(metrics, "animate"))
+        + sumSeconds(metricItems(metrics, "matte"));
+    }
+
+    function historyMetaText(item, metrics) {
+      const created = formatDateTime(item.created_at_iso || item.finished_at_iso || item.updated_at_iso || item.updated_at);
+      const source = item.source_url || item.sourceUrl || "";
+      const total = totalMetricSeconds(metrics);
+      const parts = [];
+      if (created) parts.push(`生成时间：${created}`);
+      if (isNumber(total) && total > 0) parts.push(`流程耗时：${asDuration(total)}`);
+      if (source) parts.push(`原图：${source}`);
+      return parts.join(" · ") || "本地生成结果";
+    }
+
+    function usageTotal(metrics, key) {
+      return metricItems(metrics, key).reduce((sum, item) => {
+        const usage = item?.usage || {};
+        const total = usage.total_tokens ?? usage.output_tokens ?? usage.completion_tokens;
+        return sum + (isNumber(total) ? total : 0);
+      }, 0);
+    }
+
+    function matteSizeTotal(metrics) {
+      return metricItems(metrics, "matte").reduce((sum, item) => {
+        return sum + (isNumber(item?.webp_mb) ? item.webp_mb : 0);
+      }, 0);
+    }
+
+    function maxGreenResidual(metrics) {
+      const values = metricItems(metrics, "matte")
+        .map((item) => item?.green_residual)
+        .filter(isNumber);
+      return values.length ? Math.max(...values) : undefined;
+    }
+
+    function createHistoryStat(label, value) {
+      const stat = document.createElement("div");
+      stat.className = "history-stat";
+      const labelNode = document.createElement("span");
+      labelNode.textContent = label;
+      const valueNode = document.createElement("strong");
+      valueNode.textContent = value ?? WAITING;
+      stat.append(labelNode, valueNode);
+      return stat;
+    }
+
+    function createHistoryStats(item, metrics) {
+      const stylizeSeconds = sumSeconds(metricItems(metrics, "stylize"));
+      const animateSeconds = sumSeconds(metricItems(metrics, "animate"));
+      const matteSeconds = sumSeconds(metricItems(metrics, "matte"));
+      const totalSeconds = totalMetricSeconds(metrics);
+      const totalSize = matteSizeTotal(metrics);
+      const totalTokens = usageTotal(metrics, "stylize") + usageTotal(metrics, "animate");
+      const generatedImages = metricItems(metrics, "stylize").reduce((sum, item) => {
+        const count = item?.usage?.generated_images;
+        return sum + (isNumber(count) ? count : 0);
+      }, 0);
+      const finished = item.finished_at && item.started_at
+        ? item.finished_at - item.started_at
+        : undefined;
+
+      const wrap = document.createElement("div");
+      wrap.className = "history-stats";
+      wrap.append(
+        createHistoryStat("流程总耗时", totalSeconds > 0 ? asDuration(totalSeconds) : WAITING),
+        createHistoryStat("任务墙钟", isNumber(finished) ? asDuration(finished) : WAITING),
+        createHistoryStat("Seedream", stylizeSeconds > 0 ? asDuration(stylizeSeconds) : WAITING),
+        createHistoryStat("Seedance", animateSeconds > 0 ? asDuration(animateSeconds) : WAITING),
+        createHistoryStat("抠图合成", matteSeconds > 0 ? asDuration(matteSeconds) : WAITING),
+        createHistoryStat("WebP 总体积", totalSize > 0 ? `${totalSize.toFixed(2)} MB` : WAITING),
+        createHistoryStat("Token 合计", totalTokens > 0 ? totalTokens.toLocaleString("zh-CN") : WAITING),
+        createHistoryStat("生图张数", generatedImages > 0 ? `${generatedImages}` : WAITING),
+        createHistoryStat("最大绿残留", asPercent(maxGreenResidual(metrics)))
+      );
+      return wrap;
+    }
+
+    function createHistoryData(metrics) {
+      const data = document.createElement("div");
+      data.className = "history-data";
+
+      const header = document.createElement("div");
+      header.className = "history-data-row";
+      ["动作", "动画", "抠图", "帧数", "FPS", "体积/绿边"].forEach((text) => {
+        const node = document.createElement("strong");
+        node.textContent = text;
+        header.appendChild(node);
+      });
+      data.appendChild(header);
+
+      clips.forEach((clip) => {
+        const animate = findClipItem(metrics, "animate", clip);
+        const matte = findClipItem(metrics, "matte", clip);
+        const row = document.createElement("div");
+        row.className = "history-data-row";
+        [
+          clip,
+          asSeconds(animate?.seconds),
+          asSeconds(matte?.seconds),
+          `${matte?.webp_frames ?? matte?.frames ?? WAITING}`,
+          asPlain(matte?.webp_fps),
+          `${asMb(matte?.webp_mb)} / ${asPercent(matte?.green_residual)}`
+        ].forEach((text, index) => {
+          const node = index === 0 ? document.createElement("strong") : document.createElement("span");
+          node.textContent = text;
+          row.appendChild(node);
+        });
+        data.appendChild(row);
+      });
+
+      return data;
+    }
+
+    function petIdFromItem(item) {
+      return item?.pet_id || item?.petId || item?.id;
+    }
+
+    function basePetIdFromItem(item) {
+      return item?.base_pet_id || item?.basePetId || petIdFromItem(item);
+    }
+
+    function variantLabelFromItem(item) {
+      if (variantLabels[item?.variant]) return variantLabels[item.variant];
+      const raw = item?.variant_label || item?.variantLabel || "";
+      if (raw && !/^\?+$/.test(String(raw))) return raw;
+      return "自动生成";
+    }
+
+    function variantBadgeFromItem(item) {
+      if (variantBadges[item?.variant]) return variantBadges[item.variant];
+      return "生成";
+    }
+
+    function isDisplayVariant(item) {
+      return item?.variant === "real" || item?.variant === "paimomo";
+    }
+
+    function compareVariantItems(a, b) {
+      const baseA = basePetIdFromItem(a) || "";
+      const baseB = basePetIdFromItem(b) || "";
+      const timeA = Number(a?.updated_at || a?.finished_at || a?.created_at || 0);
+      const timeB = Number(b?.updated_at || b?.finished_at || b?.created_at || 0);
+      if (baseA !== baseB) {
+        return timeB - timeA || String(baseB).localeCompare(String(baseA));
+      }
+      return (variantOrder[a?.variant] ?? 99) - (variantOrder[b?.variant] ?? 99);
+    }
+
+    function normalizedVariantItems(items) {
+      return items
+        .filter((item) => petIdFromItem(item) && isDisplayVariant(item))
+        .sort(compareVariantItems);
+    }
+
+    function variantItemsFromPayload(payload) {
+      if (Array.isArray(payload?.variants)) {
+        return normalizedVariantItems(payload.variants);
+      }
+      const metricVariants = payload?.metrics?.variants;
+      if (Array.isArray(metricVariants)) {
+        return normalizedVariantItems(metricVariants);
+      }
+      return petIdFromItem(payload) && isDisplayVariant(payload) ? [payload] : [];
+    }
+
+    function clipListFromItem(item) {
+      if (Array.isArray(item?.clips)) {
+        return item.clips.filter((clip) => clips.includes(clip));
+      }
+      if (item?.clips && typeof item.clips === "object") {
+        return clips.filter((clip) => item.clips[clip]);
+      }
+      return [...clips];
+    }
+
+    function sourceUrlFromItem(item, petId) {
+      const basePetId = basePetIdFromItem(item) || petId;
+      return item?.source_url || item?.sourceUrl || `/inputs/${encodeURIComponent(basePetId)}.jpg`;
+    }
+
+    function scrollToComparePet(petId) {
+      const view = cardViews.get(petId);
+      const target = view?.card || sourceCardViews.get(petId);
+      if (!target) return;
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      target.classList.add("focus-pulse");
+      window.setTimeout(() => target.classList.remove("focus-pulse"), 1400);
+    }
+
+    function createGeneratedSourceCard(item) {
+      const petId = petIdFromItem(item);
+      const basePetId = basePetIdFromItem(item);
+      const sourceKey = basePetId || petId;
+      if (!petId || !sourceKey || sourceCardViews.has(sourceKey)) return;
+
+      const sourceUrl = sourceUrlFromItem(item, petId);
+      const card = document.createElement("article");
+      card.className = "card source-card";
+      card.dataset.generatedSource = sourceKey;
+      applyComparePlacement(card, sourceKey, "source");
+
+      const head = document.createElement("header");
+      head.className = "card-head";
+
+      const titleWrap = document.createElement("div");
+      const title = document.createElement("h2");
+      title.className = "card-title";
+      title.textContent = `${sourceKey} 上传原图`;
+      const path = document.createElement("div");
+      path.className = "card-path";
+      path.textContent = sourceUrl;
+      titleWrap.append(title, path);
+
+      const badge = document.createElement("div");
+      badge.className = "pill blue";
+      badge.textContent = "上传原图";
+      head.append(titleWrap, badge);
+
+      const stage = document.createElement("div");
+      stage.className = "stage source-stage";
+      const img = document.createElement("img");
+      img.className = "source-photo";
+      img.alt = `${sourceKey} 上传原图`;
+      img.loading = "lazy";
+      img.decoding = "async";
+      const placeholder = document.createElement("div");
+      placeholder.className = "placeholder";
+      placeholder.textContent = "上传原图加载中";
+      stage.append(img, placeholder);
+
+      const meta = document.createElement("div");
+      meta.className = "source-meta";
+      const localPath = document.createElement("div");
+      localPath.className = "source-meta-item";
+      const localPathLabel = document.createElement("span");
+      localPathLabel.textContent = "本地路径";
+      const localPathValue = document.createElement("strong");
+      localPathValue.textContent = sourceUrl;
+      localPath.append(localPathLabel, localPathValue);
+      const state = document.createElement("div");
+      state.className = "source-meta-item";
+      const stateLabel = document.createElement("span");
+      stateLabel.textContent = "状态";
+      const stateValue = document.createElement("strong");
+      stateValue.textContent = "加载中";
+      state.append(stateLabel, stateValue);
+      meta.append(localPath, state);
+
+      const foot = document.createElement("footer");
+      foot.className = "foot";
+      const footLeft = document.createElement("span");
+      footLeft.textContent = "自动生成任务原图";
+      const footRight = document.createElement("span");
+      footRight.textContent = "与右侧动作卡联动对比";
+      foot.append(footLeft, footRight);
+
+      img.onload = () => {
+        img.hidden = false;
+        placeholder.hidden = true;
+        stateValue.textContent = "已加载";
+      };
+      img.onerror = () => {
+        img.hidden = true;
+        placeholder.hidden = false;
+        placeholder.textContent = "上传原图未找到";
+        stateValue.textContent = "未加载";
+      };
+      img.src = sourceUrl;
+
+      card.append(head, stage, meta, foot);
+      cardsRoot.appendChild(card);
+      sourceCardViews.set(sourceKey, card);
+    }
+
+    function addGeneratedCompareItem(item) {
+      const petId = petIdFromItem(item);
+      if (!petId) return;
+      if (!isDisplayVariant(item)) return;
+      const basePetId = basePetIdFromItem(item) || petId;
+      const variantLabel = variantLabelFromItem(item);
+      const availableClips = clipListFromItem(item);
+      createGeneratedSourceCard(item);
+      if (!availableClips.length) return;
+      createCard({
+        id: petId,
+        title: `${basePetId} ${variantLabel}`,
+        dir: petId,
+        badge: variantBadgeFromItem(item),
+        variant: item.variant,
+        basePetId,
+        compareColumn: item.variant,
+        clips: availableClips,
+        fallbackClip: "idle",
+        metrics: item.metrics || null
+      });
+    }
+
+    function addHistoryItem(item) {
+      const petId = petIdFromItem(item);
+      if (!petId) return;
+      if (!isDisplayVariant(item)) return;
+      addGeneratedCompareItem(item);
+      if (historyItems.has(petId)) return;
+
+      const basePetId = basePetIdFromItem(item) || petId;
+      const variantLabel = variantLabelFromItem(item);
+      const metrics = item.metrics || {};
+      const card = document.createElement("article");
+      card.className = "history-card";
+      card.dataset.petId = petId;
+      card.dataset.basePetId = basePetId;
+      card.tabIndex = 0;
+      card.title = "点击后滚动到下方原图与动作对比";
+      card.addEventListener("click", () => scrollToComparePet(petId));
+      card.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          scrollToComparePet(petId);
+        }
+      });
+
+      const title = document.createElement("h4");
+      title.textContent = `${basePetId} · ${variantLabel}`;
+
+      const meta = document.createElement("div");
+      meta.className = "history-meta";
+      meta.textContent = historyMetaText(item, metrics);
+
+      const stats = createHistoryStats(item, metrics);
+      const data = createHistoryData(metrics);
+
+      const clipWrap = document.createElement("div");
+      clipWrap.className = "history-clips";
+      clips.forEach((clip) => {
+        const clipNode = document.createElement("div");
+        clipNode.className = "history-clip";
+        clipNode.title = `切换到 ${clipLabels[clip] || clip} 并查看下方对比`;
+        clipNode.addEventListener("click", (event) => {
+          event.stopPropagation();
+          setActiveClip(clip);
+          scrollToComparePet(petId);
+        });
+
+        const img = document.createElement("img");
+        img.alt = `${petId} ${clipLabels[clip] || clip}`;
+        img.loading = "lazy";
+        img.decoding = "async";
+        img.src = assetUrl(`/${encodeURIComponent(petId)}/anim_${clip}.webp`);
+        img.onerror = () => {
+          img.remove();
+          label.textContent = `${clipLabels[clip] || clip} 未生成`;
+        };
+
+        const label = document.createElement("span");
+        label.textContent = `${clipLabels[clip] || clip} · ${clipMetricSummary(metrics, clip)}`;
+
+        clipNode.append(img, label);
+        clipWrap.appendChild(clipNode);
+      });
+
+      card.append(title, meta, stats, data, clipWrap);
+      historyGrid.appendChild(card);
+      historyItems.set(petId, card);
+      renderHistoryCount();
+    }
+
+    async function loadGeneratedHistory() {
+      try {
+        const payload = await fetchJson("/api/pets", { cache: "no-store" });
+        const items = Array.isArray(payload?.pets) ? payload.pets : [];
+        normalizedVariantItems(items.filter((item) => item?.is_auto)).forEach(addHistoryItem);
+        renderHistoryCount();
+      } catch (error) {
+        renderHistoryCount();
+      }
+    }
+
+    function isDone(status) {
+      return ["complete", "completed", "success", "succeeded", "done"].includes(status);
+    }
+
+    function isFailed(status) {
+      return ["error", "failed", "failure", "cancelled", "canceled"].includes(status);
+    }
+
+    function delay(ms) {
+      return new Promise((resolve) => window.setTimeout(resolve, ms));
+    }
+
+    async function pollJob(jobId, token) {
+      let transientErrors = 0;
+      const startedAt = Date.now();
+
+      while (token === activeJobToken) {
+        try {
+          const payload = await fetchJson(`/api/jobs/${encodeURIComponent(jobId)}`, { cache: "no-store" });
+          transientErrors = 0;
+          const status = normalizeStatus(payload.status || payload.state);
+          const progress = payload.progress ?? payload.percent ?? (isDone(status) ? 100 : null);
+          const message = payload.message || payload.stage || status;
+          const elapsedMinutes = Math.floor((Date.now() - startedAt) / 60000);
+          const elapsedText = elapsedMinutes > 0 ? ` · 已等待 ${elapsedMinutes} 分钟` : "";
+
+          setJobStatus("生成中", { detail: `${message}${elapsedText}`, progress, tone: isDone(status) ? "ok" : "idle" });
+          updateResultsFromPayload(payload);
+          updateGeneratedPreviewFromJob(payload);
+          updateLogFromPayload(payload);
+
+          if (isDone(status)) {
+            setJobStatus("生成完成", { detail: jobId, progress: 100, tone: "ok" });
+            addLog(`任务完成：${jobId}`);
+            const variantItems = variantItemsFromPayload(payload);
+            if (variantItems.length) {
+              variantItems.forEach(addHistoryItem);
+            } else {
+              addHistoryItem(payload);
+            }
+            generateButton.disabled = false;
+            return;
+          }
+
+          if (isFailed(status)) {
+            const terminalError = new Error(payload.error || payload.message || "任务失败");
+            terminalError.terminal = true;
+            throw terminalError;
+          }
+        } catch (error) {
+          if (token !== activeJobToken) return;
+          if (error.terminal) {
+            setJobStatus("生成失败", { detail: error.message, progress: 0, tone: "error" });
+            addLog(error.message, "error");
+            generateButton.disabled = false;
+            return;
+          }
+          transientErrors += 1;
+          if (transientErrors > MAX_TRANSIENT_POLL_ERRORS) {
+            setJobStatus("生成失败", { detail: error.message, progress: 0, tone: "error" });
+            addLog(error.message, "error");
+            generateButton.disabled = false;
+            return;
+          }
+          setJobStatus("轮询重试", {
+            detail: `${error.message}；第 ${transientErrors}/${MAX_TRANSIENT_POLL_ERRORS} 次重试`,
+            progress: null,
+            tone: "idle"
+          });
+          addLog(`轮询短暂失败，继续等待：${error.message}`);
+          await delay(POLL_RETRY_DELAY_MS);
+          continue;
+        }
+
+        await delay(POLL_INTERVAL_MS);
+      }
+    }
+
+    async function startGenerate(event) {
+      event.preventDefault();
+      const file = photoInput.files?.[0];
+
+      if (!file) {
+        setJobStatus("无法开始", { detail: "请先选择图片", progress: 0, tone: "error" });
+        addLog("未选择图片", "error");
+        return;
+      }
+
+      activeJobToken += 1;
+      const token = activeJobToken;
+      resetGeneratedResults();
+      generateButton.disabled = true;
+      setJobStatus("提交中", { detail: file.name, progress: 5 });
+      addLog(`提交图片：${file.name}`);
+
+      const formData = new FormData();
+      formData.append("image", file);
+      formData.append("style", "paimomo3d");
+      formData.append("clips", clips.join(","));
+
+      try {
+        const payload = await fetchJson("/api/generate", {
+          method: "POST",
+          body: formData
+        });
+        const jobId = payload.job_id || payload.jobId || payload.id;
+        if (!jobId) {
+          throw new Error("后端响应缺少 job_id");
+        }
+
+        setJobStatus("任务已创建", { detail: jobId, progress: payload.progress ?? 8 });
+        addLog(`任务创建：${jobId}`);
+        updateResultsFromPayload(payload);
+        pollJob(jobId, token);
+      } catch (error) {
+        if (token !== activeJobToken) return;
+        setJobStatus("提交失败", { detail: error.message, progress: 0, tone: "error" });
+        addLog(error.message, "error");
+        generateButton.disabled = false;
+      }
+    }
+
+    document.querySelectorAll(".segment[data-clip]").forEach((button) => {
+      button.addEventListener("click", () => setActiveClip(button.dataset.clip));
+    });
+
+    photoInput.addEventListener("change", () => {
+      const file = photoInput.files?.[0];
+      fileName.textContent = file ? file.name : "未选择文件";
+      setUploadPreview(file);
+      resetGeneratedResults();
+      setJobStatus(file ? "图片已选择" : "等待上传", { detail: file?.name || "", progress: 0 });
+    });
+
+    generateForm.addEventListener("submit", startGenerate);
+
+    loadSourcePhoto();
+    pets.forEach(createCard);
+    loadGeneratedHistory();
+  </script>
+</body>
+</html>
+
