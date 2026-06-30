@@ -6,13 +6,13 @@
   python3 poc.py --pet pet1 --step stylize --style cute      # 出 4 张候选（real|cute|figurine）
   python3 poc.py --pet pet1 --step stylize --style all       # 三档矩阵全跑（每档 2 张）
   python3 poc.py --pet pet1 --choose cute_2                  # 把候选 cute_2 定为 chosen.png
-  python3 poc.py --pet pet1 --step state_frames --clip all   # 生成 run/walk/sleep 状态首帧
+  python3 poc.py --pet pet1 --step state_sheet --style real   # 一张总表裁出 idle/fast_walk/sleep 首帧
   python3 poc.py --pet pet1 --step animate --clip all        # 逐段生成四状态视频片段
   python3 poc.py --pet pet1 --step matte --clip all          # 各段抠图合成 anim_<clip>.webp
 
 输入：inputs/<pet>.jpg（同宠多角度可加 <pet>_2.jpg <pet>_3.jpg，自动并入多图参考）
 输出：poc_output/<pet>/
-机制：idle 复用 chosen.png；run/walk/sleep 先生成对应状态首帧，再生成直接循环态视频。
+机制：新流程用一张状态总表裁出 chosen.png/state_fast_walk.png/state_sleep.png，再生成直接循环态视频。
 计划：doc/计划/2026-06-11_萌宠动态形象_块0_PoC脚本_执行计划.md
 """
 import argparse
@@ -38,8 +38,10 @@ MODEL_STYLIZE = "doubao-seedream-4-5-251128"        # 图生图主测（2K 原�
 MODEL_STYLIZE_ALT = "doubao-seedream-5-0-260128"    # 对照组
 MODEL_ANIMATE = "doubao-seedance-1-5-pro-251215"    # 已验证支持首尾帧 flf2v
 IMAGE_SIZE = "2048x2048"
-CLIP_ORDER = ("idle", "walk", "sleep")
-STATE_FRAME_CLIPS = {"sleep", "walk", "run"}
+IMAGE_SIZE_PX = 2048
+CLIP_ORDER = ("idle", "fast_walk", "sleep")
+STATE_FRAME_CLIPS = {"sleep", "fast_walk"}
+STATE_SHEET_CLIPS = ("idle", "fast_walk", "sleep")
 N_CANDIDATES = int(os.environ.get("PETAVATAR_CANDIDATES", "4"))   # 单档候选数；--style all 时每档 2 张
 
 # 抠图参数（matte 时按首帧角点实采绿色作 key，这里是容差）
@@ -66,7 +68,8 @@ STATE_SAFE_MARGIN_RATIO = float(os.environ.get("PETAVATAR_STATE_SAFE_MARGIN_RATI
 
 sys.path.insert(0, str(ROOT))
 from prompts import (  # noqa: E402
-    CLIP_PROMPTS, DEFAULT_CLIP, DEFAULT_STYLE, STATE_FRAME_PROMPTS, STYLE_PROMPTS,
+    CLIP_PROMPTS, DEFAULT_CLIP, DEFAULT_STYLE, STATE_FRAME_PROMPTS,
+    STATE_SHEET_PROMPTS, STYLE_PROMPTS,
 )
 
 
@@ -325,6 +328,42 @@ def normalize_bg(src: Path, dest: Path, margin=12):
     print(f"[normalize] 背景占比 {ratio:.0%} → 标准亮绿（异常时检查：<30% 或 >90% 都可疑）")
 
 
+def safe_pad_green_frame(path: Path, min_margin_ratio=0.12):
+    """Shrink green-screen state frames when the generated pet is too close to an edge."""
+    import numpy as np
+    from PIL import Image
+
+    img = Image.open(path).convert("RGB")
+    arr = np.asarray(img)
+    h, w = arr.shape[:2]
+    r, g, b = arr[:, :, 0], arr[:, :, 1], arr[:, :, 2]
+    green = (g > r + 24) & (g > b + 24) & (g > 90)
+    subject = ~green
+    ys, xs = np.where(subject)
+    if len(xs) == 0:
+        return
+    x0, x1 = int(xs.min()), int(xs.max() + 1)
+    y0, y1 = int(ys.min()), int(ys.max() + 1)
+    min_margin = int(min(w, h) * min_margin_ratio)
+    margins = (x0, y0, w - x1, h - y1)
+    if min(margins) >= min_margin:
+        return
+
+    crop = img.crop((x0, y0, x1, y1))
+    crop_w, crop_h = crop.size
+    max_w = max(1, w - 2 * min_margin)
+    max_h = max(1, h - 2 * min_margin)
+    scale = min(max_w / crop_w, max_h / crop_h, 1.0)
+    new_w = max(1, int(round(crop_w * scale)))
+    new_h = max(1, int(round(crop_h * scale)))
+    if (new_w, new_h) != crop.size:
+        crop = crop.resize((new_w, new_h), Image.Resampling.LANCZOS)
+    canvas = Image.new("RGB", (w, h), (0, 255, 0))
+    canvas.paste(crop, ((w - new_w) // 2, (h - new_h) // 2))
+    canvas.save(path)
+    print(f"[safe_pad] {path.name} margins={margins} -> min_margin={min_margin}, scale={scale:.3f}")
+
+
 def step_choose(pet: str, stem: str):
     pet_dir = OUTPUT / pet
     pick = pet_dir / "candidates" / f"{stem}.jpeg"
@@ -333,6 +372,77 @@ def step_choose(pet: str, stem: str):
         sys.exit(f"候选 {stem} 不存在：{[c.stem for c in cands]}")
     normalize_bg(pick, pet_dir / "chosen.png")
     print(f"[choose] {pick.name} → 背景归一化标准亮绿 → chosen.png（动作片段库的统一首尾帧）")
+
+
+def step_state_sheet(pet: str, style: str, model: str = MODEL_STYLIZE):
+    """Generate one pose sheet, then crop idle/fast_walk/sleep first frames locally."""
+    if style not in STATE_SHEET_PROMPTS:
+        sys.exit(f"未知 state sheet style: {style}")
+    photos = find_inputs(pet)
+    pet_dir = OUTPUT / pet
+    pet_dir.mkdir(parents=True, exist_ok=True)
+    uris = [data_uri(p) for p in photos]
+    sheet = pet_dir / f"state_sheet_{style}.jpeg"
+    t0 = time.time()
+    resp = None
+    if sheet.exists():
+        print(f"[state_sheet] skip existing {sheet.name}")
+    else:
+        body = {
+            "model": model,
+            "prompt": STATE_SHEET_PROMPTS[style],
+            "image": uris if len(uris) > 1 else uris[0],
+            "size": IMAGE_SIZE,
+            "response_format": "url",
+            "watermark": False,
+        }
+        resp = ark_request("/images/generations", body)
+        download(resp["data"][0]["url"], sheet)
+    crop_state_sheet(pet_dir, sheet)
+    dt = round(time.time() - t0, 1)
+    cell_bounds = {}
+    for clip in STATE_SHEET_CLIPS:
+        target = pet_dir / ("chosen.png" if clip == DEFAULT_CLIP else f"state_{clip}.png")
+        ok, bounds = state_frame_safe(target)
+        cell_bounds[clip] = {"safe": ok, "bounds": bounds}
+        print(f"[state_sheet:{clip}] safe={ok} bounds={bounds}")
+    record_metric(
+        pet_dir,
+        "state_sheet",
+        {
+            "model": model,
+            "style": style,
+            "file": sheet.name,
+            "seconds": dt,
+            "cells": list(STATE_SHEET_CLIPS),
+            "bounds": cell_bounds,
+            "usage": resp.get("usage") if resp else None,
+        },
+    )
+    print(f"[state_sheet] {sheet.name} -> chosen/state_fast_walk/state_sleep done {dt}s")
+
+
+def crop_state_sheet(pet_dir: Path, sheet: Path):
+    from PIL import Image
+
+    img = Image.open(sheet).convert("RGB")
+    w, h = img.size
+    mid_x, mid_y = w // 2, h // 2
+    cells = {
+        "idle": (0, 0, mid_x, mid_y),
+        "fast_walk": (mid_x, 0, w, mid_y),
+        "sleep": (0, mid_y, mid_x, h),
+    }
+    for clip, box in cells.items():
+        crop = img.crop(box).resize((IMAGE_SIZE_PX, IMAGE_SIZE_PX), Image.Resampling.LANCZOS)
+        tmp = pet_dir / f"state_{clip}_sheet_crop.jpeg"
+        crop.save(tmp, quality=96)
+        dest = pet_dir / ("chosen.png" if clip == DEFAULT_CLIP else f"state_{clip}.png")
+        normalize_bg(tmp, dest)
+        safe_pad_green_frame(dest)
+        if clip == DEFAULT_CLIP:
+            shutil.copyfile(dest, pet_dir / "state_idle.png")
+        tmp.unlink(missing_ok=True)
 
 
 def _legacy_step_state_frames(pet: str, clips: list[str], model: str = MODEL_STYLIZE):
@@ -370,6 +480,7 @@ def _legacy_step_state_frames(pet: str, clips: list[str], model: str = MODEL_STY
         resp = ark_request("/images/generations", body)
         download(resp["data"][0]["url"], raw_dest)
         normalize_bg(raw_dest, state_dest)
+        safe_pad_green_frame(state_dest)
         dt = round(time.time() - t0, 1)
         print(f"[state:{clip}] {state_dest.name} 完成 {dt}s")
         record_metric(pet_dir, "state_frame", {"model": model, "clip": clip,
@@ -439,6 +550,7 @@ def step_state_frames(pet: str, clips: list[str], model: str = MODEL_STYLIZE):
             resp = ark_request("/images/generations", body)
             download(resp["data"][0]["url"], attempt_dest)
             normalize_bg(attempt_dest, state_dest)
+            safe_pad_green_frame(state_dest)
             ok, bounds = state_frame_safe(state_dest)
             print(f"[state:{clip}] attempt {attempt}/{STATE_FRAME_ATTEMPTS} safe={ok} bounds={bounds}")
             if ok:
@@ -786,6 +898,32 @@ def refine_rgba_frame(img):
             alpha[detached_dark_plate] = 0
             rgb[detached_dark_plate] = 0
 
+        # Seedance can invent gray/black contact shadows on locomotion clips even when the
+        # first frame has a pure green background. For light-colored pets, remove only the
+        # low-saturation dark plate in the lower frame so paws/fur edges are kept.
+        visible_luma = luma[alpha > 80]
+        if visible_luma.size and float(np.median(visible_luma)) > 115:
+            h, w = alpha.shape
+            yy = np.arange(h)[:, None]
+            chroma = rgb.max(axis=2) - rgb.min(axis=2)
+            lower_shadow = (
+                (yy > int(h * 0.50))
+                & (alpha > 10)
+                & (luma < 102)
+                & (chroma < 46)
+            )
+            if lower_shadow.any():
+                shadow_count, shadow_labels, shadow_stats, _ = cv2.connectedComponentsWithStats(
+                    lower_shadow.astype(np.uint8), 8
+                )
+                for shadow_label in range(1, shadow_count):
+                    area = shadow_stats[shadow_label, cv2.CC_STAT_AREA]
+                    if area < 4:
+                        continue
+                    component = shadow_labels == shadow_label
+                    alpha[component] = 0
+                    rgb[component] = 0
+
     # Drop isolated matte dust that is no longer connected to the pet after edge cleanup.
     component_mask = alpha > 4
     component_count, labels, stats, _ = cv2.connectedComponentsWithStats(
@@ -1070,7 +1208,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--pet", required=True, help="inputs/ 下的照片名（不含扩展名）")
-    ap.add_argument("--step", default="", help="stylize|state_frames|animate|matte，逗号分隔可连跑")
+    ap.add_argument("--step", default="", help="stylize|state_sheet|state_frames|animate|matte，逗号分隔可连跑")
     ap.add_argument("--style", default=DEFAULT_STYLE,
                     help=f"风格档位 {list(STYLE_PROMPTS)} 或 all（矩阵），默认 {DEFAULT_STYLE}")
     ap.add_argument("--clip", default=DEFAULT_CLIP,
@@ -1088,12 +1226,15 @@ def main():
         if c not in CLIP_PROMPTS:
             sys.exit(f"未知 clip: {c}")
     steps = [x.strip() for x in args.step.split(",") if x.strip()]
-    if any(s in ("stylize", "state_frames", "animate") for s in steps) and "ARK_API_KEY" not in ENV:
+    if any(s in ("stylize", "state_sheet", "state_frames", "animate") for s in steps) and "ARK_API_KEY" not in ENV:
         sys.exit("缺 .env 或环境变量 ARK_API_KEY")
     for s in steps:
         if s == "stylize":
             step_stylize(args.pet, args.style,
                          MODEL_STYLIZE_ALT if args.alt else MODEL_STYLIZE)
+        elif s == "state_sheet":
+            step_state_sheet(args.pet, args.style,
+                             MODEL_STYLIZE_ALT if args.alt else MODEL_STYLIZE)
         elif s == "state_frames":
             step_state_frames(args.pet, clips, MODEL_STYLIZE_ALT if args.alt else MODEL_STYLIZE)
         elif s == "animate":

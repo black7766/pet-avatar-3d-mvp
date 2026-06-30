@@ -1,0 +1,290 @@
+{
+  "state_sheet": [
+    {
+      "model": "doubao-seedream-5-0-260128",
+      "style": "real",
+      "file": "state_sheet_real.jpeg",
+      "seconds": 50.2,
+      "cells": [
+        "idle",
+        "fast_walk",
+        "sleep"
+      ],
+      "bounds": {
+        "idle": {
+          "safe": true,
+          "bounds": {
+            "bbox": [
+              468,
+              251,
+              1922,
+              1936
+            ],
+            "margins": {
+              "left": 468,
+              "top": 251,
+              "right": 126,
+              "bottom": 112
+            },
+            "size": [
+              2048,
+              2048
+            ],
+            "min_required_margin": 81,
+            "safe": true
+          }
+        },
+        "fast_walk": {
+          "safe": false,
+          "bounds": {
+            "bbox": [
+              323,
+              303,
+              1998,
+              1905
+            ],
+            "margins": {
+              "left": 323,
+              "top": 303,
+              "right": 50,
+              "bottom": 143
+            },
+            "size": [
+              2048,
+              2048
+            ],
+            "min_required_margin": 81,
+            "safe": false
+          }
+        },
+        "sleep": {
+          "safe": true,
+          "bounds": {
+            "bbox": [
+              224,
+              598,
+              1954,
+              1517
+            ],
+            "margins": {
+              "left": 224,
+              "top": 598,
+              "right": 94,
+              "bottom": 531
+            },
+            "size": [
+              2048,
+              2048
+            ],
+            "min_required_margin": 81,
+            "safe": true
+          }
+        }
+      },
+      "usage": {
+        "generated_images": 1,
+        "output_tokens": 16384,
+        "total_tokens": 16384
+      }
+    }
+  ],
+  "animate": [
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "idle",
+      "task": "cgt-20260630131631-qrzvv",
+      "seconds": 57.2,
+      "generate_audio": false,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    },
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "fast_walk",
+      "task": "cgt-20260630131633-qf9v2",
+      "seconds": 72.9,
+      "generate_audio": false,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    },
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "sleep",
+      "task": "cgt-20260630131635-wlr8q",
+      "seconds": 76.7,
+      "generate_audio": false,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    }
+  ],
+  "matte": [
+    {
+      "clip": "idle",
+      "key_color": "0x08E409",
+      "frames": 120,
+      "webp_frames": 108,
+      "loop_close_frames": 8,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 90,
+      "webp_method": 2,
+      "webp_mb": 4.13,
+      "seconds": 49.8,
+      "similarity": "0.085",
+      "green_residual": 0.0,
+      "loop_meta": null,
+      "reframe": {
+        "source_bbox": [
+          74,
+          60,
+          640,
+          606
+        ],
+        "source_margins": {
+          "left": 74,
+          "top": 60,
+          "right": 0,
+          "bottom": 34
+        },
+        "source_edge_risk": {
+          "left": false,
+          "top": false,
+          "right": true,
+          "bottom": false
+        },
+        "crop": [
+          49,
+          35,
+          640,
+          631
+        ],
+        "scale": 0.8372,
+        "paste": [
+          72,
+          103
+        ],
+        "target_size": [
+          495,
+          499
+        ]
+      }
+    },
+    {
+      "clip": "fast_walk",
+      "key_color": "0x1EFC18",
+      "frames": 120,
+      "webp_frames": 105,
+      "loop_close_frames": 0,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 90,
+      "webp_method": 2,
+      "webp_mb": 3.83,
+      "seconds": 72.8,
+      "similarity": "0.085",
+      "green_residual": 0.0,
+      "loop_meta": {
+        "mode": "best_span",
+        "source_frames": 120,
+        "selected": [
+          3,
+          119
+        ],
+        "selected_frames": 117,
+        "seam_diff": 0.063195
+      },
+      "reframe": {
+        "source_bbox": [
+          0,
+          68,
+          640,
+          640
+        ],
+        "source_margins": {
+          "left": 0,
+          "top": 68,
+          "right": 0,
+          "bottom": 0
+        },
+        "source_edge_risk": {
+          "left": true,
+          "top": false,
+          "right": true,
+          "bottom": true
+        },
+        "crop": [
+          0,
+          40,
+          640,
+          640
+        ],
+        "scale": 0.8317,
+        "paste": [
+          54,
+          103
+        ],
+        "target_size": [
+          532,
+          499
+        ]
+      }
+    },
+    {
+      "clip": "sleep",
+      "key_color": "0x1ED01C",
+      "frames": 120,
+      "webp_frames": 108,
+      "loop_close_frames": 0,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 90,
+      "webp_method": 2,
+      "webp_mb": 3.68,
+      "seconds": 52.0,
+      "similarity": "0.085",
+      "green_residual": 0.0,
+      "loop_meta": null,
+      "reframe": {
+        "source_bbox": [
+          70,
+          177,
+          617,
+          478
+        ],
+        "source_margins": {
+          "left": 70,
+          "top": 177,
+          "right": 23,
+          "bottom": 162
+        },
+        "source_edge_risk": {
+          "left": false,
+          "top": false,
+          "right": false,
+          "bottom": false
+        },
+        "crop": [
+          46,
+          153,
+          640,
+          502
+        ],
+        "scale": 0.9259,
+        "paste": [
+          45,
+          279
+        ],
+        "target_size": [
+          550,
+          323
+        ]
+      }
+    }
+  ]
+}

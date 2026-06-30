@@ -493,7 +493,7 @@
 
     .history-clips {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 8px;
     }
 
@@ -861,7 +861,7 @@
               <input id="photoInput" name="image" type="file" accept="image/png,image/jpeg,image/webp" />
               <span class="file-name" id="fileName">未选择文件</span>
             </label>
-            <button class="generate-button" id="generateButton" type="submit">生成 静息 / 奔跑 / 走动 / 睡觉</button>
+            <button class="generate-button" id="generateButton" type="submit">生成 静息 / 快走 / 睡觉</button>
           </form>
 
           <div class="progress-area">
@@ -889,15 +889,10 @@
             <div class="result-thumb" data-result-thumb="idle">待生成</div>
             <p class="result-state" data-result-state="idle">等待任务</p>
           </article>
-          <article class="result-card" data-result-card="run">
-            <h3>奔跑</h3>
-            <div class="result-thumb" data-result-thumb="run">待生成</div>
-            <p class="result-state" data-result-state="run">等待任务</p>
-          </article>
-          <article class="result-card" data-result-card="walk">
-            <h3>走动</h3>
-            <div class="result-thumb" data-result-thumb="walk">待生成</div>
-            <p class="result-state" data-result-state="walk">等待任务</p>
+          <article class="result-card" data-result-card="fast_walk">
+            <h3>快走</h3>
+            <div class="result-thumb" data-result-thumb="fast_walk">待生成</div>
+            <p class="result-state" data-result-state="fast_walk">等待任务</p>
           </article>
           <article class="result-card" data-result-card="sleep">
             <h3>睡觉</h3>
@@ -918,8 +913,7 @@
 
       <nav class="segments" aria-label="动作切换">
         <button class="segment" type="button" data-clip="idle" aria-pressed="true">静息</button>
-        <button class="segment" type="button" data-clip="run" aria-pressed="false">奔跑</button>
-        <button class="segment" type="button" data-clip="walk" aria-pressed="false">走动</button>
+        <button class="segment" type="button" data-clip="fast_walk" aria-pressed="false">快走</button>
         <button class="segment" type="button" data-clip="sleep" aria-pressed="false">睡觉</button>
       </nav>
 
@@ -983,7 +977,7 @@
 
       <div class="metric-grid">
         <div class="metric wide">
-          <span>stylize 总耗时</span>
+          <span>Seedream 总耗时</span>
           <strong data-metric="stylizeSeconds">—</strong>
         </div>
         <div class="metric">
@@ -1021,15 +1015,15 @@
 
   <script>
     const WAITING = "—";
-    const clips = ["idle", "run", "walk", "sleep"];
-    const clipLabels = { idle: "静息", run: "奔跑", walk: "走动", sleep: "睡觉" };
+    const clips = ["idle", "fast_walk", "sleep"];
+    const clipLabels = { idle: "静息", fast_walk: "快走", sleep: "睡觉" };
     const assetVersion = String(Date.now());
     const variantOrder = { real: 0, paimomo: 1 };
     const variantLabels = { real: "实体版", paimomo: "萌宠版" };
     const variantBadges = { real: "实体", paimomo: "萌宠" };
     const pets = [
-      { id: "pet1", title: "示例宠物 实体版", dir: "pet1", badge: "实体", clips: ["idle", "run", "walk", "sleep"], fallbackClip: "idle" },
-      { id: "pet_paimomo", title: "示例宠物 萌宠版", dir: "pet_paimomo", badge: "萌宠", clips: ["idle", "run", "walk", "sleep"], fallbackClip: "idle" }
+      { id: "pet1", title: "示例宠物 实体版", dir: "pet1", badge: "实体", clips: ["idle", "fast_walk", "sleep"], fallbackClip: "idle" },
+      { id: "pet_paimomo", title: "示例宠物 萌宠版", dir: "pet_paimomo", badge: "萌宠", clips: ["idle", "fast_walk", "sleep"], fallbackClip: "idle" }
     ];
 
     const sourceCandidates = [
@@ -1163,7 +1157,9 @@
     }
 
     function sumStylizeSeconds(metrics) {
-      const total = sumSeconds(metricItems(metrics, "stylize"));
+      const total = sumSeconds(metricItems(metrics, "stylize"))
+        + sumSeconds(metricItems(metrics, "state_sheet"))
+        + sumSeconds(metricItems(metrics, "state_frame"));
       return total > 0 ? total : undefined;
     }
 
@@ -1556,6 +1552,8 @@
 
     function totalMetricSeconds(metrics) {
       return sumSeconds(metricItems(metrics, "stylize"))
+        + sumSeconds(metricItems(metrics, "state_sheet"))
+        + sumSeconds(metricItems(metrics, "state_frame"))
         + sumSeconds(metricItems(metrics, "animate"))
         + sumSeconds(metricItems(metrics, "matte"));
     }
@@ -1604,15 +1602,22 @@
     }
 
     function createHistoryStats(item, metrics) {
-      const stylizeSeconds = sumSeconds(metricItems(metrics, "stylize"));
+      const stylizeSeconds = sumSeconds(metricItems(metrics, "stylize"))
+        + sumSeconds(metricItems(metrics, "state_sheet"))
+        + sumSeconds(metricItems(metrics, "state_frame"));
       const animateSeconds = sumSeconds(metricItems(metrics, "animate"));
       const matteSeconds = sumSeconds(metricItems(metrics, "matte"));
       const totalSeconds = totalMetricSeconds(metrics);
       const totalSize = matteSizeTotal(metrics);
-      const totalTokens = usageTotal(metrics, "stylize") + usageTotal(metrics, "animate");
-      const generatedImages = metricItems(metrics, "stylize").reduce((sum, item) => {
-        const count = item?.usage?.generated_images;
-        return sum + (isNumber(count) ? count : 0);
+      const totalTokens = usageTotal(metrics, "stylize")
+        + usageTotal(metrics, "state_sheet")
+        + usageTotal(metrics, "state_frame")
+        + usageTotal(metrics, "animate");
+      const generatedImages = ["stylize", "state_sheet", "state_frame"].reduce((sum, key) => {
+        return sum + metricItems(metrics, key).reduce((inner, item) => {
+          const count = item?.usage?.generated_images;
+          return inner + (isNumber(count) ? count : 0);
+        }, 0);
       }, 0);
       const finished = item.finished_at && item.started_at
         ? item.finished_at - item.started_at

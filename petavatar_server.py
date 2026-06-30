@@ -43,7 +43,7 @@ INPUTS = ROOT / "inputs"
 OUTPUT = ROOT / "poc_output"
 POC_SCRIPT = ROOT / "poc.py"
 
-CLIPS = ("idle", "run", "walk", "sleep")
+CLIPS = ("idle", "fast_walk", "sleep")
 ACTIVE_CLIP_SET = set(CLIPS)
 CLIP_LABELS = {
     "idle": "静息",
@@ -51,7 +51,12 @@ CLIP_LABELS = {
     "walk": "走动",
     "sleep": "睡觉",
 }
+CLIP_LABELS = {"idle": "静息", "fast_walk": "快走", "sleep": "睡觉"}
 SOURCE_EXTS = ("jpg", "jpeg", "png", "webp", "heic")
+VARIANTS = (
+    {"key": "real", "style": "real", "choose": "real_1", "label": "实体版"},
+    {"key": "paimomo", "style": "paimomo3d", "choose": "paimomo3d_1", "label": "萌宠版"},
+)
 VARIANTS = (
     {"key": "real", "style": "real", "choose": "real_1", "label": "实体版"},
     {"key": "paimomo", "style": "paimomo3d", "choose": "paimomo3d_1", "label": "萌宠版"},
@@ -457,23 +462,11 @@ def process_variant(job_id: str, base_pet_id: str, input_path: Path, variant: di
     append_log(job_id, f"variant {variant['key']} started for {pet_id}")
     run_poc(
         job_id,
-        f"{variant['key']} stylize",
-        [py, str(POC_SCRIPT), "--pet", pet_id, "--step", "stylize", "--style", variant["style"]],
+        f"{variant['key']} state sheet {variant['style']}",
+        [py, str(POC_SCRIPT), "--pet", pet_id, "--step", "state_sheet", "--style", variant["style"], "--alt"],
         env,
     )
     update_job(job_id, metrics={"variants": variant_snapshots(base_pet_id)})
-    run_poc(
-        job_id,
-        f"{variant['key']} choose",
-        [py, str(POC_SCRIPT), "--pet", pet_id, "--choose", variant["choose"]],
-        env,
-    )
-    run_poc(
-        job_id,
-        f"{variant['key']} state frames {','.join(CLIPS)}",
-        [py, str(POC_SCRIPT), "--pet", pet_id, "--step", "state_frames", "--clip", ",".join(CLIPS)],
-        env,
-    )
     run_poc(
         job_id,
         f"{variant['key']} animate {','.join(CLIPS)}",
@@ -696,7 +689,7 @@ class Handler(SimpleHTTPRequestHandler):
         job = Job(job_id=job_id, pet_id=pet_id, input_path=str(input_path), page_url=page_url)
         job.logs.append(f"[{now_label()}] accepted upload {filename} as inputs/{pet_id}.{ext}")
         flow = "; ".join(
-            f"{variant['key']}: stylize {variant['style']} -> choose {variant['choose']} -> animate/matte {','.join(CLIPS)}"
+            f"{variant['key']}: state_sheet {variant['style']} -> animate/matte {','.join(CLIPS)}"
             for variant in VARIANTS
         )
         job.logs.append(f"[{now_label()}] queued flow: {flow}")

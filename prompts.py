@@ -83,6 +83,31 @@ STYLE_PROMPTS = {
         "耳朵形状和五官特征，让主人一眼认出是自家宠物；柔和讨喜、生动可爱；" + _COMMON_TAIL
     ),
 }
+
+_STATE_SHEET_RULE = (
+    "Generate one 2x2 pet character state asset sheet, not a comic storyboard, no text labels. "
+    "The whole image is 2048x2048 with four equal quadrants. Every quadrant contains the same pet identity, same markings, same face, same body ratio, same tail, and same 3D style. "
+    "All quadrants use a pure bright green #00FF00 background with no floor, no ground shadow, no contact shadow, no black motion shadow, no gradients, no props, no people, no extra animals, and no text. "
+    "Each quadrant must show the full body centered with safe green margins; ears, paws, body, and tail tip must not be cropped. "
+    "Top-left quadrant: idle standard avatar, front-facing seated pose, looking at the user. "
+    "Top-right quadrant: fast_walk state, mid-stride brisk walking pose, natural alternating legs, stable body, forward energy, but not running or jumping, no dark shadow or motion trail. "
+    "Bottom-left quadrant: sleep state, low prone sleeping pose, eyes closed, head resting gently on front paws, full tail visible. "
+    "Bottom-right quadrant: repeat idle reference, same as top-left for identity consistency, no additional pet."
+)
+
+STATE_SHEET_PROMPTS = {
+    "real": (
+        _IDENTITY_LOCK
+        + "Realistic version: generate a realistic 3D / studio pet avatar close to the original pet. Strictly preserve fur color, face shape, eyes, ears, tail, body type, and identity markers. "
+        + _STATE_SHEET_RULE
+    ),
+    "paimomo3d": (
+        _IDENTITY_LOCK
+        + "Cute version: generate a PaiMomo-like high quality 3D cute pet avatar for a mobile companion app. Make it rounded and friendly while strictly preserving fur color, face shape, eyes, ears, tail, body type, and identity markers. "
+        + _STATE_SHEET_RULE
+    ),
+}
+
 DEFAULT_STYLE = "real"
 
 # ---------- ② 动作片段库（图生视频）----------
@@ -185,3 +210,26 @@ CLIP_PROMPTS["run"] = (
     "但不要冲出画面，不要改变镜头；不要展示从静息启动、加速过程、刹停、坐下或回到静息姿态；"
     + _STATE_LOOP_TAIL
 )
+
+# Current product state set: idle / fast_walk / sleep.
+# Keep a single locomotion state to avoid duplicated walking/running assets.
+STATE_FRAME_PROMPTS["fast_walk"] = (
+    _STATE_FRAME_RULE
+    + "Generate the first frame for fast_walk: the pet is already in a brisk walking loop pose, mid-stride, full body visible, centered, with a stable body, natural alternating legs, ears and tail subtly following motion. "
+    "It must look like fast walking, not running, jumping, sitting, standing still, or transitioning from idle. "
+    "Use pure bright green #00FF00 background, no floor, no ground shadow, no contact shadow, no dark shadow under the pet, no motion trail, no props, no text."
+)
+
+CLIP_PROMPTS["fast_walk"] = (
+    _STATE_LOOP_RULE
+    + "fast_walk brisk-walk state loop: the first frame is already a stable brisk-walking pose, and the entire 5-second clip remains inside that state. "
+    "Create a smooth, seamless in-place brisk walking cycle with natural alternating legs, subtle body bob, ear and tail secondary motion, full body always centered and fully visible. "
+    "Do not show acceleration, start-from-idle, stop, sit-down, jump, run, sprint, or return to idle. "
+    "Avoid any floor, black shadow, contact shadow, dark smear, motion trail, props, text, or camera movement. "
+    + _STATE_LOOP_TAIL
+)
+
+CLIP_PROMPTS.pop("run", None)
+CLIP_PROMPTS.pop("walk", None)
+STATE_FRAME_PROMPTS.pop("run", None)
+STATE_FRAME_PROMPTS.pop("walk", None)

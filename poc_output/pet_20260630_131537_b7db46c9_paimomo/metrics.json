@@ -1,0 +1,290 @@
+{
+  "state_sheet": [
+    {
+      "model": "doubao-seedream-5-0-260128",
+      "style": "paimomo3d",
+      "file": "state_sheet_paimomo3d.jpeg",
+      "seconds": 50.3,
+      "cells": [
+        "idle",
+        "fast_walk",
+        "sleep"
+      ],
+      "bounds": {
+        "idle": {
+          "safe": true,
+          "bounds": {
+            "bbox": [
+              419,
+              236,
+              1890,
+              1862
+            ],
+            "margins": {
+              "left": 419,
+              "top": 236,
+              "right": 158,
+              "bottom": 186
+            },
+            "size": [
+              2048,
+              2048
+            ],
+            "min_required_margin": 81,
+            "safe": true
+          }
+        },
+        "fast_walk": {
+          "safe": false,
+          "bounds": {
+            "bbox": [
+              248,
+              130,
+              1990,
+              1817
+            ],
+            "margins": {
+              "left": 248,
+              "top": 130,
+              "right": 58,
+              "bottom": 231
+            },
+            "size": [
+              2048,
+              2048
+            ],
+            "min_required_margin": 81,
+            "safe": false
+          }
+        },
+        "sleep": {
+          "safe": true,
+          "bounds": {
+            "bbox": [
+              132,
+              501,
+              1927,
+              1571
+            ],
+            "margins": {
+              "left": 132,
+              "top": 501,
+              "right": 121,
+              "bottom": 477
+            },
+            "size": [
+              2048,
+              2048
+            ],
+            "min_required_margin": 81,
+            "safe": true
+          }
+        }
+      },
+      "usage": {
+        "generated_images": 1,
+        "output_tokens": 16384,
+        "total_tokens": 16384
+      }
+    }
+  ],
+  "animate": [
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "fast_walk",
+      "task": "cgt-20260630131634-rsvfw",
+      "seconds": 59.5,
+      "generate_audio": false,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    },
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "sleep",
+      "task": "cgt-20260630131635-mkg7t",
+      "seconds": 65.8,
+      "generate_audio": false,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    },
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "idle",
+      "task": "cgt-20260630131632-rtk4s",
+      "seconds": 88.9,
+      "generate_audio": false,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    }
+  ],
+  "matte": [
+    {
+      "clip": "idle",
+      "key_color": "0x0BE10D",
+      "frames": 120,
+      "webp_frames": 108,
+      "loop_close_frames": 8,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 90,
+      "webp_method": 2,
+      "webp_mb": 4.03,
+      "seconds": 53.9,
+      "similarity": "0.085",
+      "green_residual": 0.0,
+      "loop_meta": null,
+      "reframe": {
+        "source_bbox": [
+          86,
+          57,
+          611,
+          583
+        ],
+        "source_margins": {
+          "left": 86,
+          "top": 57,
+          "right": 29,
+          "bottom": 57
+        },
+        "source_edge_risk": {
+          "left": false,
+          "top": false,
+          "right": false,
+          "bottom": false
+        },
+        "crop": [
+          63,
+          34,
+          634,
+          606
+        ],
+        "scale": 0.8724,
+        "paste": [
+          71,
+          103
+        ],
+        "target_size": [
+          498,
+          499
+        ]
+      }
+    },
+    {
+      "clip": "fast_walk",
+      "key_color": "0x12D217",
+      "frames": 120,
+      "webp_frames": 85,
+      "loop_close_frames": 0,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 90,
+      "webp_method": 2,
+      "webp_mb": 3.09,
+      "seconds": 71.4,
+      "similarity": "0.085",
+      "green_residual": 0.0,
+      "loop_meta": {
+        "mode": "best_span",
+        "source_frames": 120,
+        "selected": [
+          23,
+          119
+        ],
+        "selected_frames": 97,
+        "seam_diff": 0.096241
+      },
+      "reframe": {
+        "source_bbox": [
+          111,
+          10,
+          639,
+          618
+        ],
+        "source_margins": {
+          "left": 111,
+          "top": 10,
+          "right": 1,
+          "bottom": 22
+        },
+        "source_edge_risk": {
+          "left": false,
+          "top": false,
+          "right": true,
+          "bottom": false
+        },
+        "crop": [
+          84,
+          0,
+          640,
+          640
+        ],
+        "scale": 0.7797,
+        "paste": [
+          103,
+          103
+        ],
+        "target_size": [
+          434,
+          499
+        ]
+      }
+    },
+    {
+      "clip": "sleep",
+      "key_color": "0x17D918",
+      "frames": 120,
+      "webp_frames": 108,
+      "loop_close_frames": 0,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 90,
+      "webp_method": 2,
+      "webp_mb": 4.26,
+      "seconds": 52.3,
+      "similarity": "0.085",
+      "green_residual": 0.0,
+      "loop_meta": null,
+      "reframe": {
+        "source_bbox": [
+          39,
+          149,
+          611,
+          493
+        ],
+        "source_margins": {
+          "left": 39,
+          "top": 149,
+          "right": 29,
+          "bottom": 147
+        },
+        "source_edge_risk": {
+          "left": false,
+          "top": false,
+          "right": false,
+          "bottom": false
+        },
+        "crop": [
+          14,
+          124,
+          636,
+          518
+        ],
+        "scale": 0.8842,
+        "paste": [
+          45,
+          254
+        ],
+        "target_size": [
+          550,
+          348
+        ]
+      }
+    }
+  ]
+}
