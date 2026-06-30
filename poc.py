@@ -605,6 +605,130 @@ def animate_request_body(uri: str, clip: str) -> dict:
     }
 
 
+SHEET_VIDEO_PROMPT = (
+    "Generate a single 2x2 animated pet asset sheet video for a mobile app. "
+    "Use the provided first frame exactly as the layout reference. Keep four equal quadrants, fixed camera, no zoom, no pan, no text labels, no borders, no props, no people, no extra animals. "
+    "Each quadrant must stay inside its own cell and must not cross cell boundaries. The background in every cell stays pure bright green #00FF00. "
+    "Top-left quadrant: idle loop, pet looks at the user with subtle breathing and blinking. "
+    "Top-right quadrant: fast_walk loop, brisk in-place walking cycle with alternating legs, not running or jumping. "
+    "Bottom-left quadrant: sleep loop, pet already lying down asleep, only gentle breathing, no wake-up or transition. "
+    "Bottom-right quadrant: keep the duplicated idle reference stable and unobtrusive; it can move subtly but must not affect the other cells. "
+    "The entire video must be seamless-loop friendly: no cut back to a different pose, no global camera movement, no black floor shadow, no contact shadow, no dark motion trail. "
+    "--resolution 720p --duration 5 --camerafixed true --watermark false --generate_audio false"
+)
+
+
+def state_sheet_for_pet(pet_dir: Path) -> Path:
+    sheets = sorted(pet_dir.glob("state_sheet_*.jpeg")) + sorted(pet_dir.glob("state_sheet_*.jpg")) + sorted(pet_dir.glob("state_sheet_*.png"))
+    if sheets:
+        return sheets[0]
+    sys.exit(f"[animate_sheet] missing state_sheet_*.jpeg in {pet_dir}")
+
+
+def sheet_video_request_body(uri: str) -> dict:
+    return {
+        "model": MODEL_ANIMATE,
+        "generate_audio": False,
+        "content": [
+            {"type": "text", "text": SHEET_VIDEO_PROMPT},
+            {"type": "image_url", "image_url": {"url": uri}, "role": "first_frame"},
+        ],
+    }
+
+
+def crop_sheet_video(pet_dir: Path, sheet_video: Path, task_id: str | None, task_status: dict | None, seconds: float):
+    crops = {
+        "idle": "crop=iw/2:ih/2:0:0,scale=720:720:flags=lanczos",
+        "fast_walk": "crop=iw/2:ih/2:iw/2:0,scale=720:720:flags=lanczos",
+        "sleep": "crop=iw/2:ih/2:0:ih/2,scale=720:720:flags=lanczos",
+    }
+    usage = task_status.get("usage") if task_status else None
+    for idx, (clip, vf) in enumerate(crops.items()):
+        raw_video = pet_dir / f"raw_{clip}.mp4"
+        subprocess.run(
+            [
+                ffmpeg_exe(),
+                "-y",
+                "-loglevel",
+                "error",
+                "-i",
+                str(sheet_video),
+                "-vf",
+                vf,
+                "-an",
+                str(raw_video),
+            ],
+            check=True,
+        )
+        record_metric(
+            pet_dir,
+            "animate",
+            {
+                "model": MODEL_ANIMATE,
+                "clip": clip,
+                "task": task_id,
+                "seconds": seconds,
+                "generate_audio": False,
+                "shared_sheet": True,
+                "usage": usage if idx == 0 else None,
+            },
+        )
+        print(f"[animate_sheet:{clip}] cropped -> {raw_video.name}")
+
+
+def step_animate_sheet(pet: str):
+    pet_dir = OUTPUT / pet
+    sheet = state_sheet_for_pet(pet_dir)
+    raw_sheet = pet_dir / "raw_sheet.mp4"
+    task_status = None
+    task_id = None
+    dt = 0.0
+    if valid_raw_video(raw_sheet):
+        print("[animate_sheet] skip existing raw_sheet.mp4")
+    else:
+        if raw_sheet.exists():
+            raw_sheet.unlink()
+        t0 = time.time()
+        task = ark_request("/contents/generations/tasks", sheet_video_request_body(data_uri(sheet)))
+        task_id = task["id"]
+        print(f"[animate_sheet] task {task_id} created")
+        while True:
+            time.sleep(15)
+            st = ark_request(f"/contents/generations/tasks/{task_id}", method="GET")
+            status = st.get("status")
+            print(f"[animate_sheet] {status}")
+            if status == "succeeded":
+                task_status = st
+                (pet_dir / "task_sheet.json").write_text(json.dumps(st, ensure_ascii=False, indent=2))
+                download(st["content"]["video_url"], raw_sheet)
+                strip_audio_track(raw_sheet)
+                dt = round(time.time() - t0, 1)
+                break
+            if status in ("failed", "cancelled"):
+                sys.exit(f"[animate_sheet] task failed: {json.dumps(st, ensure_ascii=False)[:500]}")
+        record_metric(
+            pet_dir,
+            "animate_sheet",
+            {
+                "model": MODEL_ANIMATE,
+                "file": raw_sheet.name,
+                "task": task_id,
+                "seconds": dt,
+                "generate_audio": task_status.get("generate_audio") if task_status else False,
+                "usage": task_status.get("usage") if task_status else None,
+                "cells": list(STATE_SHEET_CLIPS),
+            },
+        )
+        print(f"[animate_sheet] raw_sheet.mp4 saved and muted ({dt}s)")
+    if task_status is None and (pet_dir / "task_sheet.json").exists():
+        task_status = json.loads((pet_dir / "task_sheet.json").read_text(encoding="utf-8"))
+        task_id = task_status.get("id")
+        rows = json.loads((pet_dir / "metrics.json").read_text(encoding="utf-8")).get("animate_sheet", []) if (pet_dir / "metrics.json").exists() else []
+        if rows:
+            dt = rows[-1].get("seconds", 0.0)
+    crop_sheet_video(pet_dir, raw_sheet, task_id, task_status, dt)
+
+
 def finish_animate_task(pet_dir: Path, clip: str, task_id: str, task_status: dict, started_at: float):
     (pet_dir / f"task_{clip}.json").write_text(json.dumps(task_status, ensure_ascii=False, indent=2))
     raw_video = pet_dir / f"raw_{clip}.mp4"
@@ -1226,7 +1350,7 @@ def main():
         if c not in CLIP_PROMPTS:
             sys.exit(f"未知 clip: {c}")
     steps = [x.strip() for x in args.step.split(",") if x.strip()]
-    if any(s in ("stylize", "state_sheet", "state_frames", "animate") for s in steps) and "ARK_API_KEY" not in ENV:
+    if any(s in ("stylize", "state_sheet", "state_frames", "animate", "animate_sheet") for s in steps) and "ARK_API_KEY" not in ENV:
         sys.exit("缺 .env 或环境变量 ARK_API_KEY")
     for s in steps:
         if s == "stylize":
@@ -1239,6 +1363,8 @@ def main():
             step_state_frames(args.pet, clips, MODEL_STYLIZE_ALT if args.alt else MODEL_STYLIZE)
         elif s == "animate":
             step_animate_many(args.pet, clips)
+        elif s == "animate_sheet":
+            step_animate_sheet(args.pet)
         elif s == "matte":
             for c in clips:
                 step_matte(args.pet, c)
