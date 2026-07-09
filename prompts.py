@@ -85,13 +85,16 @@ STYLE_PROMPTS = {
 }
 
 _STATE_SHEET_RULE = (
-    "Generate one 2x2 pet character state asset sheet, not a comic storyboard, no text labels. "
+    "Generate one high-resolution 2x2 pet pose reference layout, not a game sprite sheet, not pixel art, not an icon sheet, not a comic storyboard, no text labels. "
     "The whole image is 2048x2048 with four equal quadrants. Every quadrant contains the same pet identity, same markings, same face, same body ratio, same tail, and same 3D style. "
+    "Each pet must be a smooth high-detail 3D render or realistic studio avatar with natural fur detail; absolutely no pixel art, no 8-bit style, no low-resolution sprite, no blocky edges, no retro game asset, no posterized flat color. "
+    "If the input pet is wearing visible clothing, a vest, harness, collar, leash, bow, tag, or other pet accessory, treat it as an identity feature and preserve its dominant color, position, and silhouette in every quadrant unless it is only a background object. "
+    "Do not turn a dressed pet into a plain generic pet. Do not remove a clearly visible purple shirt, vest, harness, collar, or chest garment. "
     "All quadrants use a pure bright green #00FF00 background with no floor, no ground shadow, no contact shadow, no black motion shadow, no gradients, no props, no people, no extra animals, and no text. "
     "Each quadrant must show the full body centered with safe green margins; ears, paws, body, and tail tip must not be cropped. "
     "Top-left quadrant: idle standard avatar, front-facing seated pose, looking at the user. "
     "Top-right quadrant: fast_walk state, mid-stride brisk walking pose, natural alternating legs, stable body, forward energy, but not running or jumping, no dark shadow or motion trail. "
-    "Bottom-left quadrant: sleep state, low prone sleeping pose, eyes closed, head resting gently on front paws, full tail visible. "
+    "Bottom-left quadrant: sleep state, low prone sleeping pose, eyes fully closed, head resting gently on front paws, relaxed sleeping expression, full tail visible. "
     "Bottom-right quadrant: repeat idle reference, same as top-left for identity consistency, no additional pet."
 )
 
@@ -187,6 +190,7 @@ _STATE_LOOP_TAIL = (
 
 CLIP_PROMPTS["sleep"] = (
     _STATE_LOOP_RULE +
+    "Strict sleep-loop requirement: the pet is already asleep from frame 1. Eyes must remain fully closed for the entire clip. The head must remain low and resting on or very close to the front paws. Only subtle breathing is allowed. No opening eyes, no looking at camera, no lifting head, no waking up, no getting up, no rolling, no transition into or out of sleep. "
     "sleep 睡眠状态循环：视频第一帧就已经是宠物睡着后的稳定低伏趴睡姿态，正面偏 3/4 视角，全身完整入镜，广角全身构图，宠物整体只占画面约 60%，上下左右都有明显绿色留白，"
     "胸腹低伏，前爪在脸下方并拢或自然叠放，头部放低并轻轻趴在两只前爪上，双眼闭合，表情放松，尾巴向后或侧后方自然伸出且完整可见；"
     "整段只保留轻微、规律的睡眠呼吸起伏，偶尔耳朵或爪子极轻微抽动；不要侧躺，不要蜷缩成球，不要翻身；"

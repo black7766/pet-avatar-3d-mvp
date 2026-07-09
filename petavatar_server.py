@@ -463,7 +463,7 @@ def process_variant(job_id: str, base_pet_id: str, input_path: Path, variant: di
     run_poc(
         job_id,
         f"{variant['key']} state sheet {variant['style']}",
-        [py, str(POC_SCRIPT), "--pet", pet_id, "--step", "state_sheet", "--style", variant["style"], "--alt"],
+        [py, str(POC_SCRIPT), "--pet", pet_id, "--step", "state_sheet", "--style", variant["style"]],
         env,
     )
     update_job(job_id, metrics={"variants": variant_snapshots(base_pet_id)})
@@ -809,12 +809,43 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_error(HTTPStatus.BAD_REQUEST, "invalid pet id")
             return
         pet_html = html.escape(pet_id, quote=True)
+        info = auto_pet_info(pet_id)
+        if info and pet_id == info["base_pet_id"]:
+            view_pets = [
+                (variant_pet_id(pet_id, "real"), "实体版"),
+                (variant_pet_id(pet_id, "paimomo"), "萌宠版"),
+            ]
+        else:
+            label = "萌宠版" if pet_id.endswith("_paimomo") else "实体版" if pet_id.endswith("_real") else "预览"
+            view_pets = [(pet_id, label)]
         button_items = []
         for clip in CLIPS:
             active = ' class="on"' if clip == "idle" else ""
             label = html.escape(CLIP_LABELS.get(clip, clip), quote=True)
             button_items.append(f'<button data-clip="{clip}"{active}>{label}</button>')
         buttons = "\n".join(button_items)
+        cards = []
+        for view_pet, label in view_pets:
+            exists = (OUTPUT / view_pet / "anim_idle.webp").exists()
+            src = f"/{quote(view_pet)}/anim_idle.webp" if exists else ""
+            label_html = html.escape(label, quote=True)
+            view_pet_html = html.escape(view_pet, quote=True)
+            if src:
+                media = f'<img class="pet" data-pet="{view_pet_html}" src="{src}" alt="{label_html} animation">'
+                links = (
+                    f'<a href="/{quote(view_pet)}/metrics.json" target="_blank">metrics</a>'
+                    f'<a href="/{quote(view_pet)}/preview.png" target="_blank">preview</a>'
+                )
+            else:
+                media = '<div class="missing">待生成</div>'
+                links = ""
+            cards.append(f"""
+    <article class="card">
+      <header><strong>{label_html}</strong><code>{view_pet_html}</code></header>
+      <section class="stage">{media}</section>
+      <div class="links">{links}</div>
+    </article>""")
+        card_html = "\n".join(cards)
         body = f"""<!doctype html>
 <html lang="en">
 <head>
@@ -822,35 +853,38 @@ class Handler(SimpleHTTPRequestHandler):
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>PetAvatar {pet_html}</title>
   <style>
-    body {{ margin: 0; min-height: 100vh; display: grid; place-items: center; font-family: Arial, sans-serif; background: #f6f1ea; color: #241c18; }}
-    main {{ width: min(720px, 92vw); display: grid; gap: 14px; justify-items: center; }}
-    .stage {{ position: relative; width: min(520px, 92vw); aspect-ratio: 1; background: #fffaf3; border: 1px solid rgba(40,30,20,.14); overflow: hidden; }}
-    img {{ position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }}
+    body {{ margin: 0; min-height: 100vh; font-family: Arial, sans-serif; background: #f6f1ea; color: #241c18; }}
+    main {{ width: min(1180px, 94vw); margin: 28px auto; display: grid; gap: 18px; }}
+    .top {{ display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }}
+    .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 18px; align-items: start; }}
+    .card {{ background: #fffaf3; border: 1px solid rgba(40,30,20,.14); border-radius: 8px; overflow: hidden; }}
+    .card header {{ display: flex; justify-content: space-between; gap: 12px; padding: 12px 14px; border-bottom: 1px solid rgba(40,30,20,.12); }}
+    .stage {{ position: relative; width: 100%; aspect-ratio: 1; background: #f7f4ee; overflow: hidden; }}
+    img.pet {{ position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }}
+    .missing {{ display: grid; place-items: center; width: 100%; height: 100%; color: #746960; }}
     .buttons {{ display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }}
+    .links {{ min-height: 42px; display: flex; gap: 8px; justify-content: center; align-items: center; padding: 10px; border-top: 1px solid rgba(40,30,20,.1); }}
     button, a {{ border: 1px solid rgba(40,30,20,.14); background: white; color: #241c18; border-radius: 8px; padding: 9px 13px; text-decoration: none; cursor: pointer; }}
     button.on {{ background: #187a69; color: white; border-color: #187a69; }}
-    code {{ color: #695d54; }}
+    code {{ color: #695d54; font-size: 12px; }}
   </style>
 </head>
 <body>
 <main>
-  <div><strong>{pet_html}</strong> <code>{html.escape(' / '.join(CLIPS))}</code></div>
-  <section class="stage">
-    <img id="pet" src="/{quote(pet_id)}/anim_idle.webp" alt="pet animation">
-  </section>
-  <div class="buttons">{buttons}</div>
-  <div class="buttons">
-    <a href="/{quote(pet_id)}/metrics.json" target="_blank">metrics</a>
-    <a href="/{quote(pet_id)}/preview.png" target="_blank">preview</a>
+  <div class="top">
+    <div><strong>{pet_html}</strong> <code>{html.escape(' / '.join(CLIPS))}</code></div>
+    <div class="buttons">{buttons}</div>
   </div>
+  <section class="grid">{card_html}
+  </section>
 </main>
 <script>
-const pet = {json.dumps(pet_id)};
-const img = document.getElementById("pet");
 document.querySelectorAll("button[data-clip]").forEach((button) => {{
   button.addEventListener("click", () => {{
     document.querySelectorAll("button[data-clip]").forEach((b) => b.classList.toggle("on", b === button));
-    img.src = "/" + encodeURIComponent(pet) + "/anim_" + button.dataset.clip + ".webp?t=" + Date.now();
+    document.querySelectorAll("img.pet[data-pet]").forEach((img) => {{
+      img.src = "/" + encodeURIComponent(img.dataset.pet) + "/anim_" + button.dataset.clip + ".webp?t=" + Date.now();
+    }});
   }});
 }});
 </script>

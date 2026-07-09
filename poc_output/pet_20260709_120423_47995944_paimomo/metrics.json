@@ -1,0 +1,290 @@
+{
+  "state_sheet": [
+    {
+      "model": "doubao-seedream-4-5-251128",
+      "style": "paimomo3d",
+      "file": "state_sheet_paimomo3d.jpeg",
+      "seconds": 48.5,
+      "cells": [
+        "idle",
+        "fast_walk",
+        "sleep"
+      ],
+      "bounds": {
+        "idle": {
+          "safe": true,
+          "bounds": {
+            "bbox": [
+              554,
+              414,
+              1511,
+              1593
+            ],
+            "margins": {
+              "left": 554,
+              "top": 414,
+              "right": 537,
+              "bottom": 455
+            },
+            "size": [
+              2048,
+              2048
+            ],
+            "min_required_margin": 81,
+            "safe": true
+          }
+        },
+        "fast_walk": {
+          "safe": true,
+          "bounds": {
+            "bbox": [
+              473,
+              520,
+              1612,
+              1578
+            ],
+            "margins": {
+              "left": 473,
+              "top": 520,
+              "right": 436,
+              "bottom": 470
+            },
+            "size": [
+              2048,
+              2048
+            ],
+            "min_required_margin": 81,
+            "safe": true
+          }
+        },
+        "sleep": {
+          "safe": true,
+          "bounds": {
+            "bbox": [
+              285,
+              845,
+              1644,
+              1444
+            ],
+            "margins": {
+              "left": 285,
+              "top": 845,
+              "right": 404,
+              "bottom": 604
+            },
+            "size": [
+              2048,
+              2048
+            ],
+            "min_required_margin": 81,
+            "safe": true
+          }
+        }
+      },
+      "usage": {
+        "generated_images": 1,
+        "output_tokens": 16384,
+        "total_tokens": 16384
+      }
+    }
+  ],
+  "animate": [
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "fast_walk",
+      "task": "cgt-20260709123153-84kfp",
+      "seconds": 53.8,
+      "generate_audio": false,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    },
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "sleep",
+      "task": "cgt-20260709123155-gg2vr",
+      "seconds": 66.8,
+      "generate_audio": false,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    },
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "idle",
+      "task": "cgt-20260709123151-c5zcr",
+      "seconds": 104.6,
+      "generate_audio": false,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    }
+  ],
+  "matte": [
+    {
+      "clip": "idle",
+      "key_color": "0x21FD18",
+      "frames": 120,
+      "webp_frames": 108,
+      "loop_close_frames": 8,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 90,
+      "webp_method": 2,
+      "webp_mb": 4.03,
+      "seconds": 72.5,
+      "similarity": "0.085",
+      "green_residual": 0.0,
+      "loop_meta": null,
+      "reframe": {
+        "source_bbox": [
+          161,
+          125,
+          492,
+          499
+        ],
+        "source_margins": {
+          "left": 161,
+          "top": 125,
+          "right": 148,
+          "bottom": 141
+        },
+        "source_edge_risk": {
+          "left": false,
+          "top": false,
+          "right": false,
+          "bottom": false
+        },
+        "crop": [
+          145,
+          109,
+          508,
+          515
+        ],
+        "scale": 1.2291,
+        "paste": [
+          97,
+          103
+        ],
+        "target_size": [
+          446,
+          499
+        ]
+      }
+    },
+    {
+      "clip": "fast_walk",
+      "key_color": "0x2DE42C",
+      "frames": 120,
+      "webp_frames": 91,
+      "loop_close_frames": 0,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 90,
+      "webp_method": 2,
+      "webp_mb": 3.76,
+      "seconds": 91.0,
+      "similarity": "0.085",
+      "green_residual": 0.0,
+      "loop_meta": {
+        "mode": "best_span",
+        "source_frames": 120,
+        "selected": [
+          14,
+          116
+        ],
+        "selected_frames": 103,
+        "seam_diff": 0.030657
+      },
+      "reframe": {
+        "source_bbox": [
+          135,
+          139,
+          523,
+          517
+        ],
+        "source_margins": {
+          "left": 135,
+          "top": 139,
+          "right": 117,
+          "bottom": 123
+        },
+        "source_edge_risk": {
+          "left": false,
+          "top": false,
+          "right": false,
+          "bottom": false
+        },
+        "crop": [
+          118,
+          122,
+          540,
+          534
+        ],
+        "scale": 1.2112,
+        "paste": [
+          64,
+          103
+        ],
+        "target_size": [
+          511,
+          499
+        ]
+      }
+    },
+    {
+      "clip": "sleep",
+      "key_color": "0x34DB2A",
+      "frames": 120,
+      "webp_frames": 108,
+      "loop_close_frames": 0,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 90,
+      "webp_method": 2,
+      "webp_mb": 3.01,
+      "seconds": 68.6,
+      "similarity": "0.085",
+      "green_residual": 0.0,
+      "loop_meta": null,
+      "reframe": {
+        "source_bbox": [
+          86,
+          253,
+          529,
+          451
+        ],
+        "source_margins": {
+          "left": 86,
+          "top": 253,
+          "right": 111,
+          "bottom": 189
+        },
+        "source_edge_risk": {
+          "left": false,
+          "top": false,
+          "right": false,
+          "bottom": false
+        },
+        "crop": [
+          67,
+          234,
+          548,
+          470
+        ],
+        "scale": 1.1435,
+        "paste": [
+          45,
+          332
+        ],
+        "target_size": [
+          550,
+          270
+        ]
+      }
+    }
+  ]
+}

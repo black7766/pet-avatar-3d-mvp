@@ -1,0 +1,290 @@
+{
+  "state_sheet": [
+    {
+      "model": "doubao-seedream-4-5-251128",
+      "style": "real",
+      "file": "state_sheet_real.jpeg",
+      "seconds": 44.9,
+      "cells": [
+        "idle",
+        "fast_walk",
+        "sleep"
+      ],
+      "bounds": {
+        "idle": {
+          "safe": true,
+          "bounds": {
+            "bbox": [
+              412,
+              274,
+              1636,
+              1803
+            ],
+            "margins": {
+              "left": 412,
+              "top": 274,
+              "right": 412,
+              "bottom": 245
+            },
+            "size": [
+              2048,
+              2048
+            ],
+            "min_required_margin": 81,
+            "safe": true
+          }
+        },
+        "fast_walk": {
+          "safe": true,
+          "bounds": {
+            "bbox": [
+              245,
+              280,
+              1802,
+              1783
+            ],
+            "margins": {
+              "left": 245,
+              "top": 280,
+              "right": 246,
+              "bottom": 265
+            },
+            "size": [
+              2048,
+              2048
+            ],
+            "min_required_margin": 81,
+            "safe": true
+          }
+        },
+        "sleep": {
+          "safe": true,
+          "bounds": {
+            "bbox": [
+              245,
+              705,
+              1803,
+              1342
+            ],
+            "margins": {
+              "left": 245,
+              "top": 705,
+              "right": 245,
+              "bottom": 706
+            },
+            "size": [
+              2048,
+              2048
+            ],
+            "min_required_margin": 81,
+            "safe": true
+          }
+        }
+      },
+      "usage": {
+        "generated_images": 1,
+        "output_tokens": 16384,
+        "total_tokens": 16384
+      }
+    }
+  ],
+  "animate": [
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "fast_walk",
+      "task": "cgt-20260709124002-x9gz2",
+      "seconds": 88.1,
+      "generate_audio": false,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    },
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "idle",
+      "task": "cgt-20260709123959-bcvrx",
+      "seconds": 142.8,
+      "generate_audio": false,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    },
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "sleep",
+      "task": "cgt-20260709124005-xfww5",
+      "seconds": 188.0,
+      "generate_audio": false,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    }
+  ],
+  "matte": [
+    {
+      "clip": "idle",
+      "key_color": "0x13DF12",
+      "frames": 120,
+      "webp_frames": 108,
+      "loop_close_frames": 8,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 90,
+      "webp_method": 2,
+      "webp_mb": 4.15,
+      "seconds": 80.5,
+      "similarity": "0.085",
+      "green_residual": 0.0,
+      "loop_meta": null,
+      "reframe": {
+        "source_bbox": [
+          107,
+          75,
+          534,
+          564
+        ],
+        "source_margins": {
+          "left": 107,
+          "top": 75,
+          "right": 106,
+          "bottom": 76
+        },
+        "source_edge_risk": {
+          "left": false,
+          "top": false,
+          "right": false,
+          "bottom": false
+        },
+        "crop": [
+          85,
+          53,
+          556,
+          586
+        ],
+        "scale": 0.9362,
+        "paste": [
+          99,
+          103
+        ],
+        "target_size": [
+          441,
+          499
+        ]
+      }
+    },
+    {
+      "clip": "fast_walk",
+      "key_color": "0x1FCF21",
+      "frames": 120,
+      "webp_frames": 81,
+      "loop_close_frames": 0,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 90,
+      "webp_method": 2,
+      "webp_mb": 2.89,
+      "seconds": 56.3,
+      "similarity": "0.085",
+      "green_residual": 0.0,
+      "loop_meta": {
+        "mode": "best_span",
+        "source_frames": 120,
+        "selected": [
+          18,
+          110
+        ],
+        "selected_frames": 93,
+        "seam_diff": 0.028777
+      },
+      "reframe": {
+        "source_bbox": [
+          73,
+          75,
+          590,
+          565
+        ],
+        "source_margins": {
+          "left": 73,
+          "top": 75,
+          "right": 50,
+          "bottom": 75
+        },
+        "source_edge_risk": {
+          "left": false,
+          "top": false,
+          "right": false,
+          "bottom": false
+        },
+        "crop": [
+          50,
+          52,
+          613,
+          588
+        ],
+        "scale": 0.931,
+        "paste": [
+          58,
+          103
+        ],
+        "target_size": [
+          524,
+          499
+        ]
+      }
+    },
+    {
+      "clip": "sleep",
+      "key_color": "0x1BD31F",
+      "frames": 120,
+      "webp_frames": 108,
+      "loop_close_frames": 0,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 90,
+      "webp_method": 2,
+      "webp_mb": 3.24,
+      "seconds": 74.1,
+      "similarity": "0.085",
+      "green_residual": 0.0,
+      "loop_meta": null,
+      "reframe": {
+        "source_bbox": [
+          62,
+          176,
+          565,
+          420
+        ],
+        "source_margins": {
+          "left": 62,
+          "top": 176,
+          "right": 75,
+          "bottom": 220
+        },
+        "source_edge_risk": {
+          "left": false,
+          "top": false,
+          "right": false,
+          "bottom": false
+        },
+        "crop": [
+          40,
+          154,
+          587,
+          442
+        ],
+        "scale": 1.0055,
+        "paste": [
+          45,
+          312
+        ],
+        "target_size": [
+          550,
+          290
+        ]
+      }
+    }
+  ]
+}

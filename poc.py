@@ -364,6 +364,186 @@ def safe_pad_green_frame(path: Path, min_margin_ratio=0.12):
     print(f"[safe_pad] {path.name} margins={margins} -> min_margin={min_margin}, scale={scale:.3f}")
 
 
+def clean_green_state_frame(path: Path, green_margin=70):
+    """Remove sheet labels, grid lines, and other detached non-green artifacts."""
+    import cv2
+    import numpy as np
+    from PIL import Image
+
+    img = Image.open(path).convert("RGB")
+    arr = np.asarray(img).copy()
+    r, g, b = arr[:, :, 0], arr[:, :, 1], arr[:, :, 2]
+    green = (g > 160) & (g > r + green_margin) & (g > b + green_margin)
+    subject = ~green
+    component_count, labels, stats, _ = cv2.connectedComponentsWithStats(
+        subject.astype(np.uint8), 8
+    )
+    if component_count <= 2:
+        return
+
+    areas = stats[:, cv2.CC_STAT_AREA]
+    main = 1 + int(np.argmax(areas[1:]))
+    main_area = int(areas[main])
+    if main_area <= 0:
+        return
+    x = int(stats[main, cv2.CC_STAT_LEFT])
+    y = int(stats[main, cv2.CC_STAT_TOP])
+    w = int(stats[main, cv2.CC_STAT_WIDTH])
+    h = int(stats[main, cv2.CC_STAT_HEIGHT])
+    pad = max(16, int(max(w, h) * 0.025))
+    keep_box = (x - pad, y - pad, x + w + pad, y + h + pad)
+    keep = labels == main
+    remove = np.zeros_like(subject, dtype=bool)
+    removed = 0
+    for idx in range(1, component_count):
+        if idx == main:
+            continue
+        area = int(areas[idx])
+        cx = int(stats[idx, cv2.CC_STAT_LEFT])
+        cy = int(stats[idx, cv2.CC_STAT_TOP])
+        cw = int(stats[idx, cv2.CC_STAT_WIDTH])
+        ch = int(stats[idx, cv2.CC_STAT_HEIGHT])
+        comp_box = (cx, cy, cx + cw, cy + ch)
+        overlaps_subject = not (
+            comp_box[2] < keep_box[0] or comp_box[0] > keep_box[2]
+            or comp_box[3] < keep_box[1] or comp_box[1] > keep_box[3]
+        )
+        large_part = area >= main_area * 0.08
+        if overlaps_subject or large_part:
+            keep |= labels == idx
+        else:
+            remove |= labels == idx
+            removed += area
+
+    if removed <= 0:
+        return
+    # Only erase detached components. Repainting every non-kept pixel can punch
+    # green holes into light fur when the model produces off-green antialiasing.
+    arr[remove & ~keep] = (0, 255, 0)
+    Image.fromarray(arr).save(path)
+    print(f"[clean_state] {path.name} removed detached artifacts area={removed}")
+
+
+def remove_white_green_screen_artifacts(path: Path):
+    """Remove white labels/grid strokes left by state sheets without touching the pet."""
+    import cv2
+    import numpy as np
+    from PIL import Image
+
+    img = Image.open(path).convert("RGB")
+    arr = np.asarray(img).copy()
+    r, g, b = arr[:, :, 0], arr[:, :, 1], arr[:, :, 2]
+    green = (g > 160) & (g > r + 70) & (g > b + 70)
+    subject = ~green
+    comp_count, labels, stats, _ = cv2.connectedComponentsWithStats(subject.astype(np.uint8), 8)
+    if comp_count <= 2:
+        return
+
+    areas = stats[:, cv2.CC_STAT_AREA]
+    main = 1 + int(np.argmax(areas[1:]))
+    x = int(stats[main, cv2.CC_STAT_LEFT])
+    y = int(stats[main, cv2.CC_STAT_TOP])
+    w = int(stats[main, cv2.CC_STAT_WIDTH])
+    h = int(stats[main, cv2.CC_STAT_HEIGHT])
+    pad = max(12, int(max(w, h) * 0.025))
+    main_box = (x - pad, y - pad, x + w + pad, y + h + pad)
+
+    whiteish = (
+        (r > 175) & (g > 175) & (b > 175)
+        & ((np.maximum.reduce([r, g, b]) - np.minimum.reduce([r, g, b])) < 70)
+    )
+    white_count, white_labels, white_stats, _ = cv2.connectedComponentsWithStats(
+        whiteish.astype(np.uint8), 8
+    )
+    remove = np.zeros_like(subject, dtype=bool)
+    removed = 0
+    for idx in range(1, white_count):
+        area = int(white_stats[idx, cv2.CC_STAT_AREA])
+        if area < 12:
+            continue
+        cx = int(white_stats[idx, cv2.CC_STAT_LEFT])
+        cy = int(white_stats[idx, cv2.CC_STAT_TOP])
+        cw = int(white_stats[idx, cv2.CC_STAT_WIDTH])
+        ch = int(white_stats[idx, cv2.CC_STAT_HEIGHT])
+        comp_box = (cx, cy, cx + cw, cy + ch)
+        overlaps_pet = not (
+            comp_box[2] < main_box[0] or comp_box[0] > main_box[2]
+            or comp_box[3] < main_box[1] or comp_box[1] > main_box[3]
+        )
+        thin_stroke = (cw > 120 and ch <= 6) or (ch > 120 and cw <= 6)
+        label_like = area < 18000 and (cw < 700 and ch < 180)
+        if (thin_stroke or label_like) and not overlaps_pet:
+            remove |= white_labels == idx
+            removed += area
+
+    if removed <= 0:
+        return
+    arr[remove] = (0, 255, 0)
+    Image.fromarray(arr).save(path)
+    print(f"[clean_white] {path.name} removed white overlay area={removed}")
+
+
+def flatten_non_subject_background(path: Path):
+    """Force far background outside the pet bbox to pure green."""
+    import cv2
+    import numpy as np
+    from PIL import Image
+
+    img = Image.open(path).convert("RGB")
+    arr = np.asarray(img).copy()
+    r, g, b = arr[:, :, 0], arr[:, :, 1], arr[:, :, 2]
+    green = (g > 150) & (g > r + 65) & (g > b + 65)
+    subject = ~green
+    comp_count, labels, stats, _ = cv2.connectedComponentsWithStats(subject.astype(np.uint8), 8)
+    if comp_count <= 1:
+        return
+
+    areas = stats[:, cv2.CC_STAT_AREA]
+    main = 1 + int(np.argmax(areas[1:]))
+    main_area = int(areas[main])
+    if main_area <= 0:
+        return
+
+    x = int(stats[main, cv2.CC_STAT_LEFT])
+    y = int(stats[main, cv2.CC_STAT_TOP])
+    w = int(stats[main, cv2.CC_STAT_WIDTH])
+    h = int(stats[main, cv2.CC_STAT_HEIGHT])
+    overlap_pad = max(8, int(max(w, h) * 0.01))
+    bbox_pad = max(14, int(max(w, h) * 0.015))
+    x0, y0, x1, y1 = x, y, x + w, y + h
+    main_box = (x - overlap_pad, y - overlap_pad, x + w + overlap_pad, y + h + overlap_pad)
+    for idx in range(1, comp_count):
+        if idx == main:
+            continue
+        area = int(areas[idx])
+        cx = int(stats[idx, cv2.CC_STAT_LEFT])
+        cy = int(stats[idx, cv2.CC_STAT_TOP])
+        cw = int(stats[idx, cv2.CC_STAT_WIDTH])
+        ch = int(stats[idx, cv2.CC_STAT_HEIGHT])
+        comp_box = (cx, cy, cx + cw, cy + ch)
+        overlaps_pet = not (
+            comp_box[2] < main_box[0] or comp_box[0] > main_box[2]
+            or comp_box[3] < main_box[1] or comp_box[1] > main_box[3]
+        )
+        if overlaps_pet or area >= main_area * 0.03:
+            x0 = min(x0, cx)
+            y0 = min(y0, cy)
+            x1 = max(x1, cx + cw)
+            y1 = max(y1, cy + ch)
+
+    x0 = max(0, x0 - bbox_pad)
+    y0 = max(0, y0 - bbox_pad)
+    x1 = min(arr.shape[1], x1 + bbox_pad)
+    y1 = min(arr.shape[0], y1 + bbox_pad)
+    keep_bbox = np.zeros(subject.shape, dtype=bool)
+    keep_bbox[y0:y1, x0:x1] = True
+    changed = int(np.count_nonzero(~keep_bbox & np.any(arr != (0, 255, 0), axis=2)))
+    arr[~keep_bbox] = (0, 255, 0)
+    Image.fromarray(arr).save(path)
+    if changed:
+        print(f"[flatten_bg] {path.name} flattened background pixels={changed}")
+
+
 def step_choose(pet: str, stem: str):
     pet_dir = OUTPUT / pet
     pick = pet_dir / "candidates" / f"{stem}.jpeg"
@@ -439,7 +619,11 @@ def crop_state_sheet(pet_dir: Path, sheet: Path):
         crop.save(tmp, quality=96)
         dest = pet_dir / ("chosen.png" if clip == DEFAULT_CLIP else f"state_{clip}.png")
         normalize_bg(tmp, dest)
+        clean_green_state_frame(dest)
         safe_pad_green_frame(dest)
+        flatten_non_subject_background(dest)
+        clean_green_state_frame(dest)
+        remove_white_green_screen_artifacts(dest)
         if clip == DEFAULT_CLIP:
             shutil.copyfile(dest, pet_dir / "state_idle.png")
         tmp.unlink(missing_ok=True)
@@ -480,7 +664,11 @@ def _legacy_step_state_frames(pet: str, clips: list[str], model: str = MODEL_STY
         resp = ark_request("/images/generations", body)
         download(resp["data"][0]["url"], raw_dest)
         normalize_bg(raw_dest, state_dest)
+        clean_green_state_frame(state_dest)
         safe_pad_green_frame(state_dest)
+        flatten_non_subject_background(state_dest)
+        clean_green_state_frame(state_dest)
+        remove_white_green_screen_artifacts(state_dest)
         dt = round(time.time() - t0, 1)
         print(f"[state:{clip}] {state_dest.name} 完成 {dt}s")
         record_metric(pet_dir, "state_frame", {"model": model, "clip": clip,
@@ -550,7 +738,11 @@ def step_state_frames(pet: str, clips: list[str], model: str = MODEL_STYLIZE):
             resp = ark_request("/images/generations", body)
             download(resp["data"][0]["url"], attempt_dest)
             normalize_bg(attempt_dest, state_dest)
+            clean_green_state_frame(state_dest)
             safe_pad_green_frame(state_dest)
+            flatten_non_subject_background(state_dest)
+            clean_green_state_frame(state_dest)
+            remove_white_green_screen_artifacts(state_dest)
             ok, bounds = state_frame_safe(state_dest)
             print(f"[state:{clip}] attempt {attempt}/{STATE_FRAME_ATTEMPTS} safe={ok} bounds={bounds}")
             if ok:
