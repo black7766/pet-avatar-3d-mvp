@@ -1101,11 +1101,15 @@ def refine_rgba_frame(img):
             h, w = alpha.shape
             yy = np.arange(h)[:, None]
             chroma = rgb.max(axis=2) - rgb.min(axis=2)
+            protected_body = cv2.erode(
+                (alpha > 72).astype(np.uint8), kernel, iterations=3
+            ).astype(bool)
             lower_shadow = (
                 (yy > int(h * 0.50))
                 & (alpha > 10)
                 & (luma < 102)
                 & (chroma < 46)
+                & ~protected_body
             )
             if lower_shadow.any():
                 shadow_count, shadow_labels, shadow_stats, _ = cv2.connectedComponentsWithStats(
@@ -1116,8 +1120,47 @@ def refine_rgba_frame(img):
                     if area < 4:
                         continue
                     component = shadow_labels == shadow_label
+                    # Do not remove dark fur/clothing pixels that are still part of the body.
+                    if float((component & (alpha > 160)).sum()) / float(component.sum()) > 0.18:
+                        continue
                     alpha[component] = 0
                     rgb[component] = 0
+
+    # Repair small internal alpha holes introduced by chromakey on light fur or clothing.
+    # This is intentionally limited to holes enclosed by the current silhouette; outside
+    # shadows and detached dust remain removable by the connected-component cleanup below.
+    visible_for_holes = alpha > 18
+    if visible_for_holes.any():
+        hole_kernel = np.ones((5, 5), np.uint8)
+        closed = cv2.morphologyEx(
+            visible_for_holes.astype(np.uint8), cv2.MORPH_CLOSE, hole_kernel, iterations=1
+        ).astype(bool)
+        hole_candidates = closed & (alpha <= 18)
+        hole_count, hole_labels, hole_stats, _ = cv2.connectedComponentsWithStats(
+            hole_candidates.astype(np.uint8), 8
+        )
+        repair_core = alpha > 170
+        if repair_core.any() and hole_count > 1:
+            repair_filled = repair_core.copy()
+            repair_rgb = np.where(repair_core[:, :, None], rgb, 0)
+            for _ in range(14):
+                grow = cv2.dilate(repair_filled.astype(np.uint8), kernel, iterations=1).astype(bool) & ~repair_filled
+                if not grow.any():
+                    break
+                for c in range(3):
+                    channel = repair_rgb[:, :, c]
+                    channel[grow] = cv2.dilate(channel, kernel, iterations=1)[grow]
+                    repair_rgb[:, :, c] = channel
+                repair_filled |= grow
+            for hole_label in range(1, hole_count):
+                area = int(hole_stats[hole_label, cv2.CC_STAT_AREA])
+                if area < 3 or area > 1800:
+                    continue
+                component = hole_labels == hole_label
+                if not repair_filled[component].any():
+                    continue
+                rgb[component] = repair_rgb[component]
+                alpha[component] = np.maximum(alpha[component], 215)
 
     # Drop isolated matte dust that is no longer connected to the pet after edge cleanup.
     component_mask = alpha > 4
