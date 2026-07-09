@@ -36,6 +36,9 @@ _IDENTITY_LOCK = (
     "只从输入照片提取宠物身份特征：毛色、花纹、斑纹分布、耳朵形状、眼睛颜色、鼻子、脸型、体型、尾巴和毛发质感；"
     "不要继承输入照片里的动作、姿态、拍摄角度、背景、光线、裁切、坐卧站趴状态、张嘴闭眼等瞬时表情；"
     "如果原图里有牵引绳、人的手、地面、植物、墙面、路面、家具或背景杂物，必须全部移除，不要变成身体两侧的色块或残片；"
+    "If the pet is wearing visible clothing, a vest, harness, collar, tag, bow, or leash attached to the body, preserve it as an identity feature. "
+    "Keep the dominant color, position, and silhouette of clear pet clothing or harnesses, especially a purple shirt, purple vest, chest garment, or collar. "
+    "Do not turn a dressed pet into a plain undressed pet unless the item is clearly only background clutter. "
 )
 
 _CANONICAL_POSE = (
@@ -64,6 +67,8 @@ STYLE_PROMPTS = {
     # A 档：最大还原（用户定稿档）— 真实照片质感，特征一根毛都不许动
     "real": (
         _IDENTITY_LOCK + _CANONICAL_POSE +
+        "Realistic entity version, close to a studio pet photo. Do not make it PaiMomo style, cute cartoon style, toy style, plush style, chibi style, or oversized-eye mascot style. "
+        "Preserve natural proportions, realistic fur, real eyes, real nose, and any visible pet clothing or harness from the reference photo. "
         "把照片中的宠物身份原样还原：完整保留它的毛色、花纹、斑纹分布、毛发长短质感、"
         "耳朵眼睛鼻子的形状比例和体型特征，主人必须一眼认出就是自家宠物；"
         "绝不卡通化、绝不动漫化、不改变任何身份特征；" + _COMMON_TAIL

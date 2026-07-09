@@ -42,6 +42,7 @@ IMAGE_SIZE_PX = 2048
 CLIP_ORDER = ("idle", "fast_walk", "sleep")
 STATE_FRAME_CLIPS = {"sleep", "fast_walk"}
 STATE_SHEET_CLIPS = ("idle", "fast_walk", "sleep")
+SINGLE_SOURCE_ANIMATION = os.environ.get("PETAVATAR_SINGLE_SOURCE", "1") != "0"
 N_CANDIDATES = int(os.environ.get("PETAVATAR_CANDIDATES", "4"))   # 单档候选数；--style all 时每档 2 张
 
 # 抠图参数（matte 时按首帧角点实采绿色作 key，这里是容差）
@@ -777,6 +778,8 @@ def valid_raw_video(path: Path) -> bool:
 
 
 def clip_first_frame(pet_dir: Path, clip: str) -> Path:
+    if SINGLE_SOURCE_ANIMATION:
+        return pet_dir / "chosen.png"
     state = pet_dir / f"state_{clip}.png"
     if state.exists():
         return state
@@ -788,7 +791,7 @@ def animate_request_body(uri: str, clip: str) -> dict:
         {"type": "text", "text": CLIP_PROMPTS[clip]},
         {"type": "image_url", "image_url": {"url": uri}, "role": "first_frame"},
     ]
-    if clip not in STATE_FRAME_CLIPS:
+    if SINGLE_SOURCE_ANIMATION or clip not in STATE_FRAME_CLIPS:
         content.append({"type": "image_url", "image_url": {"url": uri}, "role": "last_frame"})
     return {
         "model": MODEL_ANIMATE,
@@ -1356,7 +1359,7 @@ def step_matte(pet: str, clip: str):
     duration_ms = round(1000 / WEBP_FPS)
     out = pet_dir / f"anim_{clip}.webp"
     print(f"[matte:{clip}] 后处理 {len(pngs)} 帧，准备写 WebP...", flush=True)
-    state_loop = clip in STATE_FRAME_CLIPS or clip == "fast_walk"
+    state_loop = (not SINGLE_SOURCE_ANIMATION) and (clip in STATE_FRAME_CLIPS or clip == "fast_walk")
     webp_frames, loop_added, loop_meta = build_loop_frames(
         pngs,
         close_frames=0 if state_loop else LOOP_CLOSE_FRAMES,

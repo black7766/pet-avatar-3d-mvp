@@ -462,8 +462,14 @@ def process_variant(job_id: str, base_pet_id: str, input_path: Path, variant: di
     append_log(job_id, f"variant {variant['key']} started for {pet_id}")
     run_poc(
         job_id,
-        f"{variant['key']} state sheet {variant['style']}",
-        [py, str(POC_SCRIPT), "--pet", pet_id, "--step", "state_sheet", "--style", variant["style"]],
+        f"{variant['key']} stylize {variant['style']}",
+        [py, str(POC_SCRIPT), "--pet", pet_id, "--step", "stylize", "--style", variant["style"]],
+        env,
+    )
+    run_poc(
+        job_id,
+        f"{variant['key']} choose {variant['choose']}",
+        [py, str(POC_SCRIPT), "--pet", pet_id, "--choose", variant["choose"]],
         env,
     )
     update_job(job_id, metrics={"variants": variant_snapshots(base_pet_id)})
@@ -689,7 +695,7 @@ class Handler(SimpleHTTPRequestHandler):
         job = Job(job_id=job_id, pet_id=pet_id, input_path=str(input_path), page_url=page_url)
         job.logs.append(f"[{now_label()}] accepted upload {filename} as inputs/{pet_id}.{ext}")
         flow = "; ".join(
-            f"{variant['key']}: state_sheet {variant['style']} -> animate/matte {','.join(CLIPS)}"
+            f"{variant['key']}: stylize {variant['style']} -> choose {variant['choose']} -> animate/matte {','.join(CLIPS)}"
             for variant in VARIANTS
         )
         job.logs.append(f"[{now_label()}] queued flow: {flow}")
