@@ -23,3 +23,6 @@ legacy_webp_mvp/assets/native/*/frame_*.png
 artifacts/
 tmp/
 logs/
+poc_output/server_*.log
+poc_output/_ab_*/
+poc_output/_inspect_*/

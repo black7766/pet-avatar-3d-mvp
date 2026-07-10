@@ -89,6 +89,20 @@ STYLE_PROMPTS = {
     ),
 }
 
+# Keep the companion-avatar prompt species and color agnostic. Earlier versions
+# accidentally described one golden tabby sample and could recolor other pets.
+STYLE_PROMPTS["paimomo3d"] = (
+    _IDENTITY_LOCK
+    + _CANONICAL_POSE
+    + "Create a premium PaiMomo-like 3D companion avatar for a mobile pet app. "
+      "Use only the uploaded pet as the identity source. Preserve its actual species, breed cues, coat base color, exact marking and stripe layout, eye color, ear shape, muzzle, nose, body build, leg length, fur length, and tail shape. "
+      "Do not recolor the pet, do not invent golden fur or green eyes, and do not copy identity traits from any previous example. "
+      "Make the styling softly rounded and appealing with expressive but believable eyes, detailed layered fur, soft subsurface lighting, and polished high-end animated-film rendering. "
+      "Keep recognizability stronger than cuteness: no extreme chibi proportions, no giant head, no toy-plastic surface, no flat illustration, and no generic mascot face. "
+      "Show one complete pet in a calm front-facing seated canonical pose. Both ears, every paw, the full torso, and the entire tail including its tip must be visible with generous clearance from every edge. "
+      "Use a uniform bright chroma green #00FF00 background. No floor, contact shadow, cast shadow, gradient, halo, props, text, people, or extra animals."
+)
+
 _STATE_SHEET_RULE = (
     "Generate one high-resolution 2x2 pet pose reference layout, not a game sprite sheet, not pixel art, not an icon sheet, not a comic storyboard, no text labels. "
     "The whole image is 2048x2048 with four equal quadrants. Every quadrant contains the same pet identity, same markings, same face, same body ratio, same tail, and same 3D style. "
@@ -232,7 +246,9 @@ STATE_FRAME_PROMPTS["fast_walk"] = (
 CLIP_PROMPTS["fast_walk"] = (
     _STATE_LOOP_RULE
     + "fast_walk brisk-walk state loop: the first frame is already a stable brisk-walking pose, and the entire 5-second clip remains inside that state. "
-    "Create a smooth, seamless in-place brisk walking cycle with natural alternating legs, subtle body bob, ear and tail secondary motion, full body always centered and fully visible. "
+    "Create a smooth treadmill-style in-place brisk walking cycle with natural alternating legs, subtle body bob, ear and tail secondary motion, full body always centered and fully visible. "
+    "Lock the pet's body yaw, facing direction, and three-quarter viewing angle to the first frame for the entire clip. The head and torso must keep facing the same screen direction. "
+    "Never rotate around the vertical axis, never turn around, never show the back view, never orbit, never walk in a circle, never cross the frame, and never drift sideways. Only the gait cycle and subtle secondary motion may change. "
     "Do not show acceleration, start-from-idle, stop, sit-down, jump, run, sprint, or return to idle. "
     "Avoid any floor, black shadow, contact shadow, dark smear, motion trail, props, text, or camera movement. "
     + _STATE_LOOP_TAIL

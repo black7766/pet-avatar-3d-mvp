@@ -103,7 +103,7 @@ def dotenv_api_key() -> str | None:
     if not env_file.exists():
         return None
     try:
-        for raw_line in env_file.read_text(encoding="utf-8").splitlines():
+        for raw_line in env_file.read_text(encoding="utf-8-sig").splitlines():
             line = raw_line.strip()
             if not line or line.startswith("#") or "=" not in line:
                 continue
@@ -417,9 +417,16 @@ def subprocess_env() -> dict[str, str]:
     env.setdefault("PETAVATAR_CANDIDATES", "1")
     env.setdefault("PETAVATAR_WEBP_FPS", "24")
     env.setdefault("PETAVATAR_WEBP_WIDTH", "640")
-    env.setdefault("PETAVATAR_LOOP_CLOSE_FRAMES", "8")
-    env.setdefault("PETAVATAR_WEBP_METHOD", "2")
-    env.setdefault("PETAVATAR_WEBP_QUALITY", "90")
+    env.setdefault("PETAVATAR_WEBP_METHOD", "4")
+    env.setdefault("PETAVATAR_WEBP_QUALITY", "94")
+    env.setdefault("PETAVATAR_SINGLE_SOURCE", "0")
+    env.setdefault("PETAVATAR_LOCK_STATE_LAST_FRAME", "1")
+    env.setdefault("PETAVATAR_CLIP_DURATION", "4")
+    env.setdefault("PETAVATAR_CLIP_RESOLUTION", "720p")
+    env.setdefault("PETAVATAR_PARALLEL_STATE_FRAMES", "2")
+    env.setdefault("PETAVATAR_MATTE_PIPELINE", "memory")
+    env.setdefault("PETAVATAR_PARALLEL_MATTE", "3")
+    env.setdefault("PETAVATAR_ANIMATE_POLL_SECONDS", "8")
     return env
 
 
@@ -472,6 +479,12 @@ def process_variant(job_id: str, base_pet_id: str, input_path: Path, variant: di
         [py, str(POC_SCRIPT), "--pet", pet_id, "--choose", variant["choose"]],
         env,
     )
+    run_poc(
+        job_id,
+        f"{variant['key']} state frames {','.join(CLIPS)}",
+        [py, str(POC_SCRIPT), "--pet", pet_id, "--step", "state_frames", "--clip", ",".join(CLIPS)],
+        env,
+    )
     update_job(job_id, metrics={"variants": variant_snapshots(base_pet_id)})
     run_poc(
         job_id,
@@ -513,6 +526,12 @@ def process_backfill_job(job_id: str, snapshot: dict[str, Any]) -> None:
                 continue
             clip_csv = ",".join(missing)
             append_log(job_id, f"backfill {pet_id}: {clip_csv}")
+            run_poc(
+                job_id,
+                f"{pet_id} state frames {clip_csv}",
+                [py, str(POC_SCRIPT), "--pet", pet_id, "--step", "state_frames", "--clip", clip_csv],
+                env,
+            )
             run_poc(
                 job_id,
                 f"{pet_id} animate {clip_csv}",

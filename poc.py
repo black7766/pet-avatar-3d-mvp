@@ -17,12 +17,15 @@
 """
 import argparse
 import base64
+import concurrent.futures
 import json
 import mimetypes
 import os
+import re
 import shutil
 import subprocess
 import sys
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -43,6 +46,13 @@ CLIP_ORDER = ("idle", "fast_walk", "sleep")
 STATE_FRAME_CLIPS = {"sleep", "fast_walk"}
 STATE_SHEET_CLIPS = ("idle", "fast_walk", "sleep")
 SINGLE_SOURCE_ANIMATION = os.environ.get("PETAVATAR_SINGLE_SOURCE", "1") != "0"
+LOCK_STATE_LAST_FRAME = os.environ.get("PETAVATAR_LOCK_STATE_LAST_FRAME", "0") != "0"
+CLIP_DURATION_SECONDS = int(os.environ.get("PETAVATAR_CLIP_DURATION", "5"))
+if not 4 <= CLIP_DURATION_SECONDS <= 12:
+    raise ValueError("doubao-seedance-1-5-pro only supports 4-12 second clips")
+CLIP_RESOLUTION = os.environ.get("PETAVATAR_CLIP_RESOLUTION", "720p").strip().lower()
+if CLIP_RESOLUTION not in {"480p", "720p", "1080p"}:
+    raise ValueError("PETAVATAR_CLIP_RESOLUTION must be 480p, 720p, or 1080p")
 N_CANDIDATES = int(os.environ.get("PETAVATAR_CANDIDATES", "4"))   # 单档候选数；--style all 时每档 2 张
 
 # 抠图参数（matte 时按首帧角点实采绿色作 key，这里是容差）
@@ -57,6 +67,9 @@ ADAPTIVE_GREEN_MATTE = os.environ.get("PETAVATAR_ADAPTIVE_GREEN_MATTE", "1") != 
 GREEN_MATTE_FOREGROUND_SCORE = float(os.environ.get("PETAVATAR_GREEN_FG_SCORE", "0.025"))
 GREEN_MATTE_BORDER_QUANTILE = float(os.environ.get("PETAVATAR_GREEN_BG_QUANTILE", "0.002"))
 GREEN_MATTE_ALPHA_GAMMA = float(os.environ.get("PETAVATAR_GREEN_ALPHA_GAMMA", "1.22"))
+GREEN_CORE_DESPILL_MAX_DOMINANCE = float(os.environ.get("PETAVATAR_GREEN_CORE_MAX_DOMINANCE", "0.12"))
+GREEN_CORE_DESPILL_STRENGTH = float(os.environ.get("PETAVATAR_GREEN_CORE_DESPILL", "0.90"))
+GREEN_CORE_DESPILL_RADIUS_RATIO = float(os.environ.get("PETAVATAR_GREEN_CORE_RADIUS_RATIO", "0.16"))
 WEBP_FPS = int(os.environ.get("PETAVATAR_WEBP_FPS", "24"))
 WEBP_WIDTH = int(os.environ.get("PETAVATAR_WEBP_WIDTH", "640"))
 LOOP_CLOSE_FRAMES = int(os.environ.get("PETAVATAR_LOOP_CLOSE_FRAMES", "8"))
@@ -70,6 +83,12 @@ WEBP_BOTTOM_MARGIN = int(os.environ.get("PETAVATAR_BOTTOM_MARGIN", "38"))
 WEBP_EDGE_RISK_MARGIN = int(os.environ.get("PETAVATAR_EDGE_RISK_MARGIN", "8"))
 STATE_FRAME_ATTEMPTS = max(1, int(os.environ.get("PETAVATAR_STATE_ATTEMPTS", "3")))
 STATE_SAFE_MARGIN_RATIO = float(os.environ.get("PETAVATAR_STATE_SAFE_MARGIN_RATIO", "0.04"))
+PARALLEL_STATE_FRAMES = max(1, int(os.environ.get("PETAVATAR_PARALLEL_STATE_FRAMES", "2")))
+PARALLEL_MATTE = max(1, int(os.environ.get("PETAVATAR_PARALLEL_MATTE", "1")))
+MATTE_PIPELINE = os.environ.get("PETAVATAR_MATTE_PIPELINE", "disk").strip().lower()
+ANIMATE_POLL_SECONDS = max(3, int(os.environ.get("PETAVATAR_ANIMATE_POLL_SECONDS", "8")))
+
+METRICS_LOCK = threading.Lock()
 
 sys.path.insert(0, str(ROOT))
 from prompts import (  # noqa: E402
@@ -82,7 +101,7 @@ def load_env():
     env = {}
     env_file = ROOT / ".env"
     if env_file.exists():
-        for line in env_file.read_text().splitlines():
+        for line in env_file.read_text(encoding="utf-8-sig").splitlines():
             line = line.strip()
             if line and not line.startswith("#") and "=" in line:
                 k, v = line.split("=", 1)
@@ -202,25 +221,26 @@ def find_inputs(pet: str) -> list:
 
 
 def record_metric(pet_dir: Path, step: str, info: dict):
-    mf = pet_dir / "metrics.json"
-    m = json.loads(mf.read_text()) if mf.exists() else {}
-    rows = m.setdefault(step, [])
-    key = None
-    if "clip" in info:
-        key = ("clip", info["clip"])
-    elif "file" in info:
-        key = ("file", info["file"])
-    if key:
-        field, value = key
-        for idx, row in enumerate(rows):
-            if row.get(field) == value:
-                rows[idx] = info
-                break
+    with METRICS_LOCK:
+        mf = pet_dir / "metrics.json"
+        m = json.loads(mf.read_text()) if mf.exists() else {}
+        rows = m.setdefault(step, [])
+        key = None
+        if "clip" in info:
+            key = ("clip", info["clip"])
+        elif "file" in info:
+            key = ("file", info["file"])
+        if key:
+            field, value = key
+            for idx, row in enumerate(rows):
+                if row.get(field) == value:
+                    rows[idx] = info
+                    break
+            else:
+                rows.append(info)
         else:
             rows.append(info)
-    else:
-        rows.append(info)
-    mf.write_text(json.dumps(m, ensure_ascii=False, indent=2))
+        mf.write_text(json.dumps(m, ensure_ascii=False, indent=2))
 
 
 def subject_bbox_from_green(path: Path, green_margin=24):
@@ -683,12 +703,102 @@ def _legacy_step_state_frames(pet: str, clips: list[str], model: str = MODEL_STY
 
 # ---------- step 2: animate（动作片段库）----------
 
+def _merge_usage(total: dict, usage: dict | None):
+    for key, value in (usage or {}).items():
+        if isinstance(value, (int, float)):
+            total[key] = total.get(key, 0) + value
+
+
+def _generate_state_frame(pet_dir: Path, chosen_uri: str, clip: str, model: str):
+    if clip not in STATE_FRAME_PROMPTS:
+        print(f"[state:{clip}] no state-frame prompt; keep using chosen.png")
+        return
+
+    state_dest = pet_dir / f"state_{clip}.png"
+    if state_dest.exists():
+        ok, bounds = state_frame_safe(state_dest)
+        if ok:
+            print(f"[state:{clip}] skip existing {state_dest.name}; safe={ok} bounds={bounds}")
+            return
+        print(f"[state:{clip}] existing frame is unsafe; regenerate bounds={bounds}")
+        state_dest.unlink()
+
+    image_input = chosen_uri
+    ref_prompt = ""
+    if clip == "sleep":
+        pose_ref = pet_dir / "sleep_pose.png"
+        if pose_ref.exists():
+            image_input = [chosen_uri, data_uri(pose_ref)]
+            ref_prompt = (
+                " Multiple input images are provided: image 1 controls identity, style, fur, markings, and face; "
+                "image 2 controls only the low prone sleeping pose and full-body composition. "
+                "Do not copy image 2 background or cropping; keep full tail and full body safely inside the green canvas."
+            )
+
+    raw_dest = pet_dir / f"state_{clip}_raw.jpeg"
+    t0 = time.time()
+    ok = False
+    bounds = None
+    prompt = STATE_FRAME_PROMPTS[clip] + ref_prompt
+    usage_total = {}
+    attempt = 0
+    for attempt in range(1, STATE_FRAME_ATTEMPTS + 1):
+        attempt_dest = raw_dest if attempt == 1 else pet_dir / f"state_{clip}_raw_attempt{attempt}.jpeg"
+        body = {
+            "model": model,
+            "prompt": prompt,
+            "image": image_input,
+            "size": IMAGE_SIZE,
+            "response_format": "url",
+            "watermark": False,
+        }
+        resp = ark_request("/images/generations", body)
+        _merge_usage(usage_total, resp.get("usage"))
+        download(resp["data"][0]["url"], attempt_dest)
+        normalize_bg(attempt_dest, state_dest)
+        clean_green_state_frame(state_dest)
+        safe_pad_green_frame(state_dest)
+        flatten_non_subject_background(state_dest)
+        clean_green_state_frame(state_dest)
+        remove_white_green_screen_artifacts(state_dest)
+        ok, bounds = state_frame_safe(state_dest)
+        print(f"[state:{clip}] attempt {attempt}/{STATE_FRAME_ATTEMPTS} safe={ok} bounds={bounds}")
+        if ok:
+            break
+        prompt = (
+            STATE_FRAME_PROMPTS[clip]
+            + " Retry constraint: pull the camera much farther back. The full pet body must stay inside the central safe area. "
+              "Ears, paws, body, and tail tip must not touch any image edge. Keep at least 15% pure green margin on every side. "
+              "The full tail must be visible, with the tail tip at least 15% away from the right edge. No cropping."
+        )
+
+    dt = round(time.time() - t0, 1)
+    print(f"[state:{clip}] {state_dest.name} done {dt}s safe={ok}")
+    record_metric(pet_dir, "state_frame", {
+        "model": model,
+        "clip": clip,
+        "file": state_dest.name,
+        "seconds": dt,
+        "safe": ok,
+        "bounds": bounds,
+        "attempts": attempt,
+        "usage": usage_total,
+    })
+    if not ok:
+        raise RuntimeError(
+            f"[state:{clip}] full-body QA failed after {attempt} attempts; bounds={bounds}. "
+            "Stop before Seedance to avoid spending video tokens on a cropped state."
+        )
+
+
 def step_state_frames(pet: str, clips: list[str], model: str = MODEL_STYLIZE):
     pet_dir = OUTPUT / pet
     chosen = pet_dir / "chosen.png"
     if not chosen.exists():
         sys.exit("missing chosen.png: run --step stylize and --choose first")
     uri = data_uri(chosen)
+
+    targets = []
     for clip in clips:
         if clip == DEFAULT_CLIP:
             state_dest = pet_dir / f"state_{clip}.png"
@@ -697,84 +807,19 @@ def step_state_frames(pet: str, clips: list[str], model: str = MODEL_STYLIZE):
                 print(f"[state:{clip}] copied chosen.png -> {state_dest.name}")
             else:
                 print(f"[state:{clip}] skip existing {state_dest.name}")
-            continue
-        if clip not in STATE_FRAME_PROMPTS:
-            print(f"[state:{clip}] no state-frame prompt; keep using chosen.png")
-            continue
+        else:
+            targets.append(clip)
 
-        state_dest = pet_dir / f"state_{clip}.png"
-        if state_dest.exists():
-            ok, bounds = state_frame_safe(state_dest)
-            if ok:
-                print(f"[state:{clip}] skip existing {state_dest.name}; safe margins")
-            else:
-                print(f"[state:{clip}] skip existing {state_dest.name}; edge risk {bounds}; delete it to regenerate")
-            continue
+    if len(targets) <= 1 or PARALLEL_STATE_FRAMES <= 1:
+        for clip in targets:
+            _generate_state_frame(pet_dir, uri, clip, model)
+        return
 
-        image_input = uri
-        ref_prompt = ""
-        if clip == "sleep":
-            pose_ref = pet_dir / "sleep_pose.png"
-            if pose_ref.exists():
-                image_input = [uri, data_uri(pose_ref)]
-                ref_prompt = (
-                    " Multiple input images are provided: image 1 controls identity, style, fur, markings, and face; "
-                    "image 2 controls only the low prone sleeping pose and full-body composition. "
-                    "Do not copy image 2 background or cropping; keep full tail and full body safely inside the green canvas."
-                )
-
-        raw_dest = pet_dir / f"state_{clip}_raw.jpeg"
-        t0 = time.time()
-        resp = None
-        ok = False
-        bounds = None
-        prompt = STATE_FRAME_PROMPTS[clip] + ref_prompt
-        attempt = 0
-        for attempt in range(1, STATE_FRAME_ATTEMPTS + 1):
-            attempt_dest = raw_dest if attempt == 1 else pet_dir / f"state_{clip}_raw_attempt{attempt}.jpeg"
-            body = {
-                "model": model,
-                "prompt": prompt,
-                "image": image_input,
-                "size": IMAGE_SIZE,
-                "response_format": "url",
-                "watermark": False,
-            }
-            resp = ark_request("/images/generations", body)
-            download(resp["data"][0]["url"], attempt_dest)
-            normalize_bg(attempt_dest, state_dest)
-            clean_green_state_frame(state_dest)
-            safe_pad_green_frame(state_dest)
-            flatten_non_subject_background(state_dest)
-            clean_green_state_frame(state_dest)
-            remove_white_green_screen_artifacts(state_dest)
-            ok, bounds = state_frame_safe(state_dest)
-            print(f"[state:{clip}] attempt {attempt}/{STATE_FRAME_ATTEMPTS} safe={ok} bounds={bounds}")
-            if ok:
-                break
-            prompt = (
-                STATE_FRAME_PROMPTS[clip]
-                + " Retry constraint: pull the camera much farther back. The full pet body must stay inside the central safe area. "
-                  "Ears, paws, body, and tail tip must not touch any image edge. Keep at least 15% pure green margin on every side. "
-                  "The full tail must be visible, with the tail tip at least 15% away from the right edge. No cropping."
-            )
-
-        dt = round(time.time() - t0, 1)
-        print(f"[state:{clip}] {state_dest.name} done {dt}s safe={ok}")
-        record_metric(
-            pet_dir,
-            "state_frame",
-            {
-                "model": model,
-                "clip": clip,
-                "file": state_dest.name,
-                "seconds": dt,
-                "safe": ok,
-                "bounds": bounds,
-                "attempts": attempt,
-                "usage": resp.get("usage") if resp else None,
-            },
-        )
+    workers = min(PARALLEL_STATE_FRAMES, len(targets))
+    with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
+        futures = [executor.submit(_generate_state_frame, pet_dir, uri, clip, model) for clip in targets]
+        for future in concurrent.futures.as_completed(futures):
+            future.result()
 
 
 def valid_raw_video(path: Path) -> bool:
@@ -791,11 +836,13 @@ def clip_first_frame(pet_dir: Path, clip: str) -> Path:
 
 
 def animate_request_body(uri: str, clip: str) -> dict:
+    prompt = re.sub(r"--duration\s+\d+", f"--duration {CLIP_DURATION_SECONDS}", CLIP_PROMPTS[clip])
+    prompt = re.sub(r"--resolution\s+\S+", f"--resolution {CLIP_RESOLUTION}", prompt)
     content = [
-        {"type": "text", "text": CLIP_PROMPTS[clip]},
+        {"type": "text", "text": prompt},
         {"type": "image_url", "image_url": {"url": uri}, "role": "first_frame"},
     ]
-    if SINGLE_SOURCE_ANIMATION or clip not in STATE_FRAME_CLIPS:
+    if SINGLE_SOURCE_ANIMATION or LOCK_STATE_LAST_FRAME or clip not in STATE_FRAME_CLIPS:
         content.append({"type": "image_url", "image_url": {"url": uri}, "role": "last_frame"})
     return {
         "model": MODEL_ANIMATE,
@@ -813,6 +860,8 @@ def finish_animate_task(pet_dir: Path, clip: str, task_id: str, task_status: dic
     print(f"[animate:{clip}] raw_{clip}.mp4 已保存并去音轨（{dt}s）")
     record_metric(pet_dir, "animate", {"model": MODEL_ANIMATE, "clip": clip,
                                        "task": task_id, "seconds": dt,
+                                       "requested_duration_seconds": CLIP_DURATION_SECONDS,
+                                       "requested_resolution": CLIP_RESOLUTION,
                                        "generate_audio": task_status.get("generate_audio"),
                                        "usage": task_status.get("usage")})
 
@@ -849,7 +898,7 @@ def step_animate_many(pet: str, clips: list[str]):
         print(f"[animate:{clip}] 任务 {task_id} 已创建，批量轮询中…")
 
     while tasks:
-        time.sleep(15)
+        time.sleep(ANIMATE_POLL_SECONDS)
         for clip, info in list(tasks.items()):
             st = ark_request(f"/contents/generations/tasks/{info['id']}", method="GET")
             status = st.get("status")
@@ -1090,6 +1139,31 @@ def adaptive_green_matte_frame(img, profile):
             clean_rgb[:, :, 1][spill_edge], max_rb[spill_edge] + 0.006
         )
 
+    # Seedance can bake yellow-green bounce into opaque fur even when red remains slightly
+    # stronger than green. Estimate that spill against the expected red/blue mix and correct
+    # it only near the silhouette. Strongly green identity details such as irises stay intact.
+    red = clean_rgb[:, :, 0]
+    green = clean_rgb[:, :, 1]
+    blue = clean_rgb[:, :, 2]
+    max_rb = np.maximum(red, blue)
+    green_dominance = (green - max_rb) / np.maximum(max_rb, 0.08)
+    green_bias = green - (red * 0.65 + blue * 0.35)
+    solid_distance = cv2.distanceTransform(
+        (alpha > 0.90).astype(np.uint8), cv2.DIST_L2, 5
+    )
+    despill_radius = max(32.0, min(height, width) * GREEN_CORE_DESPILL_RADIUS_RATIO)
+    opaque_spill = (
+        (alpha > 0.90)
+        & (solid_distance <= despill_radius)
+        & (green_bias > 0.012)
+        & (green_dominance < GREEN_CORE_DESPILL_MAX_DOMINANCE)
+    )
+    if opaque_spill.any():
+        spill = np.minimum(green_bias, 0.18) * GREEN_CORE_DESPILL_STRENGTH
+        clean_rgb[:, :, 0][opaque_spill] += spill[opaque_spill] * 0.18
+        clean_rgb[:, :, 1][opaque_spill] -= spill[opaque_spill] * 0.80
+        clean_rgb[:, :, 2][opaque_spill] += spill[opaque_spill] * 0.55
+
     # Keep soft fur components close to the opaque body, but reject detached shadow plates.
     # A generous 14px support radius preserves whiskers and briefly separated tail tips.
     visible = alpha > 0.035
@@ -1153,6 +1227,101 @@ def extract_adaptive_green_frames(video: Path, frames_dir: Path):
         }
     finally:
         shutil.rmtree(raw_dir, ignore_errors=True)
+
+
+def profile_green_arrays(rgb_frames):
+    """Build the same clip profile directly from decoded RGB arrays."""
+    import numpy as np
+
+    sampled_scores = []
+    sampled_colors = []
+    step = max(1, len(rgb_frames) // 12)
+    for raw in rgb_frames[::step]:
+        rgb = raw.astype(np.float32) / 255.0
+        score = _green_score(rgb)
+        border = _frame_border_mask(*score.shape)
+        green_border = border & (score > 0.30) & (rgb[:, :, 1] > 0.14)
+        if green_border.sum() < border.sum() * 0.45:
+            continue
+        sampled_scores.append(score[green_border])
+        sampled_colors.append(rgb[green_border])
+    if not sampled_scores:
+        raise ValueError("frame borders are not a reliable green screen")
+    scores = np.concatenate(sampled_scores)
+    colors = np.concatenate(sampled_colors, axis=0)
+    bg_floor = float(np.quantile(scores, GREEN_MATTE_BORDER_QUANTILE))
+    if bg_floor < 0.42:
+        raise ValueError(f"green screen confidence too low: {bg_floor:.3f}")
+    return {
+        "bg_floor": min(bg_floor, 0.98),
+        "key_rgb": np.median(colors, axis=0),
+        "sampled_frames": len(sampled_scores),
+    }
+
+
+def extract_adaptive_green_frames_memory(video: Path):
+    """Decode once to memory and return pre-cleaned RGBA frames without PNG round trips."""
+    import numpy as np
+    from PIL import Image
+
+    decode_started = time.time()
+    frame_bytes = WEBP_WIDTH * WEBP_WIDTH * 3
+    result = subprocess.run([
+        ffmpeg_exe(), "-loglevel", "error", "-i", str(video),
+        "-vf", f"scale={WEBP_WIDTH}:{WEBP_WIDTH}:flags=lanczos,fps={WEBP_FPS}",
+        "-pix_fmt", "rgb24", "-f", "rawvideo", "pipe:1",
+    ], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if not result.stdout or len(result.stdout) % frame_bytes:
+        raise RuntimeError("ffmpeg returned an incomplete raw RGB frame stream")
+    rgb_frames = np.frombuffer(result.stdout, dtype=np.uint8).reshape(
+        (-1, WEBP_WIDTH, WEBP_WIDTH, 3)
+    )
+    decode_seconds = round(time.time() - decode_started, 2)
+
+    profile = profile_green_arrays(rgb_frames)
+    matte_started = time.time()
+    rgba_frames = [
+        adaptive_green_matte_frame(Image.fromarray(frame, "RGB"), profile)
+        for frame in rgb_frames
+    ]
+    matte_seconds = round(time.time() - matte_started, 2)
+    profile_meta = {
+        "mode": "adaptive_green_memory",
+        "bg_floor": round(float(profile["bg_floor"]), 4),
+        "key_rgb": [round(float(value) * 255) for value in profile["key_rgb"]],
+        "sampled_frames": profile["sampled_frames"],
+        "decode_seconds": decode_seconds,
+        "alpha_seconds": matte_seconds,
+    }
+    return rgba_frames, profile_meta
+
+
+def assess_rgba_frames(frames):
+    """Return maximum silhouette green spill and mid-frame visible area."""
+    import cv2
+    import numpy as np
+
+    take = frames[::max(1, len(frames) // 6)][:6]
+    worst_green, mid_visible = 0.0, 1.0
+    for idx, frame in enumerate(take):
+        arr = np.asarray(frame.convert("RGBA")).astype(np.int16)
+        visible = arr[:, :, 3] > 16
+        if idx == len(take) // 2:
+            mid_visible = float(visible.mean())
+        if not visible.any():
+            worst_green = 1.0
+            continue
+        eroded = cv2.erode(visible.astype(np.uint8), np.ones((3, 3), np.uint8), iterations=2).astype(bool)
+        silhouette = visible & ~eroded
+        transition = (arr[:, :, 3] > 16) & (arr[:, :, 3] < 245)
+        edge = silhouette | transition
+        greenish = (
+            (arr[:, :, 1] > arr[:, :, 0] + 24)
+            & (arr[:, :, 1] > arr[:, :, 2] + 24)
+            & edge
+        )
+        worst_green = max(worst_green, float(greenish.sum() / visible.sum()))
+    return worst_green, mid_visible
 
 
 def refine_rgba_frame(img):
@@ -1468,15 +1637,32 @@ def trim_to_best_loop_span(frames, min_frames=72, max_start=24):
     }
 
 
-def build_loop_frames(pngs, close_frames=None, optimize_loop=False, precleaned=False):
+def build_loop_frames(
+    pngs,
+    close_frames=None,
+    optimize_loop=False,
+    precleaned=False,
+    preserve_locked_endpoints=False,
+):
     """Read frames, optionally clean legacy mattes, and trim to a smoother loop span."""
     from PIL import Image
 
-    if precleaned:
+    if pngs and hasattr(pngs[0], "convert"):
+        frames = [frame.convert("RGBA").copy() for frame in pngs]
+    elif precleaned:
         frames = [Image.open(p).convert("RGBA") for p in pngs]
     else:
         frames = [refine_rgba_frame(Image.open(p)) for p in pngs]
     loop_meta = None
+    if preserve_locked_endpoints and len(frames) >= 2:
+        seam_diff = float(abs(frame_loop_signature(frames[0]) - frame_loop_signature(frames[-1])).mean())
+        loop_meta = {
+            "mode": "locked_endpoints",
+            "source_frames": len(frames),
+            "selected_frames": len(frames),
+            "seam_diff": round(seam_diff, 6),
+        }
+        return frames, 0, loop_meta
     if optimize_loop:
         frames, loop_meta = trim_to_best_loop_span(frames)
     if len(frames) < 2:
@@ -1610,10 +1796,12 @@ def step_matte_legacy(pet: str, clip: str):
     out = pet_dir / f"anim_{clip}.webp"
     print(f"[matte:{clip}] 后处理 {len(pngs)} 帧，准备写 WebP...", flush=True)
     state_loop = (not SINGLE_SOURCE_ANIMATION) and (clip in STATE_FRAME_CLIPS or clip == "fast_walk")
+    locked_loop = LOCK_STATE_LAST_FRAME
     webp_frames, loop_added, loop_meta = build_loop_frames(
         pngs,
         close_frames=0 if state_loop else LOOP_CLOSE_FRAMES,
-        optimize_loop=(clip in ("walk", "fast_walk")),
+        optimize_loop=(clip in ("walk", "fast_walk")) and not locked_loop,
+        preserve_locked_endpoints=locked_loop,
     )
     webp_frames, reframe = reframe_loop_frames(webp_frames)
     webp_frames[0].save(
@@ -1649,8 +1837,97 @@ def step_matte_legacy(pet: str, clip: str):
                                      "reframe": reframe})
 
 
+def step_matte_memory(pet: str, clip: str):
+    """Adaptive matte using one rawvideo decode and no intermediate PNG files."""
+    pet_dir = OUTPUT / pet
+    video = pet_dir / f"raw_{clip}.mp4"
+    if not video.exists():
+        sys.exit(f"missing raw_{clip}.mp4; run animate first")
+
+    t0 = time.time()
+    try:
+        source_frames, matte_profile = extract_adaptive_green_frames_memory(video)
+    except ValueError as exc:
+        print(f"[matte:{clip}] memory matte unavailable ({exc}); using legacy chromakey")
+        return step_matte_legacy(pet, clip)
+
+    residual, mid_visible = assess_rgba_frames(source_frames)
+    if mid_visible < 0.04:
+        print(f"[matte:{clip}] memory matte subject coverage {mid_visible:.1%}; using legacy chromakey")
+        return step_matte_legacy(pet, clip)
+
+    key_rgb = matte_profile["key_rgb"]
+    key = f"0x{key_rgb[0]:02X}{key_rgb[1]:02X}{key_rgb[2]:02X}"
+    print(
+        f"[matte:{clip}] memory bg_floor={matte_profile['bg_floor']} "
+        f"green={residual:.1%} visible={mid_visible:.1%} "
+        f"decode={matte_profile['decode_seconds']}s alpha={matte_profile['alpha_seconds']}s"
+    )
+
+    duration_ms = round(1000 / WEBP_FPS)
+    out = pet_dir / f"anim_{clip}.webp"
+    state_loop = (not SINGLE_SOURCE_ANIMATION) and (clip in STATE_FRAME_CLIPS or clip == "fast_walk")
+    locked_loop = LOCK_STATE_LAST_FRAME
+    encode_started = time.time()
+    webp_frames, loop_added, loop_meta = build_loop_frames(
+        source_frames,
+        close_frames=0 if state_loop else LOOP_CLOSE_FRAMES,
+        optimize_loop=(clip in ("walk", "fast_walk")) and not locked_loop,
+        precleaned=True,
+        preserve_locked_endpoints=locked_loop,
+    )
+    webp_frames, reframe = reframe_loop_frames(webp_frames)
+    webp_frames[0].save(
+        out,
+        save_all=True,
+        append_images=webp_frames[1:],
+        duration=duration_ms,
+        loop=0,
+        lossless=False,
+        quality=WEBP_QUALITY,
+        alpha_quality=100,
+        method=WEBP_METHOD,
+        exact=True,
+        minimize_size=False,
+    )
+    encode_seconds = round(time.time() - encode_started, 2)
+    if clip == DEFAULT_CLIP:
+        webp_frames[0].save(pet_dir / "preview.png")
+
+    size_mb = round(out.stat().st_size / 1024 / 1024, 2)
+    dt = round(time.time() - t0, 1)
+    matte_profile["encode_seconds"] = encode_seconds
+    print(f"[matte:{clip}] loop_meta={loop_meta}")
+    print(f"[matte:{clip}] reframe={reframe}")
+    print(
+        f"[matte:{clip}] {out.name} {size_mb}MB / {len(webp_frames)} frames "
+        f"(source {len(source_frames)} + close {loop_added}) / {dt}s"
+    )
+    record_metric(pet_dir, "matte", {
+        "clip": clip,
+        "key_color": key,
+        "frames": len(source_frames),
+        "webp_frames": len(webp_frames),
+        "loop_close_frames": loop_added,
+        "webp_fps": WEBP_FPS,
+        "webp_width": WEBP_WIDTH,
+        "webp_quality": WEBP_QUALITY,
+        "webp_method": WEBP_METHOD,
+        "webp_mb": size_mb,
+        "seconds": dt,
+        "similarity": "adaptive",
+        "green_residual": round(residual, 4),
+        "matte_mode": "adaptive_green_memory",
+        "matte_profile": matte_profile,
+        "loop_meta": loop_meta,
+        "reframe": reframe,
+    })
+
+
 def step_matte(pet: str, clip: str):
     """Create a transparent WebP with adaptive green-screen matting and a legacy fallback."""
+    if ADAPTIVE_GREEN_MATTE and MATTE_PIPELINE == "memory":
+        return step_matte_memory(pet, clip)
     if not ADAPTIVE_GREEN_MATTE:
         return step_matte_legacy(pet, clip)
 
@@ -1687,10 +1964,12 @@ def step_matte(pet: str, clip: str):
     out = pet_dir / f"anim_{clip}.webp"
     print(f"[matte:{clip}] encoding {len(pngs)} pre-cleaned frames...", flush=True)
     state_loop = (not SINGLE_SOURCE_ANIMATION) and (clip in STATE_FRAME_CLIPS or clip == "fast_walk")
+    locked_loop = LOCK_STATE_LAST_FRAME
     webp_frames, loop_added, loop_meta = build_loop_frames(
         pngs,
         close_frames=0 if state_loop else LOOP_CLOSE_FRAMES,
-        optimize_loop=(clip in ("walk", "fast_walk")),
+        optimize_loop=(clip in ("walk", "fast_walk")) and not locked_loop,
+        preserve_locked_endpoints=locked_loop,
         precleaned=True,
     )
     webp_frames, reframe = reframe_loop_frames(webp_frames)
@@ -1775,8 +2054,16 @@ def main():
         elif s == "animate":
             step_animate_many(args.pet, clips)
         elif s == "matte":
-            for c in clips:
-                step_matte(args.pet, c)
+            if len(clips) > 1 and PARALLEL_MATTE > 1:
+                workers = min(PARALLEL_MATTE, len(clips))
+                print(f"[matte] parallel clips={len(clips)} workers={workers} pipeline={MATTE_PIPELINE}")
+                with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
+                    futures = [executor.submit(step_matte, args.pet, clip) for clip in clips]
+                    for future in concurrent.futures.as_completed(futures):
+                        future.result()
+            else:
+                for c in clips:
+                    step_matte(args.pet, c)
         else:
             sys.exit(f"未知 step: {s}")
 
