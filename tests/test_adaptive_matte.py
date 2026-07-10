@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 from PIL import Image, ImageDraw
 
-from poc import adaptive_green_matte_frame, assess_rgba_frames
+from poc import adaptive_green_matte_frame, assess_rgba_frames, suppress_opaque_key_halo
 
 
 class AdaptiveGreenMatteTest(unittest.TestCase):
@@ -64,6 +64,30 @@ class AdaptiveGreenMatteTest(unittest.TestCase):
         self.assertLessEqual(cast_pixel[1], max(cast_pixel[0], cast_pixel[2]) + 10)
         self.assertGreater(cast_pixel[2], 130, "green bounce was reduced without restoring blue")
         self.assertGreater(identity_green[1], max(identity_green[0], identity_green[2]) + 15)
+
+    def test_repairs_opaque_yellow_green_rim_without_changing_alpha(self):
+        rgb = np.zeros((80, 80, 3), dtype=np.float32)
+        alpha = np.zeros((80, 80), dtype=np.float32)
+        alpha[12:68, 12:68] = 1.0
+        rgb[12:68, 12:68] = (0.28, 0.22, 0.12)
+        rgb[12:15, 12:68] = (0.96, 0.82, 0.32)
+        rgb[65:68, 12:68] = (0.96, 0.82, 0.32)
+        rgb[12:68, 12:15] = (0.96, 0.82, 0.32)
+        rgb[12:68, 65:68] = (0.96, 0.82, 0.32)
+        rgb[28:52, 12:15] = (1.0, 0.99, 0.96)
+        identity_green = (0.10, 0.65, 0.12)
+        rgb[34:46, 34:46] = identity_green
+
+        result = suppress_opaque_key_halo(rgb, alpha)
+
+        before_distance = np.linalg.norm(rgb[13, 40] - rgb[30, 40])
+        after_distance = np.linalg.norm(result[13, 40] - result[30, 40])
+        neutral_before = np.linalg.norm(rgb[40, 13] - rgb[40, 30])
+        neutral_after = np.linalg.norm(result[40, 13] - result[40, 30])
+        self.assertLess(after_distance, before_distance * 0.55)
+        self.assertLess(neutral_after, neutral_before * 0.55)
+        np.testing.assert_allclose(result[40, 40], identity_green, atol=1e-6)
+        self.assertEqual(float(alpha.sum()), 56 * 56)
 
 
 if __name__ == "__main__":

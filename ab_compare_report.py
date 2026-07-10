@@ -280,7 +280,7 @@ def build_html(report: dict) -> str:
             cards.append(f"""
               <article class="demo-card" data-style="{style}" data-flow="{flow}">
                 <div class="card-head"><div><strong>{FLOW_LABELS[flow]}</strong><span>{'同一坐姿驱动全部动作' if flow == 'before' else '目标状态首尾帧 + 内存并行抠图'}</span></div><b>{first['frames']} 帧</b></div>
-                <div class="stage"><img draggable="false" src="/{pet_id}/anim_idle.webp?v=ab2" alt="{STYLE_LABELS[style]}{FLOW_LABELS[flow]}" /></div>
+                <div class="stage"><img draggable="false" src="/{pet_id}/anim_idle.webp?v=ab3" alt="{STYLE_LABELS[style]}{FLOW_LABELS[flow]}" /></div>
                 <div class="live-metrics"><span>idle</span><span>{first['file_mb']:.2f} MB</span><span>绿残留 {first['green_residual_max_pct']:.3f}%</span></div>
               </article>
             """)
@@ -363,7 +363,7 @@ document.querySelectorAll('button[data-clip]').forEach(button=>button.addEventLi
  const clip=button.dataset.clip; document.querySelectorAll('button[data-clip]').forEach(b=>b.classList.toggle('active',b===button));
  document.querySelectorAll('.demo-card[data-style][data-flow]').forEach(card=>{{
   const style=card.dataset.style,flow=card.dataset.flow,key=`${{style}}_${{flow}}_${{clip}}`,asset=report.assets[key];
-  card.querySelector('img').src=`${{asset.web_path}}?v=ab2_${{clip}}`; const spans=card.querySelectorAll('.live-metrics span');
+  card.querySelector('img').src=`${{asset.web_path}}?v=ab3_${{clip}}`; const spans=card.querySelectorAll('.live-metrics span');
   spans[0].textContent=labels[clip]; spans[1].textContent=`${{asset.file_mb.toFixed(2)}} MB`; spans[2].textContent=`绿残留 ${{asset.green_residual_max_pct.toFixed(3)}}%`;
  }});
 }}));

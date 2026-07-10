@@ -70,6 +70,8 @@ GREEN_MATTE_ALPHA_GAMMA = float(os.environ.get("PETAVATAR_GREEN_ALPHA_GAMMA", "1
 GREEN_CORE_DESPILL_MAX_DOMINANCE = float(os.environ.get("PETAVATAR_GREEN_CORE_MAX_DOMINANCE", "0.12"))
 GREEN_CORE_DESPILL_STRENGTH = float(os.environ.get("PETAVATAR_GREEN_CORE_DESPILL", "0.90"))
 GREEN_CORE_DESPILL_RADIUS_RATIO = float(os.environ.get("PETAVATAR_GREEN_CORE_RADIUS_RATIO", "0.16"))
+GREEN_OPAQUE_HALO_RADIUS = float(os.environ.get("PETAVATAR_GREEN_HALO_RADIUS", "8"))
+GREEN_OPAQUE_HALO_STRENGTH = float(os.environ.get("PETAVATAR_GREEN_HALO_STRENGTH", "0.90"))
 WEBP_FPS = int(os.environ.get("PETAVATAR_WEBP_FPS", "24"))
 WEBP_WIDTH = int(os.environ.get("PETAVATAR_WEBP_WIDTH", "640"))
 LOOP_CLOSE_FRAMES = int(os.environ.get("PETAVATAR_LOOP_CLOSE_FRAMES", "8"))
@@ -1004,6 +1006,86 @@ def _frame_border_mask(height, width):
     return border
 
 
+def suppress_opaque_key_halo(rgb, alpha):
+    """Pull baked yellow-green edge light back toward nearby interior fur color.
+
+    The video model can render green-screen bounce as fully opaque pixels, so alpha-only
+    cleanup cannot remove it. Restrict correction to a narrow inner silhouette band and
+    require a bright yellow-green deviation from the nearest deeper foreground pixel.
+    """
+    import cv2
+    import numpy as np
+
+    clean = rgb.copy()
+    solid = alpha > 0.90
+    if not solid.any():
+        return clean
+
+    inner_distance = cv2.distanceTransform(solid.astype(np.uint8), cv2.DIST_L2, 5)
+    deep_core = (
+        (alpha > 0.985)
+        & (inner_distance >= max(10.0, GREEN_OPAQUE_HALO_RADIUS * 1.25))
+    )
+    if not deep_core.any():
+        return clean
+
+    _, nearest_labels = cv2.distanceTransformWithLabels(
+        (~deep_core).astype(np.uint8),
+        cv2.DIST_L2,
+        5,
+        labelType=cv2.DIST_LABEL_PIXEL,
+    )
+    core_labels = nearest_labels[deep_core]
+    color_lut = np.zeros((int(nearest_labels.max()) + 1, 3), dtype=np.float32)
+    color_lut[core_labels] = clean[deep_core]
+    nearest_core = color_lut[nearest_labels]
+
+    red, green, blue = clean[:, :, 0], clean[:, :, 1], clean[:, :, 2]
+    luminance = red * 0.299 + green * 0.587 + blue * 0.114
+    core_luminance = (
+        nearest_core[:, :, 0] * 0.299
+        + nearest_core[:, :, 1] * 0.587
+        + nearest_core[:, :, 2] * 0.114
+    )
+    green_bias = green - (red * 0.65 + blue * 0.35)
+    blue_deficit = np.minimum(red, green) - blue
+    color_delta = np.linalg.norm(clean - nearest_core, axis=2)
+    edge_band = (
+        (alpha > 0.55)
+        & (inner_distance > 0.0)
+        & (inner_distance <= GREEN_OPAQUE_HALO_RADIUS)
+    )
+    luminance_delta = luminance - core_luminance
+    yellow_green_halo = (
+        (green_bias > 0.018)
+        & (blue_deficit > 0.14)
+        & (luminance_delta > 0.10)
+        & (color_delta > 0.16)
+    )
+    neutral_bright_halo = (
+        (luminance > 0.72)
+        & (luminance_delta > 0.16)
+        & (color_delta > 0.30)
+    )
+    halo = edge_band & (yellow_green_halo | neutral_bright_halo)
+    if not halo.any():
+        return clean
+
+    brightness_weight = np.clip((luminance_delta - 0.08) / 0.28, 0.0, 1.0)
+    edge_weight = np.clip(
+        (GREEN_OPAQUE_HALO_RADIUS + 1.0 - inner_distance) / GREEN_OPAQUE_HALO_RADIUS,
+        0.0,
+        1.0,
+    )
+    weight = np.clip(
+        brightness_weight * edge_weight * GREEN_OPAQUE_HALO_STRENGTH,
+        0.0,
+        0.92,
+    )[:, :, None]
+    clean[halo] = clean[halo] * (1.0 - weight[halo]) + nearest_core[halo] * weight[halo]
+    return clean
+
+
 def profile_green_screen(raw_frames):
     """Build one clip-level green profile so alpha does not pulse frame to frame."""
     import cv2
@@ -1707,6 +1789,7 @@ def alpha_union_bbox(frames, threshold=4):
 
 def reframe_loop_frames(frames):
     """Normalize transparent WebP content to a shared bottom-aligned safe area."""
+    import numpy as np
     from PIL import Image
 
     bbox = alpha_union_bbox(frames)
@@ -1743,7 +1826,11 @@ def reframe_loop_frames(frames):
             cropped = cropped.resize((new_w, new_h), Image.Resampling.LANCZOS)
         canvas = Image.new("RGBA", (WEBP_WIDTH, WEBP_WIDTH), (0, 0, 0, 0))
         canvas.alpha_composite(cropped, (paste_x, paste_y))
-        out.append(canvas)
+        canvas_arr = np.asarray(canvas).astype(np.float32) / 255.0
+        clean_rgb = suppress_opaque_key_halo(canvas_arr[:, :, :3], canvas_arr[:, :, 3])
+        clean_rgb[canvas_arr[:, :, 3] == 0.0] = 0.0
+        cleaned = np.dstack([np.clip(clean_rgb, 0.0, 1.0), canvas_arr[:, :, 3]])
+        out.append(Image.fromarray((cleaned * 255.0 + 0.5).astype(np.uint8), "RGBA"))
     return out, {
         "source_bbox": [x0, y0, x1, y1],
         "source_margins": {
