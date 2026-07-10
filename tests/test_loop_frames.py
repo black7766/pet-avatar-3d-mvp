@@ -37,6 +37,26 @@ class LockedEndpointLoopTest(unittest.TestCase):
         self.assertEqual(meta["mode"], "locked_endpoints")
         self.assertEqual(result[0].getpixel((0, 0)), result[-1].getpixel((0, 0)))
 
+    def test_clean_seam_skips_translucent_crossfade(self):
+        frames = []
+        for index in range(80):
+            frame = Image.new("RGBA", (32, 32), (0, 0, 0, 0))
+            draw = ImageDraw.Draw(frame)
+            offset = index % 4
+            draw.rectangle((8 + offset, 8, 22 + offset, 26), fill=(120, 90, 60, 255))
+            frames.append(frame)
+        frames[-1] = frames[0].copy()
+
+        result, added, meta = build_loop_frames(
+            frames,
+            close_frames=8,
+            optimize_loop=True,
+        )
+
+        self.assertEqual(added, 0)
+        self.assertEqual(meta["closure"], "direct")
+        self.assertTrue(all(frame.getextrema()[3][1] == 255 for frame in result))
+
     def test_disk_matte_fallback_defines_locked_loop(self):
         def fake_extract(_video, frames_dir):
             frames_dir.mkdir(parents=True, exist_ok=True)

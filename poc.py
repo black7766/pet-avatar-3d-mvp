@@ -72,11 +72,17 @@ GREEN_CORE_DESPILL_STRENGTH = float(os.environ.get("PETAVATAR_GREEN_CORE_DESPILL
 GREEN_CORE_DESPILL_RADIUS_RATIO = float(os.environ.get("PETAVATAR_GREEN_CORE_RADIUS_RATIO", "0.16"))
 GREEN_OPAQUE_HALO_RADIUS = float(os.environ.get("PETAVATAR_GREEN_HALO_RADIUS", "8"))
 GREEN_OPAQUE_HALO_STRENGTH = float(os.environ.get("PETAVATAR_GREEN_HALO_STRENGTH", "0.90"))
+EDGE_PROFILE = os.environ.get("PETAVATAR_EDGE_PROFILE", "auto").strip().lower()
+if EDGE_PROFILE not in {"auto", "real", "cartoon"}:
+    raise ValueError("PETAVATAR_EDGE_PROFILE must be auto, real, or cartoon")
 WEBP_FPS = int(os.environ.get("PETAVATAR_WEBP_FPS", "24"))
 WEBP_WIDTH = int(os.environ.get("PETAVATAR_WEBP_WIDTH", "640"))
 LOOP_CLOSE_FRAMES = int(os.environ.get("PETAVATAR_LOOP_CLOSE_FRAMES", "8"))
 LOOP_TRIM_HEAD_FRAMES = int(os.environ.get("PETAVATAR_LOOP_TRIM_HEAD_FRAMES", "6"))
 LOOP_TRIM_TAIL_FRAMES = int(os.environ.get("PETAVATAR_LOOP_TRIM_TAIL_FRAMES", "6"))
+LOOP_DIRECT_SEAM_THRESHOLD = float(
+    os.environ.get("PETAVATAR_LOOP_DIRECT_SEAM_THRESHOLD", "0.012")
+)
 WEBP_QUALITY = int(os.environ.get("PETAVATAR_WEBP_QUALITY", "94"))
 WEBP_METHOD = int(os.environ.get("PETAVATAR_WEBP_METHOD", "4"))
 WEBP_SUBJECT_WIDTH_RATIO = float(os.environ.get("PETAVATAR_SUBJECT_WIDTH_RATIO", "0.86"))
@@ -1006,7 +1012,16 @@ def _frame_border_mask(height, width):
     return border
 
 
-def suppress_opaque_key_halo(rgb, alpha):
+def edge_profile_for_pet(pet: str) -> str:
+    if EDGE_PROFILE != "auto":
+        return EDGE_PROFILE
+    lowered = pet.lower()
+    if any(marker in lowered for marker in ("paimomo", "cartoon", "cute", "figurine")):
+        return "cartoon"
+    return "real"
+
+
+def suppress_opaque_key_halo(rgb, alpha, profile="cartoon", return_details=False):
     """Pull baked yellow-green edge light back toward nearby interior fur color.
 
     The video model can render green-screen bounce as fully opaque pixels, so alpha-only
@@ -1019,14 +1034,19 @@ def suppress_opaque_key_halo(rgb, alpha):
     clean = rgb.copy()
     solid = alpha > 0.90
     if not solid.any():
+        if return_details:
+            return clean, np.zeros_like(alpha, dtype=bool), np.zeros_like(alpha)
         return clean
 
+    halo_radius = GREEN_OPAQUE_HALO_RADIUS * (1.5 if profile == "real" else 1.0)
     inner_distance = cv2.distanceTransform(solid.astype(np.uint8), cv2.DIST_L2, 5)
     deep_core = (
         (alpha > 0.985)
-        & (inner_distance >= max(10.0, GREEN_OPAQUE_HALO_RADIUS * 1.25))
+        & (inner_distance >= max(10.0, halo_radius * 1.25))
     )
     if not deep_core.any():
+        if return_details:
+            return clean, np.zeros_like(alpha, dtype=bool), inner_distance
         return clean
 
     _, nearest_labels = cv2.distanceTransformWithLabels(
@@ -1050,10 +1070,16 @@ def suppress_opaque_key_halo(rgb, alpha):
     green_bias = green - (red * 0.65 + blue * 0.35)
     blue_deficit = np.minimum(red, green) - blue
     color_delta = np.linalg.norm(clean - nearest_core, axis=2)
+    warmth = red + green - 2.0 * blue
+    core_warmth = (
+        nearest_core[:, :, 0]
+        + nearest_core[:, :, 1]
+        - 2.0 * nearest_core[:, :, 2]
+    )
     edge_band = (
         (alpha > 0.55)
         & (inner_distance > 0.0)
-        & (inner_distance <= GREEN_OPAQUE_HALO_RADIUS)
+        & (inner_distance <= halo_radius)
     )
     luminance_delta = luminance - core_luminance
     yellow_green_halo = (
@@ -1062,28 +1088,80 @@ def suppress_opaque_key_halo(rgb, alpha):
         & (luminance_delta > 0.10)
         & (color_delta > 0.16)
     )
-    neutral_bright_halo = (
-        (luminance > 0.72)
-        & (luminance_delta > 0.16)
-        & (color_delta > 0.30)
+    if profile == "real":
+        neutral_bright_halo = (
+            (luminance > 0.62)
+            & (luminance_delta > 0.10)
+            & (color_delta > 0.22)
+        )
+        warm_bright_halo = (
+            (luminance > 0.44)
+            & (luminance_delta > 0.08)
+            & (color_delta > 0.15)
+            & ((warmth - core_warmth) > 0.08)
+        )
+    else:
+        neutral_bright_halo = (
+            (luminance > 0.72)
+            & (luminance_delta > 0.16)
+            & (color_delta > 0.30)
+        )
+        warm_bright_halo = np.zeros_like(edge_band)
+    halo = edge_band & (
+        yellow_green_halo | neutral_bright_halo | warm_bright_halo
     )
-    halo = edge_band & (yellow_green_halo | neutral_bright_halo)
     if not halo.any():
+        if return_details:
+            return clean, halo, inner_distance
         return clean
 
     brightness_weight = np.clip((luminance_delta - 0.08) / 0.28, 0.0, 1.0)
     edge_weight = np.clip(
-        (GREEN_OPAQUE_HALO_RADIUS + 1.0 - inner_distance) / GREEN_OPAQUE_HALO_RADIUS,
+        (halo_radius + 1.0 - inner_distance) / halo_radius,
         0.0,
         1.0,
     )
+    if profile == "real":
+        edge_weight = 0.45 + 0.55 * np.sqrt(edge_weight)
     weight = np.clip(
-        brightness_weight * edge_weight * GREEN_OPAQUE_HALO_STRENGTH,
+        brightness_weight
+        * edge_weight
+        * (1.0 if profile == "real" else GREEN_OPAQUE_HALO_STRENGTH),
         0.0,
-        0.92,
+        0.94 if profile == "real" else 0.92,
     )[:, :, None]
     clean[halo] = clean[halo] * (1.0 - weight[halo]) + nearest_core[halo] * weight[halo]
+    if profile == "real":
+        corrected_luminance = (
+            clean[:, :, 0] * 0.299
+            + clean[:, :, 1] * 0.587
+            + clean[:, :, 2] * 0.114
+        )
+        max_edge_luminance = core_luminance + 0.14
+        tone_scale = np.clip(
+            max_edge_luminance / np.maximum(corrected_luminance, 0.02),
+            0.72,
+            1.0,
+        )
+        clean[halo] *= tone_scale[halo, None]
+    if return_details:
+        return clean, halo, inner_distance
     return clean
+
+
+def refine_reframed_halo(rgb, alpha, profile="cartoon"):
+    """Apply profile-specific color cleanup and natural alpha feathering."""
+    import numpy as np
+
+    clean_rgb, halo, inner_distance = suppress_opaque_key_halo(
+        rgb, alpha, profile=profile, return_details=True
+    )
+    clean_alpha = alpha.copy()
+    if profile == "real" and halo.any():
+        feather = halo & (inner_distance <= 3.5)
+        natural_alpha = np.clip(0.56 + inner_distance * 0.13, 0.62, 0.96)
+        clean_alpha[feather] = np.minimum(clean_alpha[feather], natural_alpha[feather])
+    return clean_rgb, clean_alpha
 
 
 def profile_green_screen(raw_frames):
@@ -1747,6 +1825,13 @@ def build_loop_frames(
         return frames, 0, loop_meta
     if optimize_loop:
         frames, loop_meta = trim_to_best_loop_span(frames)
+        if (
+            loop_meta
+            and loop_meta.get("mode") == "best_span"
+            and loop_meta.get("seam_diff", 1.0) <= LOOP_DIRECT_SEAM_THRESHOLD
+        ):
+            loop_meta["closure"] = "direct"
+            return frames, 0, loop_meta
     if len(frames) < 2:
         return frames, 0, loop_meta
     trim_head = min(max(0, LOOP_TRIM_HEAD_FRAMES), max(0, len(frames) // 5))
@@ -1787,7 +1872,7 @@ def alpha_union_bbox(frames, threshold=4):
     )
 
 
-def reframe_loop_frames(frames):
+def reframe_loop_frames(frames, edge_profile="cartoon"):
     """Normalize transparent WebP content to a shared bottom-aligned safe area."""
     import numpy as np
     from PIL import Image
@@ -1827,9 +1912,11 @@ def reframe_loop_frames(frames):
         canvas = Image.new("RGBA", (WEBP_WIDTH, WEBP_WIDTH), (0, 0, 0, 0))
         canvas.alpha_composite(cropped, (paste_x, paste_y))
         canvas_arr = np.asarray(canvas).astype(np.float32) / 255.0
-        clean_rgb = suppress_opaque_key_halo(canvas_arr[:, :, :3], canvas_arr[:, :, 3])
-        clean_rgb[canvas_arr[:, :, 3] == 0.0] = 0.0
-        cleaned = np.dstack([np.clip(clean_rgb, 0.0, 1.0), canvas_arr[:, :, 3]])
+        clean_rgb, clean_alpha = refine_reframed_halo(
+            canvas_arr[:, :, :3], canvas_arr[:, :, 3], profile=edge_profile
+        )
+        clean_rgb[clean_alpha == 0.0] = 0.0
+        cleaned = np.dstack([np.clip(clean_rgb, 0.0, 1.0), clean_alpha])
         out.append(Image.fromarray((cleaned * 255.0 + 0.5).astype(np.uint8), "RGBA"))
     return out, {
         "source_bbox": [x0, y0, x1, y1],
@@ -1890,7 +1977,9 @@ def step_matte_legacy(pet: str, clip: str):
         optimize_loop=(clip in ("walk", "fast_walk")) and not locked_loop,
         preserve_locked_endpoints=locked_loop,
     )
-    webp_frames, reframe = reframe_loop_frames(webp_frames)
+    webp_frames, reframe = reframe_loop_frames(
+        webp_frames, edge_profile_for_pet(pet)
+    )
     webp_frames[0].save(
         out,
         save_all=True,
@@ -1963,7 +2052,9 @@ def step_matte_memory(pet: str, clip: str):
         precleaned=True,
         preserve_locked_endpoints=locked_loop,
     )
-    webp_frames, reframe = reframe_loop_frames(webp_frames)
+    webp_frames, reframe = reframe_loop_frames(
+        webp_frames, edge_profile_for_pet(pet)
+    )
     webp_frames[0].save(
         out,
         save_all=True,
@@ -2059,7 +2150,9 @@ def step_matte(pet: str, clip: str):
         preserve_locked_endpoints=locked_loop,
         precleaned=True,
     )
-    webp_frames, reframe = reframe_loop_frames(webp_frames)
+    webp_frames, reframe = reframe_loop_frames(
+        webp_frames, edge_profile_for_pet(pet)
+    )
     webp_frames[0].save(
         out,
         save_all=True,

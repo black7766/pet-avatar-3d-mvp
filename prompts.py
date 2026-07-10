@@ -69,6 +69,7 @@ STYLE_PROMPTS = {
         _IDENTITY_LOCK + _CANONICAL_POSE +
         "Realistic entity version, close to a studio pet photo. Do not make it PaiMomo style, cute cartoon style, toy style, plush style, chibi style, or oversized-eye mascot style. "
         "Preserve natural proportions, realistic fur, real eyes, real nose, and any visible pet clothing or harness from the reference photo. "
+        "Use soft neutral diffuse studio lighting from the camera side. No rim light, no backlight, no edge glow, no overexposed fur outline, no green reflected light, and no green or yellow color spill on fur. "
         "把照片中的宠物身份原样还原：完整保留它的毛色、花纹、斑纹分布、毛发长短质感、"
         "耳朵眼睛鼻子的形状比例和体型特征，主人必须一眼认出就是自家宠物；"
         "绝不卡通化、绝不动漫化、不改变任何身份特征；" + _COMMON_TAIL
@@ -168,6 +169,7 @@ _STATE_FRAME_RULE = (
     "只改变姿态到指定状态，不改变品种、脸型、颜色或角色风格；"
     "完整全身入镜，宠物位于画面中心，手机App动画资产构图；"
     "明亮标准绿幕背景 #00FF00，无阴影、无接触阴影、无地面投影、无灰黑拖影、无运动残影、无渐变、无地面、无道具、无文字、无其他动物、无人手。"
+    "Use neutral diffuse frontal lighting on the pet. No rim light, no backlight, no glowing or overexposed fur edge, and no green-screen reflection on the body, paws, or tail. "
 )
 
 STATE_FRAME_PROMPTS = {
@@ -199,6 +201,7 @@ _STATE_LOOP_RULE = (
     "全程保持同一只宠物的身份、毛色、花纹、五官、体型比例和3D风格；"
     "镜头固定，完整全身入镜，宠物保持画面中心，纯绿色背景，动作稳定、连续、可无缝循环；"
     "禁止跳帧、闪回到初始坐姿、变脸、变体型、出现人手、碗、毯子、窝或其他道具；"
+    "Keep neutral diffuse subject lighting constant in every frame. No rim light, no backlight, no glowing white or yellow fur outline, and no green-screen bounce or color spill on fur, paws, belly, or tail. "
 )
 
 _STATE_LOOP_TAIL = (

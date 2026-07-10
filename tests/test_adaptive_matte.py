@@ -3,7 +3,13 @@ import unittest
 import numpy as np
 from PIL import Image, ImageDraw
 
-from poc import adaptive_green_matte_frame, assess_rgba_frames, suppress_opaque_key_halo
+from poc import (
+    adaptive_green_matte_frame,
+    assess_rgba_frames,
+    edge_profile_for_pet,
+    refine_reframed_halo,
+    suppress_opaque_key_halo,
+)
 
 
 class AdaptiveGreenMatteTest(unittest.TestCase):
@@ -79,6 +85,7 @@ class AdaptiveGreenMatteTest(unittest.TestCase):
         rgb[34:46, 34:46] = identity_green
 
         result = suppress_opaque_key_halo(rgb, alpha)
+        real_result = suppress_opaque_key_halo(rgb, alpha, profile="real")
 
         before_distance = np.linalg.norm(rgb[13, 40] - rgb[30, 40])
         after_distance = np.linalg.norm(result[13, 40] - result[30, 40])
@@ -86,8 +93,41 @@ class AdaptiveGreenMatteTest(unittest.TestCase):
         neutral_after = np.linalg.norm(result[40, 13] - result[40, 30])
         self.assertLess(after_distance, before_distance * 0.55)
         self.assertLess(neutral_after, neutral_before * 0.55)
+        self.assertLess(
+            np.linalg.norm(real_result[40, 13] - rgb[40, 30]),
+            neutral_after,
+        )
+        real_luma = float(np.dot(real_result[40, 13], (0.299, 0.587, 0.114)))
+        core_luma = float(np.dot(rgb[40, 30], (0.299, 0.587, 0.114)))
+        self.assertLessEqual(real_luma - core_luma, 0.17)
         np.testing.assert_allclose(result[40, 40], identity_green, atol=1e-6)
         self.assertEqual(float(alpha.sum()), 56 * 56)
+
+        _, real_alpha = refine_reframed_halo(rgb, alpha, profile="real")
+        _, cartoon_alpha = refine_reframed_halo(rgb, alpha, profile="cartoon")
+        self.assertLess(real_alpha[13, 40], 0.90)
+        self.assertEqual(real_alpha[40, 40], 1.0)
+        np.testing.assert_allclose(cartoon_alpha, alpha, atol=1e-6)
+
+    def test_edge_profile_keeps_cartoon_and_real_assets_separate(self):
+        self.assertEqual(edge_profile_for_pet("pet_123_real"), "real")
+        self.assertEqual(edge_profile_for_pet("pet_123_paimomo"), "cartoon")
+
+    def test_real_profile_repairs_mild_warm_exposure_without_touching_cartoon(self):
+        rgb = np.zeros((72, 72, 3), dtype=np.float32)
+        alpha = np.zeros((72, 72), dtype=np.float32)
+        alpha[8:64, 8:64] = 1.0
+        rgb[8:64, 8:64] = (0.29, 0.23, 0.15)
+        rgb[8:11, 8:64] = (0.69, 0.53, 0.20)
+
+        cartoon = suppress_opaque_key_halo(rgb, alpha, profile="cartoon")
+        real = suppress_opaque_key_halo(rgb, alpha, profile="real")
+        source_delta = np.linalg.norm(rgb[9, 36] - rgb[24, 36])
+        cartoon_delta = np.linalg.norm(cartoon[9, 36] - rgb[24, 36])
+        real_delta = np.linalg.norm(real[9, 36] - rgb[24, 36])
+
+        self.assertAlmostEqual(cartoon_delta, source_delta, places=5)
+        self.assertLess(real_delta, source_delta * 0.75)
 
 
 if __name__ == "__main__":
