@@ -53,13 +53,17 @@ CHROMA_SIMILARITY_STEPS = tuple(
     if x.strip()
 )
 CHROMA_BLEND = os.environ.get("PETAVATAR_CHROMA_BLEND", "0.04")
+ADAPTIVE_GREEN_MATTE = os.environ.get("PETAVATAR_ADAPTIVE_GREEN_MATTE", "1") != "0"
+GREEN_MATTE_FOREGROUND_SCORE = float(os.environ.get("PETAVATAR_GREEN_FG_SCORE", "0.025"))
+GREEN_MATTE_BORDER_QUANTILE = float(os.environ.get("PETAVATAR_GREEN_BG_QUANTILE", "0.002"))
+GREEN_MATTE_ALPHA_GAMMA = float(os.environ.get("PETAVATAR_GREEN_ALPHA_GAMMA", "1.22"))
 WEBP_FPS = int(os.environ.get("PETAVATAR_WEBP_FPS", "24"))
 WEBP_WIDTH = int(os.environ.get("PETAVATAR_WEBP_WIDTH", "640"))
 LOOP_CLOSE_FRAMES = int(os.environ.get("PETAVATAR_LOOP_CLOSE_FRAMES", "8"))
 LOOP_TRIM_HEAD_FRAMES = int(os.environ.get("PETAVATAR_LOOP_TRIM_HEAD_FRAMES", "6"))
 LOOP_TRIM_TAIL_FRAMES = int(os.environ.get("PETAVATAR_LOOP_TRIM_TAIL_FRAMES", "6"))
-WEBP_QUALITY = int(os.environ.get("PETAVATAR_WEBP_QUALITY", "90"))
-WEBP_METHOD = int(os.environ.get("PETAVATAR_WEBP_METHOD", "2"))
+WEBP_QUALITY = int(os.environ.get("PETAVATAR_WEBP_QUALITY", "94"))
+WEBP_METHOD = int(os.environ.get("PETAVATAR_WEBP_METHOD", "4"))
 WEBP_SUBJECT_WIDTH_RATIO = float(os.environ.get("PETAVATAR_SUBJECT_WIDTH_RATIO", "0.86"))
 WEBP_SUBJECT_HEIGHT_RATIO = float(os.environ.get("PETAVATAR_SUBJECT_HEIGHT_RATIO", "0.78"))
 WEBP_BOTTOM_MARGIN = int(os.environ.get("PETAVATAR_BOTTOM_MARGIN", "38"))
@@ -931,6 +935,226 @@ def assess_frames(frames_dir: Path):
     return worst_green, mid_visible
 
 
+def _green_score(rgb):
+    """Return normalized green dominance, stable across highlights and shadows."""
+    import numpy as np
+
+    r, g, b = rgb[:, :, 0], rgb[:, :, 1], rgb[:, :, 2]
+    return (g - np.maximum(r, b)) / np.maximum(g, 1.0 / 255.0)
+
+
+def _frame_border_mask(height, width):
+    import numpy as np
+
+    band = max(8, min(height, width) // 50)
+    border = np.zeros((height, width), dtype=bool)
+    border[:band, :] = True
+    border[-band:, :] = True
+    border[:, :band] = True
+    border[:, -band:] = True
+    return border
+
+
+def profile_green_screen(raw_frames):
+    """Build one clip-level green profile so alpha does not pulse frame to frame."""
+    import cv2
+    import numpy as np
+
+    sampled_scores = []
+    sampled_colors = []
+    step = max(1, len(raw_frames) // 12)
+    for path in raw_frames[::step]:
+        bgr = cv2.imread(str(path), cv2.IMREAD_COLOR)
+        if bgr is None:
+            continue
+        rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
+        score = _green_score(rgb)
+        border = _frame_border_mask(*score.shape)
+        green_border = border & (score > 0.30) & (rgb[:, :, 1] > 0.14)
+        if green_border.sum() < border.sum() * 0.45:
+            continue
+        sampled_scores.append(score[green_border])
+        sampled_colors.append(rgb[green_border])
+
+    if not sampled_scores:
+        raise ValueError("frame borders are not a reliable green screen")
+
+    scores = np.concatenate(sampled_scores)
+    colors = np.concatenate(sampled_colors, axis=0)
+    bg_floor = float(np.quantile(scores, GREEN_MATTE_BORDER_QUANTILE))
+    if bg_floor < 0.42:
+        raise ValueError(f"green screen confidence too low: {bg_floor:.3f}")
+    return {
+        "bg_floor": min(bg_floor, 0.98),
+        "key_rgb": np.median(colors, axis=0),
+        "sampled_frames": len(sampled_scores),
+    }
+
+
+def adaptive_green_matte_frame(img, profile):
+    """Recover a clean RGBA frame from a green-screen RGB frame.
+
+    RGB-distance chroma keying treats a dark green shadow as foreground because the shadow is
+    far from the bright key color. Normalized green dominance keeps the same value under a
+    brightness change, so it removes those shadows without eroding white or cream body pixels.
+    Only green regions connected to the canvas border are keyed, protecting green details that
+    may legitimately occur inside the pet or its clothing.
+    """
+    import cv2
+    import numpy as np
+    from PIL import Image
+
+    rgb = np.asarray(img.convert("RGB")).astype(np.float32) / 255.0
+    height, width = rgb.shape[:2]
+    score = _green_score(rgb)
+    g = rgb[:, :, 1]
+    foreground_score = min(GREEN_MATTE_FOREGROUND_SCORE, profile["bg_floor"] * 0.08)
+
+    candidate = (score > foreground_score) & (g > 0.035)
+    count, labels, candidate_stats, candidate_centroids = cv2.connectedComponentsWithStats(
+        candidate.astype(np.uint8), 8
+    )
+    reachable = np.zeros((height, width), dtype=bool)
+    if count > 1:
+        edge_labels = np.unique(np.concatenate([
+            labels[0, :], labels[-1, :], labels[:, 0], labels[:, -1]
+        ]))
+        edge_labels = edge_labels[edge_labels > 0]
+        if edge_labels.size:
+            reachable = candidate & np.isin(labels, edge_labels)
+        edge_label_set = set(int(value) for value in edge_labels)
+        for label in range(1, count):
+            if label in edge_label_set:
+                continue
+            area = int(candidate_stats[label, cv2.CC_STAT_AREA])
+            center_y = float(candidate_centroids[label, 1])
+            if area < 3 or area > height * width * 0.08 or center_y < height * 0.40:
+                continue
+            component = labels == label
+            if float(np.quantile(score[component], 0.75)) > 0.14:
+                reachable[component] = True
+
+    alpha = np.ones((height, width), dtype=np.float32)
+    keyed_alpha = np.clip(
+        (profile["bg_floor"] - score) / max(profile["bg_floor"] - foreground_score, 1e-4),
+        0.0,
+        1.0,
+    )
+    keyed_alpha = np.power(keyed_alpha, GREEN_MATTE_ALPHA_GAMMA)
+    alpha[reachable] = keyed_alpha[reachable]
+    alpha[alpha < 0.035] = 0.0
+    alpha[alpha > 0.995] = 1.0
+    alpha[:2, :] = 0.0
+    alpha[-2:, :] = 0.0
+    alpha[:, :2] = 0.0
+    alpha[:, -2:] = 0.0
+
+    border = _frame_border_mask(height, width)
+    frame_green = border & (score > 0.30) & (g > 0.14)
+    if frame_green.sum() >= border.sum() * 0.30:
+        key_rgb = np.median(rgb[frame_green], axis=0)
+    else:
+        key_rgb = profile["key_rgb"]
+
+    # Reverse the foreground-over-green composite in the transition band, then suppress any
+    # remaining connected green spill. This keeps fur tips colored like fur instead of lime.
+    safe_alpha = np.maximum(alpha[:, :, None], 0.055)
+    recovered = np.clip(
+        (rgb - (1.0 - alpha[:, :, None]) * key_rgb[None, None, :]) / safe_alpha,
+        0.0,
+        1.0,
+    )
+    recover_weight = np.clip((1.0 - alpha) * 1.8, 0.0, 1.0)[:, :, None]
+    clean_rgb = rgb * (1.0 - recover_weight) + recovered * recover_weight
+    spill_edge = reachable & (alpha > 0.018) & (alpha < 0.995) & (score > foreground_score)
+    color_core = (alpha > 0.985) & ~reachable
+    if color_core.any() and spill_edge.any():
+        _, nearest_labels = cv2.distanceTransformWithLabels(
+            (~color_core).astype(np.uint8),
+            cv2.DIST_L2,
+            5,
+            labelType=cv2.DIST_LABEL_PIXEL,
+        )
+        core_labels = nearest_labels[color_core]
+        color_lut = np.zeros((int(nearest_labels.max()) + 1, 3), dtype=np.float32)
+        color_lut[core_labels] = rgb[color_core]
+        nearest_core_rgb = color_lut[nearest_labels]
+        core_weight = np.clip((0.985 - alpha) / 0.72, 0.0, 1.0)[:, :, None]
+        clean_rgb[spill_edge] = (
+            clean_rgb[spill_edge] * (1.0 - core_weight[spill_edge])
+            + nearest_core_rgb[spill_edge] * core_weight[spill_edge]
+        )
+    if spill_edge.any():
+        max_rb = np.maximum(clean_rgb[:, :, 0], clean_rgb[:, :, 2])
+        clean_rgb[:, :, 1][spill_edge] = np.minimum(
+            clean_rgb[:, :, 1][spill_edge], max_rb[spill_edge] + 0.006
+        )
+
+    # Keep soft fur components close to the opaque body, but reject detached shadow plates.
+    # A generous 14px support radius preserves whiskers and briefly separated tail tips.
+    visible = alpha > 0.035
+    solid = alpha > 0.55
+    solid_count, solid_labels, solid_stats, _ = cv2.connectedComponentsWithStats(
+        solid.astype(np.uint8), 8
+    )
+    subject_support = None
+    if solid_count > 1:
+        main_solid = 1 + int(np.argmax(solid_stats[1:, cv2.CC_STAT_AREA]))
+        main_core = solid_labels == main_solid
+        subject_support = cv2.dilate(
+            main_core.astype(np.uint8), np.ones((3, 3), np.uint8), iterations=14
+        ).astype(bool)
+
+    component_count, component_labels, component_stats, _ = cv2.connectedComponentsWithStats(
+        visible.astype(np.uint8), 8
+    )
+    for label in range(1, component_count):
+        component = component_labels == label
+        area = int(component_stats[label, cv2.CC_STAT_AREA])
+        if area >= 3 and (subject_support is None or (component & subject_support).any()):
+            continue
+        alpha[component] = 0.0
+        clean_rgb[component] = 0.0
+
+    clean_rgb[alpha == 0.0] = 0.0
+    rgba = np.dstack([np.clip(clean_rgb, 0.0, 1.0), alpha])
+    return Image.fromarray((rgba * 255.0 + 0.5).astype(np.uint8), "RGBA")
+
+
+def extract_adaptive_green_frames(video: Path, frames_dir: Path):
+    """Extract RGB frames and apply the adaptive matte. Returns metric-friendly profile data."""
+    from PIL import Image
+
+    raw_dir = frames_dir.parent / f"_{frames_dir.name}_rgb"
+    if raw_dir.exists():
+        shutil.rmtree(raw_dir)
+    raw_dir.mkdir(parents=True)
+    try:
+        subprocess.run([
+            ffmpeg_exe(), "-y", "-loglevel", "error", "-i", str(video),
+            "-vf", f"scale={WEBP_WIDTH}:-2,fps={WEBP_FPS}",
+            str(raw_dir / "f_%04d.png"),
+        ], check=True)
+        raw_frames = sorted(raw_dir.glob("f_*.png"))
+        if not raw_frames:
+            raise RuntimeError("ffmpeg extracted no RGB frames")
+        profile = profile_green_screen(raw_frames)
+        if frames_dir.exists():
+            shutil.rmtree(frames_dir)
+        frames_dir.mkdir(parents=True)
+        for path in raw_frames:
+            matte = adaptive_green_matte_frame(Image.open(path), profile)
+            matte.save(frames_dir / path.name, compress_level=2)
+        return {
+            "mode": "adaptive_green",
+            "bg_floor": round(float(profile["bg_floor"]), 4),
+            "key_rgb": [round(float(value) * 255) for value in profile["key_rgb"]],
+            "sampled_frames": profile["sampled_frames"],
+        }
+    finally:
+        shutil.rmtree(raw_dir, ignore_errors=True)
+
+
 def refine_rgba_frame(img):
     """压掉绿幕边缘残留。
 
@@ -1244,31 +1468,14 @@ def trim_to_best_loop_span(frames, min_frames=72, max_start=24):
     }
 
 
-def build_loop_frames(pngs, close_frames=None, optimize_loop=False):
-    """Read frames, clean mattes, and optionally trim to a smoother loop span."""
+def build_loop_frames(pngs, close_frames=None, optimize_loop=False, precleaned=False):
+    """Read frames, optionally clean legacy mattes, and trim to a smoother loop span."""
     from PIL import Image
 
-    frames = [refine_rgba_frame(Image.open(p)) for p in pngs]
-    loop_meta = None
-    if optimize_loop:
-        frames, loop_meta = trim_to_best_loop_span(frames)
-    if close_frames is None:
-        close_frames = LOOP_CLOSE_FRAMES
-    if len(frames) < 2 or close_frames <= 0:
-        return frames, 0, loop_meta
-    first = frames[0]
-    last = frames[-1]
-    close = []
-    for i in range(1, close_frames + 1):
-        t = i / close_frames
-        close.append(Image.blend(last, first, t))
-    return frames + close, close_frames, loop_meta
-
-
-def build_loop_frames(pngs, close_frames=None, optimize_loop=False):
-    from PIL import Image
-
-    frames = [refine_rgba_frame(Image.open(p)) for p in pngs]
+    if precleaned:
+        frames = [Image.open(p).convert("RGBA") for p in pngs]
+    else:
+        frames = [refine_rgba_frame(Image.open(p)) for p in pngs]
     loop_meta = None
     if optimize_loop:
         frames, loop_meta = trim_to_best_loop_span(frames)
@@ -1367,7 +1574,7 @@ def reframe_loop_frames(frames):
     }
 
 
-def step_matte(pet: str, clip: str):
+def step_matte_legacy(pet: str, clip: str):
     """自适应抠图（2026-06-11 用户要求"部署到 app 抠图一定要做好"）：
     容差阶梯试抠 + 绿残留质检 + 主体消失熔断，取首个达标档。"""
     pet_dir = OUTPUT / pet
@@ -1440,6 +1647,96 @@ def step_matte(pet: str, clip: str):
                                      "similarity": chosen_sim, "green_residual": round(residual, 4),
                                      "loop_meta": loop_meta,
                                      "reframe": reframe})
+
+
+def step_matte(pet: str, clip: str):
+    """Create a transparent WebP with adaptive green-screen matting and a legacy fallback."""
+    if not ADAPTIVE_GREEN_MATTE:
+        return step_matte_legacy(pet, clip)
+
+    pet_dir = OUTPUT / pet
+    video = pet_dir / f"raw_{clip}.mp4"
+    if not video.exists():
+        sys.exit(f"missing raw_{clip}.mp4; run animate first")
+
+    t0 = time.time()
+    key = sample_bg_color(video)
+    frames = pet_dir / f"frames_{clip}"
+    try:
+        matte_profile = extract_adaptive_green_frames(video, frames)
+    except ValueError as exc:
+        print(f"[matte:{clip}] adaptive matte unavailable ({exc}); using legacy chromakey")
+        return step_matte_legacy(pet, clip)
+
+    residual, mid_visible = assess_frames(frames)
+    if mid_visible < 0.04:
+        print(
+            f"[matte:{clip}] adaptive subject coverage {mid_visible:.1%} is too low; "
+            "using legacy chromakey"
+        )
+        return step_matte_legacy(pet, clip)
+    print(
+        f"[matte:{clip}] adaptive bg_floor={matte_profile['bg_floor']} "
+        f"green={residual:.1%} visible={mid_visible:.1%}"
+    )
+
+    pngs = sorted(frames.glob("f_*.png"))
+    if not pngs:
+        sys.exit(f"[matte:{clip}] no extracted frames")
+    duration_ms = round(1000 / WEBP_FPS)
+    out = pet_dir / f"anim_{clip}.webp"
+    print(f"[matte:{clip}] encoding {len(pngs)} pre-cleaned frames...", flush=True)
+    state_loop = (not SINGLE_SOURCE_ANIMATION) and (clip in STATE_FRAME_CLIPS or clip == "fast_walk")
+    webp_frames, loop_added, loop_meta = build_loop_frames(
+        pngs,
+        close_frames=0 if state_loop else LOOP_CLOSE_FRAMES,
+        optimize_loop=(clip in ("walk", "fast_walk")),
+        precleaned=True,
+    )
+    webp_frames, reframe = reframe_loop_frames(webp_frames)
+    webp_frames[0].save(
+        out,
+        save_all=True,
+        append_images=webp_frames[1:],
+        duration=duration_ms,
+        loop=0,
+        lossless=False,
+        quality=WEBP_QUALITY,
+        alpha_quality=100,
+        method=WEBP_METHOD,
+        exact=True,
+        minimize_size=False,
+    )
+    if clip == DEFAULT_CLIP:
+        webp_frames[0].save(pet_dir / "preview.png")
+
+    size_mb = round(out.stat().st_size / 1024 / 1024, 2)
+    dt = round(time.time() - t0, 1)
+    print(f"[matte:{clip}] loop_meta={loop_meta}")
+    print(f"[matte:{clip}] reframe={reframe}")
+    print(
+        f"[matte:{clip}] {out.name} {size_mb}MB / {len(webp_frames)} frames "
+        f"(source {len(pngs)} + close {loop_added}) / {dt}s"
+    )
+    record_metric(pet_dir, "matte", {
+        "clip": clip,
+        "key_color": key,
+        "frames": len(pngs),
+        "webp_frames": len(webp_frames),
+        "loop_close_frames": loop_added,
+        "webp_fps": WEBP_FPS,
+        "webp_width": WEBP_WIDTH,
+        "webp_quality": WEBP_QUALITY,
+        "webp_method": WEBP_METHOD,
+        "webp_mb": size_mb,
+        "seconds": dt,
+        "similarity": "adaptive",
+        "green_residual": round(residual, 4),
+        "matte_mode": "adaptive_green",
+        "matte_profile": matte_profile,
+        "loop_meta": loop_meta,
+        "reframe": reframe,
+    })
 
 
 def main():

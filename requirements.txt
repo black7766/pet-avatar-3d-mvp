@@ -2,3 +2,4 @@ pillow
 numpy
 scipy
 imageio-ffmpeg
+opencv-python-headless
