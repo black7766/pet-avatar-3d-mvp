@@ -1,0 +1,875 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-07-10T09:08:40.623398+00:00",
+  "gpu": {
+    "name": "NVIDIA GeForce RTX 2080 Ti",
+    "driver_version": "591.86",
+    "memory_mib": 11264
+  },
+  "method": "One cold process per model; no warm-up frame. remove_seconds measures the rembg remove() call, including model preprocessing and mask postprocessing.",
+  "models": [
+    {
+      "model": "u2net",
+      "source": "https://github.com/xuebinqin/U-2-Net",
+      "weight_url": "https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net.onnx",
+      "upstream_license": "Apache-2.0",
+      "weight_size_bytes": 175997641,
+      "md5": "60024c5c889badc19c04ad937298a77b",
+      "device": "cuda",
+      "active_providers": [
+        "CUDAExecutionProvider",
+        "CPUExecutionProvider"
+      ],
+      "frames": 9,
+      "dll_preload_seconds": 0.5752888999413699,
+      "session_load_seconds": 1.1442883999552578,
+      "remove_total_seconds": 6.107061399845406,
+      "remove_mean_ms": 678.5623777606007,
+      "remove_mean_excluding_first_ms": 94.20169999066275,
+      "end_to_end_total_seconds": 7.285298499977216,
+      "output_dir": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\providers\\rembg\\outputs\\smoke\\u2net"
+    },
+    {
+      "model": "isnet-general-use",
+      "source": "https://github.com/xuebinqin/DIS",
+      "weight_url": "https://github.com/danielgatis/rembg/releases/download/v0.0.0/isnet-general-use.onnx",
+      "upstream_license": "Apache-2.0",
+      "weight_size_bytes": 178648008,
+      "md5": "fc16ebd8b0c10d971d3513d564d01e29",
+      "device": "cuda",
+      "active_providers": [
+        "CUDAExecutionProvider",
+        "CPUExecutionProvider"
+      ],
+      "frames": 9,
+      "dll_preload_seconds": 0.7855448999907821,
+      "session_load_seconds": 2.485181499971077,
+      "remove_total_seconds": 3.7948688998585567,
+      "remove_mean_ms": 421.6520999842841,
+      "remove_mean_excluding_first_ms": 315.59286249103025,
+      "end_to_end_total_seconds": 5.0719851000467315,
+      "output_dir": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\providers\\rembg\\outputs\\smoke\\isnet-general-use"
+    },
+    {
+      "model": "birefnet-general-lite",
+      "source": "https://github.com/ZhengPeng7/BiRefNet",
+      "weight_url": "https://github.com/danielgatis/rembg/releases/download/v0.0.0/BiRefNet-general-bb_swin_v1_tiny-epoch_232.onnx",
+      "upstream_license": "MIT",
+      "weight_size_bytes": 224005088,
+      "md5": "4fab47adc4ff364be1713e97b7e66334",
+      "device": "cuda",
+      "active_providers": [
+        "CUDAExecutionProvider",
+        "CPUExecutionProvider"
+      ],
+      "frames": 9,
+      "dll_preload_seconds": 0.4189502999652177,
+      "session_load_seconds": 9.017194300075062,
+      "remove_total_seconds": 43.289135799976066,
+      "remove_mean_ms": 4809.903977775118,
+      "remove_mean_excluding_first_ms": 5043.272299997625,
+      "end_to_end_total_seconds": 44.824165799771436,
+      "output_dir": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\providers\\rembg\\outputs\\smoke\\birefnet-general-lite"
+    }
+  ],
+  "metrics": {
+    "u2net": {
+      "schema_version": 1,
+      "status": "ok",
+      "started_at_utc": "2026-07-10T09:02:47.947831+00:00",
+      "completed_at_utc": "2026-07-10T09:02:57.626896+00:00",
+      "provider": "rembg",
+      "model": {
+        "name": "u2net",
+        "filename": "u2net.onnx",
+        "weight_url": "https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net.onnx",
+        "expected_md5": "60024c5c889badc19c04ad937298a77b",
+        "upstream_repo": "https://github.com/xuebinqin/U-2-Net",
+        "upstream_license": "Apache-2.0",
+        "upstream_license_url": "https://github.com/xuebinqin/U-2-Net/blob/master/LICENSE",
+        "input_size": [
+          320,
+          320
+        ],
+        "local_path": "D:\\work\\pet-avatar-3d-mvp\\.models\\rembg\\u2net.onnx",
+        "size_bytes": 175997641,
+        "actual_md5": "60024c5c889badc19c04ad937298a77b"
+      },
+      "device": "cuda",
+      "requested_providers": [
+        "CUDAExecutionProvider",
+        "CPUExecutionProvider"
+      ],
+      "nvidia_dll_dirs": [
+        "D:\\work\\pet-avatar-3d-mvp\\.venvs\\rembg\\Lib\\site-packages\\nvidia\\cublas\\bin",
+        "D:\\work\\pet-avatar-3d-mvp\\.venvs\\rembg\\Lib\\site-packages\\nvidia\\cuda_nvrtc\\bin",
+        "D:\\work\\pet-avatar-3d-mvp\\.venvs\\rembg\\Lib\\site-packages\\nvidia\\cuda_runtime\\bin",
+        "D:\\work\\pet-avatar-3d-mvp\\.venvs\\rembg\\Lib\\site-packages\\nvidia\\cudnn\\bin",
+        "D:\\work\\pet-avatar-3d-mvp\\.venvs\\rembg\\Lib\\site-packages\\nvidia\\cufft\\bin",
+        "D:\\work\\pet-avatar-3d-mvp\\.venvs\\rembg\\Lib\\site-packages\\nvidia\\curand\\bin",
+        "D:\\work\\pet-avatar-3d-mvp\\.venvs\\rembg\\Lib\\site-packages\\nvidia\\nvjitlink\\bin"
+      ],
+      "input_dir": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\data\\pet_20260710_121221_5ce7716e\\smoke",
+      "output_dir": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\providers\\rembg\\outputs\\smoke\\u2net",
+      "image_count": 9,
+      "rgba_output_count": 9,
+      "dll_preload_seconds": 0.5752888999413699,
+      "session_load_seconds": 1.1442883999552578,
+      "batch_wall_seconds": 7.578783000004478,
+      "remove_total_seconds": 6.107061399845406,
+      "remove_mean_seconds": 0.6785623777606007,
+      "remove_median_seconds": 0.08853950002230704,
+      "remove_mean_excluding_first_seconds": 0.09420169999066275,
+      "end_to_end_total_seconds": 7.285298499977216,
+      "end_to_end_mean_seconds": 0.8094776111085795,
+      "run_wall_seconds": 9.678506799973547,
+      "images": [
+        {
+          "input": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\data\\pet_20260710_121221_5ce7716e\\smoke\\fast_walk__f_0000.png",
+          "output": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\providers\\rembg\\outputs\\smoke\\u2net\\fast_walk__f_0000.png",
+          "width": 960,
+          "height": 960,
+          "mode": "RGBA",
+          "load_seconds": 0.03183330001775175,
+          "remove_seconds": 5.353447799920104,
+          "save_seconds": 0.07130710000637919,
+          "end_to_end_seconds": 5.457836500019766,
+          "alpha": {
+            "min": 0,
+            "max": 255,
+            "zero_fraction": 0.7007758246527778,
+            "opaque_fraction": 0.06429361979166667,
+            "partial_fraction": 0.23493055555555556
+          }
+        },
+        {
+          "input": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\data\\pet_20260710_121221_5ce7716e\\smoke\\fast_walk__f_0048.png",
+          "output": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\providers\\rembg\\outputs\\smoke\\u2net\\fast_walk__f_0048.png",
+          "width": 960,
+          "height": 960,
+          "mode": "RGBA",
+          "load_seconds": 0.03942339995410293,
+          "remove_seconds": 0.12462360004428774,
+          "save_seconds": 0.13000310002826154,
+          "end_to_end_seconds": 0.31271249998826534,
+          "alpha": {
+            "min": 0,
+            "max": 255,
+            "zero_fraction": 0.7449262152777778,
+            "opaque_fraction": 0.04599934895833333,
+            "partial_fraction": 0.2090744357638889
+          }
+        },
+        {
+          "input": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\data\\pet_20260710_121221_5ce7716e\\smoke\\fast_walk__f_0096.png",
+          "output": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\providers\\rembg\\outputs\\smoke\\u2net\\fast_walk__f_0096.png",
+          "width": 960,
+          "height": 960,
+          "mode": "RGBA",
+          "load_seconds": 0.02198089996818453,
+          "remove_seconds": 0.07324609998613596,
+          "save_seconds": 0.09066999994684011,
+          "end_to_end_seconds": 0.18752229993697256,
+          "alpha": {
+            "min": 0,
+            "max": 255,
+            "zero_fraction": 0.7003450520833333,
+            "opaque_fraction": 0.06702256944444444,
+            "partial_fraction": 0.23263237847222223
+          }
+        },
+        {
+          "input": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\data\\pet_20260710_121221_5ce7716e\\smoke\\idle__f_0000.png",
+          "output": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\providers\\rembg\\outputs\\smoke\\u2net\\idle__f_0000.png",
+          "width": 960,
+          "height": 960,
+          "mode": "RGBA",
+          "load_seconds": 0.0203739000717178,
+          "remove_seconds": 0.15228109993040562,
+          "save_seconds": 0.23895490006543696,
+          "end_to_end_seconds": 0.41329340008087456,
+          "alpha": {
+            "min": 0,
+            "max": 255,
+            "zero_fraction": 0.6891471354166666,
+            "opaque_fraction": 0.09762261284722222,
+            "partial_fraction": 0.2132302517361111
+          }
+        },
+        {
+          "input": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\data\\pet_20260710_121221_5ce7716e\\smoke\\idle__f_0048.png",
+          "output": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\providers\\rembg\\outputs\\smoke\\u2net\\idle__f_0048.png",
+          "width": 960,
+          "height": 960,
+          "mode": "RGBA",
+          "load_seconds": 0.0300586000084877,
+          "remove_seconds": 0.07034330000169575,
+          "save_seconds": 0.07601790002081543,
+          "end_to_end_seconds": 0.17825700005050749,
+          "alpha": {
+            "min": 0,
+            "max": 255,
+            "zero_fraction": 0.6905729166666666,
+            "opaque_fraction": 0.09373914930555556,
+            "partial_fraction": 0.21568793402777778
+          }
+        },
+        {
+          "input": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\data\\pet_20260710_121221_5ce7716e\\smoke\\idle__f_0096.png",
+          "output": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\providers\\rembg\\outputs\\smoke\\u2net\\idle__f_0096.png",
+          "width": 960,
+          "height": 960,
+          "mode": "RGBA",
+          "load_seconds": 0.015112799941562116,
+          "remove_seconds": 0.08853950002230704,
+          "save_seconds": 0.07944979995954782,
+          "end_to_end_seconds": 0.18766559998039156,
+          "alpha": {
+            "min": 0,
+            "max": 255,
+            "zero_fraction": 0.6896733940972222,
+            "opaque_fraction": 0.10032877604166666,
+            "partial_fraction": 0.20999782986111112
+          }
+        },
+        {
+          "input": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\data\\pet_20260710_121221_5ce7716e\\smoke\\sleep__f_0000.png",
+          "output": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\providers\\rembg\\outputs\\smoke\\u2net\\sleep__f_0000.png",
+          "width": 960,
+          "height": 960,
+          "mode": "RGBA",
+          "load_seconds": 0.01839740003924817,
+          "remove_seconds": 0.07265399990137666,
+          "save_seconds": 0.06737030006479472,
+          "end_to_end_seconds": 0.16021669993642718,
+          "alpha": {
+            "min": 0,
+            "max": 255,
+            "zero_fraction": 0.695419921875,
+            "opaque_fraction": 0.12832682291666667,
+            "partial_fraction": 0.17625325520833332
+          }
+        },
+        {
+          "input": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\data\\pet_20260710_121221_5ce7716e\\smoke\\sleep__f_0048.png",
+          "output": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\providers\\rembg\\outputs\\smoke\\u2net\\sleep__f_0048.png",
+          "width": 960,
+          "height": 960,
+          "mode": "RGBA",
+          "load_seconds": 0.023267499986104667,
+          "remove_seconds": 0.07219760003499687,
+          "save_seconds": 0.0604605000698939,
+          "end_to_end_seconds": 0.15760490007232875,
+          "alpha": {
+            "min": 0,
+            "max": 255,
+            "zero_fraction": 0.6879383680555555,
+            "opaque_fraction": 0.11014756944444444,
+            "partial_fraction": 0.2019140625
+          }
+        },
+        {
+          "input": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\data\\pet_20260710_121221_5ce7716e\\smoke\\sleep__f_0096.png",
+          "output": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\providers\\rembg\\outputs\\smoke\\u2net\\sleep__f_0096.png",
+          "width": 960,
+          "height": 960,
+          "mode": "RGBA",
+          "load_seconds": 0.013324599945917726,
+          "remove_seconds": 0.09972840000409633,
+          "save_seconds": 0.11510569998063147,
+          "end_to_end_seconds": 0.2301895999116823,
+          "alpha": {
+            "min": 0,
+            "max": 255,
+            "zero_fraction": 0.6954220920138889,
+            "opaque_fraction": 0.12790364583333333,
+            "partial_fraction": 0.1766742621527778
+          }
+        }
+      ],
+      "environment": {
+        "python": "3.11.9",
+        "python_executable": "D:\\work\\pet-avatar-3d-mvp\\.venvs\\rembg\\Scripts\\python.exe",
+        "platform": "Windows-10-10.0.26200-SP0",
+        "processor": "Intel64 Family 6 Model 158 Stepping 13, GenuineIntel",
+        "logical_cpu_count": 16,
+        "onnxruntime_device": "GPU",
+        "available_providers": [
+          "TensorrtExecutionProvider",
+          "CUDAExecutionProvider",
+          "CPUExecutionProvider"
+        ],
+        "active_providers": [
+          "CUDAExecutionProvider",
+          "CPUExecutionProvider"
+        ],
+        "provider_options": {
+          "CUDAExecutionProvider": {
+            "device_id": "0",
+            "has_user_compute_stream": "0",
+            "cudnn_conv1d_pad_to_nc1d": "0",
+            "user_compute_stream": "0",
+            "gpu_external_alloc": "0",
+            "gpu_mem_limit": "18446744073709551615",
+            "enable_cuda_graph": "0",
+            "gpu_external_free": "0",
+            "gpu_external_empty_cache": "0",
+            "arena_extend_strategy": "kNextPowerOfTwo",
+            "cudnn_conv_algo_search": "EXHAUSTIVE",
+            "do_copy_in_default_stream": "1",
+            "cudnn_conv_use_max_workspace": "1",
+            "tunable_op_enable": "0",
+            "tunable_op_tuning_enable": "0",
+            "tunable_op_max_tuning_duration_ms": "0",
+            "enable_skip_layer_norm_strict_mode": "0",
+            "prefer_nhwc": "0",
+            "use_ep_level_unified_stream": "0",
+            "use_tf32": "1",
+            "sdpa_kernel": "0",
+            "fuse_conv_bias": "0"
+          },
+          "CPUExecutionProvider": {}
+        },
+        "packages": {
+          "rembg": "2.0.76",
+          "onnxruntime-gpu": "1.23.2",
+          "numpy": "2.4.6",
+          "pillow": "12.3.0",
+          "pooch": "1.9.0"
+        }
+      }
+    },
+    "isnet-general-use": {
+      "schema_version": 1,
+      "status": "ok",
+      "started_at_utc": "2026-07-10T09:03:15.286239+00:00",
+      "completed_at_utc": "2026-07-10T09:03:24.685012+00:00",
+      "provider": "rembg",
+      "model": {
+        "name": "isnet-general-use",
+        "filename": "isnet-general-use.onnx",
+        "weight_url": "https://github.com/danielgatis/rembg/releases/download/v0.0.0/isnet-general-use.onnx",
+        "expected_md5": "fc16ebd8b0c10d971d3513d564d01e29",
+        "upstream_repo": "https://github.com/xuebinqin/DIS",
+        "upstream_license": "Apache-2.0",
+        "upstream_license_url": "https://github.com/xuebinqin/DIS/blob/main/LICENSE.md",
+        "input_size": [
+          1024,
+          1024
+        ],
+        "local_path": "D:\\work\\pet-avatar-3d-mvp\\.models\\rembg\\isnet-general-use.onnx",
+        "size_bytes": 178648008,
+        "actual_md5": "fc16ebd8b0c10d971d3513d564d01e29"
+      },
+      "device": "cuda",
+      "requested_providers": [
+        "CUDAExecutionProvider",
+        "CPUExecutionProvider"
+      ],
+      "nvidia_dll_dirs": [
+        "D:\\work\\pet-avatar-3d-mvp\\.venvs\\rembg\\Lib\\site-packages\\nvidia\\cublas\\bin",
+        "D:\\work\\pet-avatar-3d-mvp\\.venvs\\rembg\\Lib\\site-packages\\nvidia\\cuda_nvrtc\\bin",
+        "D:\\work\\pet-avatar-3d-mvp\\.venvs\\rembg\\Lib\\site-packages\\nvidia\\cuda_runtime\\bin",
+        "D:\\work\\pet-avatar-3d-mvp\\.venvs\\rembg\\Lib\\site-packages\\nvidia\\cudnn\\bin",
+        "D:\\work\\pet-avatar-3d-mvp\\.venvs\\rembg\\Lib\\site-packages\\nvidia\\cufft\\bin",
+        "D:\\work\\pet-avatar-3d-mvp\\.venvs\\rembg\\Lib\\site-packages\\nvidia\\curand\\bin",
+        "D:\\work\\pet-avatar-3d-mvp\\.venvs\\rembg\\Lib\\site-packages\\nvidia\\nvjitlink\\bin"
+      ],
+      "input_dir": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\data\\pet_20260710_121221_5ce7716e\\smoke",
+      "output_dir": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\providers\\rembg\\outputs\\smoke\\isnet-general-use",
+      "image_count": 9,
+      "rgba_output_count": 9,
+      "dll_preload_seconds": 0.7855448999907821,
+      "session_load_seconds": 2.485181499971077,
+      "batch_wall_seconds": 5.508572699967772,
+      "remove_total_seconds": 3.7948688998585567,
+      "remove_mean_seconds": 0.4216520999842841,
+      "remove_median_seconds": 0.3062854000600055,
+      "remove_mean_excluding_first_seconds": 0.31559286249103025,
+      "end_to_end_total_seconds": 5.0719851000467315,
+      "end_to_end_mean_seconds": 0.5635539000051923,
+      "run_wall_seconds": 9.398669000016525,
+      "images": [
+        {
+          "input": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\data\\pet_20260710_121221_5ce7716e\\smoke\\fast_walk__f_0000.png",
+          "output": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\providers\\rembg\\outputs\\smoke\\isnet-general-use\\fast_walk__f_0000.png",
+          "width": 960,
+          "height": 960,
+          "mode": "RGBA",
+          "load_seconds": 0.02748539997264743,
+          "remove_seconds": 1.2701259999303147,
+          "save_seconds": 0.07695110002532601,
+          "end_to_end_seconds": 1.376077799941413,
+          "alpha": {
+            "min": 0,
+            "max": 255,
+            "zero_fraction": 0.7087760416666666,
+            "opaque_fraction": 0.0003667534722222222,
+            "partial_fraction": 0.2908572048611111
+          }
+        },
+        {
+          "input": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\data\\pet_20260710_121221_5ce7716e\\smoke\\fast_walk__f_0048.png",
+          "output": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\providers\\rembg\\outputs\\smoke\\isnet-general-use\\fast_walk__f_0048.png",
+          "width": 960,
+          "height": 960,
+          "mode": "RGBA",
+          "load_seconds": 0.015887900022789836,
+          "remove_seconds": 0.46274610003456473,
+          "save_seconds": 0.12569190002977848,
+          "end_to_end_seconds": 0.6084946000482887,
+          "alpha": {
+            "min": 0,
+            "max": 255,
+            "zero_fraction": 0.7530967881944445,
+            "opaque_fraction": 0.0006792534722222223,
+            "partial_fraction": 0.24622395833333333
+          }
+        },
+        {
+          "input": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\data\\pet_20260710_121221_5ce7716e\\smoke\\fast_walk__f_0096.png",
+          "output": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\providers\\rembg\\outputs\\smoke\\isnet-general-use\\fast_walk__f_0096.png",
+          "width": 960,
+          "height": 960,
+          "mode": "RGBA",
+          "load_seconds": 0.048351600067690015,
+          "remove_seconds": 0.2988756999839097,
+          "save_seconds": 0.09097490005660802,
+          "end_to_end_seconds": 0.43983430007938296,
+          "alpha": {
+            "min": 0,
+            "max": 255,
+            "zero_fraction": 0.7100651041666667,
+            "opaque_fraction": 0.0011002604166666667,
+            "partial_fraction": 0.28883463541666665
+          }
+        },
+        {
+          "input": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\data\\pet_20260710_121221_5ce7716e\\smoke\\idle__f_0000.png",
+          "output": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\providers\\rembg\\outputs\\smoke\\isnet-general-use\\idle__f_0000.png",
+          "width": 960,
+          "height": 960,
+          "mode": "RGBA",
+          "load_seconds": 0.04099730006419122,
+          "remove_seconds": 0.27091989992186427,
+          "save_seconds": 0.08455169992521405,
+          "end_to_end_seconds": 0.40282369998749346,
+          "alpha": {
+            "min": 0,
+            "max": 255,
+            "zero_fraction": 0.69298828125,
+            "opaque_fraction": 0.00025390625,
+            "partial_fraction": 0.3067578125
+          }
+        },
+        {
+          "input": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\data\\pet_20260710_121221_5ce7716e\\smoke\\idle__f_0048.png",
+          "output": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\providers\\rembg\\outputs\\smoke\\isnet-general-use\\idle__f_0048.png",
+          "width": 960,
+          "height": 960,
+          "mode": "RGBA",
+          "load_seconds": 0.01993219996802509,
+          "remove_seconds": 0.2581194000085816,
+          "save_seconds": 0.10626219992991537,
+          "end_to_end_seconds": 0.38620549999177456,
+          "alpha": {
+            "min": 0,
+            "max": 255,
+            "zero_fraction": 0.69705078125,
+            "opaque_fraction": 0.0006260850694444444,
+            "partial_fraction": 0.3023231336805556
+          }
+        },
+        {
+          "input": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\data\\pet_20260710_121221_5ce7716e\\smoke\\idle__f_0096.png",
+          "output": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\providers\\rembg\\outputs\\smoke\\isnet-general-use\\idle__f_0096.png",
+          "width": 960,
+          "height": 960,
+          "mode": "RGBA",
+          "load_seconds": 0.023274699924513698,
+          "remove_seconds": 0.28649500000756234,
+          "save_seconds": 0.1433808000292629,
+          "end_to_end_seconds": 0.4548678999999538,
+          "alpha": {
+            "min": 0,
+            "max": 255,
+            "zero_fraction": 0.6937944878472222,
+            "opaque_fraction": 0.0006119791666666667,
+            "partial_fraction": 0.30559353298611114
+          }
+        },
+        {
+          "input": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\data\\pet_20260710_121221_5ce7716e\\smoke\\sleep__f_0000.png",
+          "output": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\providers\\rembg\\outputs\\smoke\\isnet-general-use\\sleep__f_0000.png",
+          "width": 960,
+          "height": 960,
+          "mode": "RGBA",
+          "load_seconds": 0.0412771999835968,
+          "remove_seconds": 0.3337648999877274,
+          "save_seconds": 0.09116870001889765,
+          "end_to_end_seconds": 0.4684016000246629,
+          "alpha": {
+            "min": 0,
+            "max": 255,
+            "zero_fraction": 0.6982660590277778,
+            "opaque_fraction": 0.00011610243055555556,
+            "partial_fraction": 0.3016178385416667
+          }
+        },
+        {
+          "input": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\data\\pet_20260710_121221_5ce7716e\\smoke\\sleep__f_0048.png",
+          "output": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\providers\\rembg\\outputs\\smoke\\isnet-general-use\\sleep__f_0048.png",
+          "width": 960,
+          "height": 960,
+          "mode": "RGBA",
+          "load_seconds": 0.014206000021658838,
+          "remove_seconds": 0.30753649992402643,
+          "save_seconds": 0.17280790000222623,
+          "end_to_end_seconds": 0.4990771999582648,
+          "alpha": {
+            "min": 0,
+            "max": 255,
+            "zero_fraction": 0.6909624565972222,
+            "opaque_fraction": 0.0003591579861111111,
+            "partial_fraction": 0.30867838541666665
+          }
+        },
+        {
+          "input": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\data\\pet_20260710_121221_5ce7716e\\smoke\\sleep__f_0096.png",
+          "output": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\providers\\rembg\\outputs\\smoke\\isnet-general-use\\sleep__f_0096.png",
+          "width": 960,
+          "height": 960,
+          "mode": "RGBA",
+          "load_seconds": 0.0206001999322325,
+          "remove_seconds": 0.3062854000600055,
+          "save_seconds": 0.10757200000807643,
+          "end_to_end_seconds": 0.4362025000154972,
+          "alpha": {
+            "min": 0,
+            "max": 255,
+            "zero_fraction": 0.6989312065972222,
+            "opaque_fraction": 0.0005023871527777778,
+            "partial_fraction": 0.30056640625
+          }
+        }
+      ],
+      "environment": {
+        "python": "3.11.9",
+        "python_executable": "D:\\work\\pet-avatar-3d-mvp\\.venvs\\rembg\\Scripts\\python.exe",
+        "platform": "Windows-10-10.0.26200-SP0",
+        "processor": "Intel64 Family 6 Model 158 Stepping 13, GenuineIntel",
+        "logical_cpu_count": 16,
+        "onnxruntime_device": "GPU",
+        "available_providers": [
+          "TensorrtExecutionProvider",
+          "CUDAExecutionProvider",
+          "CPUExecutionProvider"
+        ],
+        "active_providers": [
+          "CUDAExecutionProvider",
+          "CPUExecutionProvider"
+        ],
+        "provider_options": {
+          "CUDAExecutionProvider": {
+            "device_id": "0",
+            "has_user_compute_stream": "0",
+            "cudnn_conv1d_pad_to_nc1d": "0",
+            "user_compute_stream": "0",
+            "gpu_external_alloc": "0",
+            "gpu_mem_limit": "18446744073709551615",
+            "enable_cuda_graph": "0",
+            "gpu_external_free": "0",
+            "gpu_external_empty_cache": "0",
+            "arena_extend_strategy": "kNextPowerOfTwo",
+            "cudnn_conv_algo_search": "EXHAUSTIVE",
+            "do_copy_in_default_stream": "1",
+            "cudnn_conv_use_max_workspace": "1",
+            "tunable_op_enable": "0",
+            "tunable_op_tuning_enable": "0",
+            "tunable_op_max_tuning_duration_ms": "0",
+            "enable_skip_layer_norm_strict_mode": "0",
+            "prefer_nhwc": "0",
+            "use_ep_level_unified_stream": "0",
+            "use_tf32": "1",
+            "sdpa_kernel": "0",
+            "fuse_conv_bias": "0"
+          },
+          "CPUExecutionProvider": {}
+        },
+        "packages": {
+          "rembg": "2.0.76",
+          "onnxruntime-gpu": "1.23.2",
+          "numpy": "2.4.6",
+          "pillow": "12.3.0",
+          "pooch": "1.9.0"
+        }
+      }
+    },
+    "birefnet-general-lite": {
+      "schema_version": 1,
+      "status": "ok",
+      "started_at_utc": "2026-07-10T09:03:39.031760+00:00",
+      "completed_at_utc": "2026-07-10T09:04:34.476947+00:00",
+      "provider": "rembg",
+      "model": {
+        "name": "birefnet-general-lite",
+        "filename": "birefnet-general-lite.onnx",
+        "weight_url": "https://github.com/danielgatis/rembg/releases/download/v0.0.0/BiRefNet-general-bb_swin_v1_tiny-epoch_232.onnx",
+        "expected_md5": "4fab47adc4ff364be1713e97b7e66334",
+        "upstream_repo": "https://github.com/ZhengPeng7/BiRefNet",
+        "upstream_license": "MIT",
+        "upstream_license_url": "https://github.com/ZhengPeng7/BiRefNet/blob/main/LICENSE",
+        "input_size": [
+          1024,
+          1024
+        ],
+        "local_path": "D:\\work\\pet-avatar-3d-mvp\\.models\\rembg\\birefnet-general-lite.onnx",
+        "size_bytes": 224005088,
+        "actual_md5": "4fab47adc4ff364be1713e97b7e66334"
+      },
+      "device": "cuda",
+      "requested_providers": [
+        "CUDAExecutionProvider",
+        "CPUExecutionProvider"
+      ],
+      "nvidia_dll_dirs": [
+        "D:\\work\\pet-avatar-3d-mvp\\.venvs\\rembg\\Lib\\site-packages\\nvidia\\cublas\\bin",
+        "D:\\work\\pet-avatar-3d-mvp\\.venvs\\rembg\\Lib\\site-packages\\nvidia\\cuda_nvrtc\\bin",
+        "D:\\work\\pet-avatar-3d-mvp\\.venvs\\rembg\\Lib\\site-packages\\nvidia\\cuda_runtime\\bin",
+        "D:\\work\\pet-avatar-3d-mvp\\.venvs\\rembg\\Lib\\site-packages\\nvidia\\cudnn\\bin",
+        "D:\\work\\pet-avatar-3d-mvp\\.venvs\\rembg\\Lib\\site-packages\\nvidia\\cufft\\bin",
+        "D:\\work\\pet-avatar-3d-mvp\\.venvs\\rembg\\Lib\\site-packages\\nvidia\\curand\\bin",
+        "D:\\work\\pet-avatar-3d-mvp\\.venvs\\rembg\\Lib\\site-packages\\nvidia\\nvjitlink\\bin"
+      ],
+      "input_dir": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\data\\pet_20260710_121221_5ce7716e\\smoke",
+      "output_dir": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\providers\\rembg\\outputs\\smoke\\birefnet-general-lite",
+      "image_count": 9,
+      "rgba_output_count": 9,
+      "dll_preload_seconds": 0.4189502999652177,
+      "session_load_seconds": 9.017194300075062,
+      "batch_wall_seconds": 45.51308589999098,
+      "remove_total_seconds": 43.289135799976066,
+      "remove_mean_seconds": 4.809903977775118,
+      "remove_median_seconds": 3.6353805999970064,
+      "remove_mean_excluding_first_seconds": 5.043272299997625,
+      "end_to_end_total_seconds": 44.824165799771436,
+      "end_to_end_mean_seconds": 4.980462866641271,
+      "run_wall_seconds": 55.47011430002749,
+      "images": [
+        {
+          "input": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\data\\pet_20260710_121221_5ce7716e\\smoke\\fast_walk__f_0000.png",
+          "output": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\providers\\rembg\\outputs\\smoke\\birefnet-general-lite\\fast_walk__f_0000.png",
+          "width": 960,
+          "height": 960,
+          "mode": "RGBA",
+          "load_seconds": 0.02477829996496439,
+          "remove_seconds": 2.9429573999950662,
+          "save_seconds": 0.1010181000456214,
+          "end_to_end_seconds": 3.0699953000294045,
+          "alpha": {
+            "min": 0,
+            "max": 255,
+            "zero_fraction": 0.7097037760416667,
+            "opaque_fraction": 0.028068576388888888,
+            "partial_fraction": 0.26222764756944444
+          }
+        },
+        {
+          "input": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\data\\pet_20260710_121221_5ce7716e\\smoke\\fast_walk__f_0048.png",
+          "output": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\providers\\rembg\\outputs\\smoke\\birefnet-general-lite\\fast_walk__f_0048.png",
+          "width": 960,
+          "height": 960,
+          "mode": "RGBA",
+          "load_seconds": 0.036880499916151166,
+          "remove_seconds": 14.445686500053853,
+          "save_seconds": 0.06428880000021309,
+          "end_to_end_seconds": 14.548069799900986,
+          "alpha": {
+            "min": 0,
+            "max": 255,
+            "zero_fraction": 0.7519205729166667,
+            "opaque_fraction": 0.02704644097222222,
+            "partial_fraction": 0.2210329861111111
+          }
+        },
+        {
+          "input": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\data\\pet_20260710_121221_5ce7716e\\smoke\\fast_walk__f_0096.png",
+          "output": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\providers\\rembg\\outputs\\smoke\\birefnet-general-lite\\fast_walk__f_0096.png",
+          "width": 960,
+          "height": 960,
+          "mode": "RGBA",
+          "load_seconds": 0.7372757000848651,
+          "remove_seconds": 4.1909061999758705,
+          "save_seconds": 0.15195959992706776,
+          "end_to_end_seconds": 5.081197899999097,
+          "alpha": {
+            "min": 0,
+            "max": 255,
+            "zero_fraction": 0.710322265625,
+            "opaque_fraction": 0.022265625,
+            "partial_fraction": 0.267412109375
+          }
+        },
+        {
+          "input": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\data\\pet_20260710_121221_5ce7716e\\smoke\\idle__f_0000.png",
+          "output": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\providers\\rembg\\outputs\\smoke\\birefnet-general-lite\\idle__f_0000.png",
+          "width": 960,
+          "height": 960,
+          "mode": "RGBA",
+          "load_seconds": 0.012243299977853894,
+          "remove_seconds": 3.6353805999970064,
+          "save_seconds": 0.04721860005520284,
+          "end_to_end_seconds": 3.6962309998925775,
+          "alpha": {
+            "min": 0,
+            "max": 255,
+            "zero_fraction": 0.6946223958333333,
+            "opaque_fraction": 0.0168359375,
+            "partial_fraction": 0.28854166666666664
+          }
+        },
+        {
+          "input": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\data\\pet_20260710_121221_5ce7716e\\smoke\\idle__f_0048.png",
+          "output": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\providers\\rembg\\outputs\\smoke\\birefnet-general-lite\\idle__f_0048.png",
+          "width": 960,
+          "height": 960,
+          "mode": "RGBA",
+          "load_seconds": 0.010730699985288084,
+          "remove_seconds": 3.59431209997274,
+          "save_seconds": 0.05468339996878058,
+          "end_to_end_seconds": 3.660888300044462,
+          "alpha": {
+            "min": 0,
+            "max": 255,
+            "zero_fraction": 0.6972732204861111,
+            "opaque_fraction": 0.032685546875,
+            "partial_fraction": 0.2700412326388889
+          }
+        },
+        {
+          "input": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\data\\pet_20260710_121221_5ce7716e\\smoke\\idle__f_0096.png",
+          "output": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\providers\\rembg\\outputs\\smoke\\birefnet-general-lite\\idle__f_0096.png",
+          "width": 960,
+          "height": 960,
+          "mode": "RGBA",
+          "load_seconds": 0.010936600039713085,
+          "remove_seconds": 3.7518791999900714,
+          "save_seconds": 0.04677289992105216,
+          "end_to_end_seconds": 3.8104873000411317,
+          "alpha": {
+            "min": 0,
+            "max": 255,
+            "zero_fraction": 0.6953830295138889,
+            "opaque_fraction": 0.015819227430555555,
+            "partial_fraction": 0.28879774305555556
+          }
+        },
+        {
+          "input": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\data\\pet_20260710_121221_5ce7716e\\smoke\\sleep__f_0000.png",
+          "output": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\providers\\rembg\\outputs\\smoke\\birefnet-general-lite\\sleep__f_0000.png",
+          "width": 960,
+          "height": 960,
+          "mode": "RGBA",
+          "load_seconds": 0.010759699973277748,
+          "remove_seconds": 3.47083709994331,
+          "save_seconds": 0.04268489999230951,
+          "end_to_end_seconds": 3.5254785999422893,
+          "alpha": {
+            "min": 0,
+            "max": 255,
+            "zero_fraction": 0.699150390625,
+            "opaque_fraction": 0.031928168402777776,
+            "partial_fraction": 0.2689214409722222
+          }
+        },
+        {
+          "input": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\data\\pet_20260710_121221_5ce7716e\\smoke\\sleep__f_0048.png",
+          "output": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\providers\\rembg\\outputs\\smoke\\birefnet-general-lite\\sleep__f_0048.png",
+          "width": 960,
+          "height": 960,
+          "mode": "RGBA",
+          "load_seconds": 0.008857099921442568,
+          "remove_seconds": 3.688419200014323,
+          "save_seconds": 0.04536200000438839,
+          "end_to_end_seconds": 3.743713599978946,
+          "alpha": {
+            "min": 0,
+            "max": 255,
+            "zero_fraction": 0.6931260850694444,
+            "opaque_fraction": 0.04167751736111111,
+            "partial_fraction": 0.26519639756944446
+          }
+        },
+        {
+          "input": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\data\\pet_20260710_121221_5ce7716e\\smoke\\sleep__f_0096.png",
+          "output": "D:\\work\\pet-avatar-3d-mvp\\matting_bench\\providers\\rembg\\outputs\\smoke\\birefnet-general-lite\\sleep__f_0096.png",
+          "width": 960,
+          "height": 960,
+          "mode": "RGBA",
+          "load_seconds": 0.00928070000372827,
+          "remove_seconds": 3.5687575000338256,
+          "save_seconds": 0.10488389991223812,
+          "end_to_end_seconds": 3.688103999942541,
+          "alpha": {
+            "min": 0,
+            "max": 255,
+            "zero_fraction": 0.6998111979166667,
+            "opaque_fraction": 0.039716796875,
+            "partial_fraction": 0.26047200520833336
+          }
+        }
+      ],
+      "environment": {
+        "python": "3.11.9",
+        "python_executable": "D:\\work\\pet-avatar-3d-mvp\\.venvs\\rembg\\Scripts\\python.exe",
+        "platform": "Windows-10-10.0.26200-SP0",
+        "processor": "Intel64 Family 6 Model 158 Stepping 13, GenuineIntel",
+        "logical_cpu_count": 16,
+        "onnxruntime_device": "GPU",
+        "available_providers": [
+          "TensorrtExecutionProvider",
+          "CUDAExecutionProvider",
+          "CPUExecutionProvider"
+        ],
+        "active_providers": [
+          "CUDAExecutionProvider",
+          "CPUExecutionProvider"
+        ],
+        "provider_options": {
+          "CUDAExecutionProvider": {
+            "device_id": "0",
+            "has_user_compute_stream": "0",
+            "cudnn_conv1d_pad_to_nc1d": "0",
+            "user_compute_stream": "0",
+            "gpu_external_alloc": "0",
+            "gpu_mem_limit": "18446744073709551615",
+            "enable_cuda_graph": "0",
+            "gpu_external_free": "0",
+            "gpu_external_empty_cache": "0",
+            "arena_extend_strategy": "kNextPowerOfTwo",
+            "cudnn_conv_algo_search": "EXHAUSTIVE",
+            "do_copy_in_default_stream": "1",
+            "cudnn_conv_use_max_workspace": "1",
+            "tunable_op_enable": "0",
+            "tunable_op_tuning_enable": "0",
+            "tunable_op_max_tuning_duration_ms": "0",
+            "enable_skip_layer_norm_strict_mode": "0",
+            "prefer_nhwc": "0",
+            "use_ep_level_unified_stream": "0",
+            "use_tf32": "1",
+            "sdpa_kernel": "0",
+            "fuse_conv_bias": "0"
+          },
+          "CPUExecutionProvider": {}
+        },
+        "packages": {
+          "rembg": "2.0.76",
+          "onnxruntime-gpu": "1.23.2",
+          "numpy": "2.4.6",
+          "pillow": "12.3.0",
+          "pooch": "1.9.0"
+        }
+      }
+    }
+  }
+}

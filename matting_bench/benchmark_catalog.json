@@ -1,0 +1,128 @@
+{
+  "generated_at": "2026-07-10T18:05:00+08:00",
+  "hardware": "NVIDIA GeForce RTX 2080 Ti 11GB, driver 591.86",
+  "summary": {
+    "recommended": "当前自适应绿幕算法作为默认主链，BiRefNet-matting 作为结构修复和低置信度回退。",
+    "reason": "当前算法保留细毛最好；BiRefNet-matting 的连续帧稳定性和主体连贯性更好，但背景泄漏略高。",
+    "test_scope": "9 张 960x960 固定帧 + 24 张 640x640 连续快走帧；无人工 alpha 真值。"
+  },
+  "providers": {
+    "baseline": {
+      "display": "当前自研绿幕算法",
+      "badge": "默认主链",
+      "status": "recommended",
+      "license": "内部代码",
+      "runtime_ms": 440.7,
+      "runtime_scope": "640p 全流程/帧",
+      "vram_mb": 0,
+      "source": "",
+      "finding": "细毛保留和背景纯净度最好，但容易留下少量独立碎毛与烘焙亮边。"
+    },
+    "birefnet_matting": {
+      "display": "BiRefNet-matting",
+      "badge": "首选回退",
+      "status": "recommended",
+      "license": "MIT 上游；模型卡未单列许可证",
+      "runtime_ms": 197.6,
+      "runtime_scope": "640p 热推理/帧",
+      "vram_mb": 1636,
+      "source": "https://huggingface.co/ZhengPeng7/BiRefNet-matting",
+      "finding": "轮廓连贯、碎片极少，24 帧稳定性最佳；背景 alpha 略有泄漏，不应再叠加全局去绿。"
+    },
+    "birefnet_general_post": {
+      "display": "BiRefNet General + 去绿",
+      "badge": "备选",
+      "status": "candidate",
+      "license": "MIT",
+      "runtime_ms": 208.4,
+      "runtime_scope": "960p 热推理/帧",
+      "vram_mb": 1636,
+      "source": "https://github.com/ZhengPeng7/BiRefNet",
+      "finding": "主体完整，静态指标接近专用版；毛发 alpha 不如专门的 matting 权重。"
+    },
+    "vitmatte": {
+      "display": "ViTMatte-S 混合细化",
+      "badge": "实验",
+      "status": "candidate",
+      "license": "代码 MIT / 模型卡 Apache-2.0",
+      "runtime_ms": 78.4,
+      "runtime_scope": "模型热推理；全流程 1139 ms",
+      "vram_mb": 597,
+      "source": "https://github.com/hustvl/ViTMatte",
+      "finding": "只处理窄 trimap 时改进有限，仍依赖当前算法先生成可靠 trimap。"
+    },
+    "paddle_human_post": {
+      "display": "Paddle PP-MattingV2 + 去绿",
+      "badge": "人像跨域",
+      "status": "limited",
+      "license": "PaddleSeg Apache-2.0；权重包未单列许可证",
+      "runtime_ms": 49.1,
+      "runtime_scope": "512p CUDA 推理/帧",
+      "vram_mb": null,
+      "source": "https://github.com/PaddlePaddle/PaddleSeg/tree/release/2.10/Matting",
+      "finding": "速度最快且轮廓干净，但官方检查点是人像模型，不建议直接承担宠物毛发主链。"
+    },
+    "ben2_post": {
+      "display": "BEN2 Base + 去绿",
+      "badge": "轮廓模型",
+      "status": "limited",
+      "license": "MIT",
+      "runtime_ms": 361.7,
+      "runtime_scope": "960p CUDA 推理/帧",
+      "vram_mb": 2587,
+      "source": "https://github.com/PramaLLC/BEN2",
+      "finding": "主体连贯，但前景损失最高，细毛和低对比胡须容易被削弱。"
+    },
+    "u2net_post": {
+      "display": "U2Net + 去绿",
+      "badge": "传统基线",
+      "status": "limited",
+      "license": "Apache-2.0",
+      "runtime_ms": 94.2,
+      "runtime_scope": "960p ONNX 热调用/帧",
+      "vram_mb": null,
+      "source": "https://github.com/xuebinqin/U-2-Net",
+      "finding": "部署成熟、速度尚可，但前景损失和边缘细节明显弱于当前算法。"
+    },
+    "isnet_post": {
+      "display": "ISNet General + 去绿",
+      "badge": "传统基线",
+      "status": "limited",
+      "license": "Apache-2.0",
+      "runtime_ms": 315.6,
+      "runtime_scope": "960p ONNX 热调用/帧",
+      "vram_mb": null,
+      "source": "https://github.com/xuebinqin/DIS",
+      "finding": "碎片少，但毛发前景损失与绿边均高于当前算法。"
+    },
+    "birefnet_lite_post": {
+      "display": "BiRefNet General Lite ONNX",
+      "badge": "不采用",
+      "status": "limited",
+      "license": "MIT",
+      "runtime_ms": 5043.3,
+      "runtime_scope": "960p ONNX 热调用/帧",
+      "vram_mb": null,
+      "source": "https://github.com/ZhengPeng7/BiRefNet",
+      "finding": "当前 Windows ONNX 路径速度异常慢，质量也未超过官方 PyTorch 专用版。"
+    }
+  },
+  "video_models": [
+    {
+      "name": "MatAnyone v1",
+      "speed": "11.33 fps @ 640p",
+      "vram": "698 MB allocated peak",
+      "license": "S-Lab 1.0，商用需授权",
+      "result": "未改善本样本时序误差，并出现鼻口内部半透明缺口；不作为最终 alpha。",
+      "source": "https://github.com/pq-yang/MatAnyone"
+    },
+    {
+      "name": "SAM 2.1 Hiera Small",
+      "speed": "9.70 fps @ 960p",
+      "vram": "719 MB allocated peak",
+      "license": "Apache-2.0",
+      "result": "目标传播稳定，但只输出二值语义 mask，无法表达半透明毛发。",
+      "source": "https://github.com/facebookresearch/sam2"
+    }
+  ]
+}

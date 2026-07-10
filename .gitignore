@@ -26,3 +26,20 @@ logs/
 poc_output/server_*.log
 poc_output/_ab_*/
 poc_output/_inspect_*/
+
+# Local matting model lab. Keep adapters and reports, ignore heavy runtimes/assets.
+.models/
+.venvs/
+matting_bench/data/
+matting_bench/outputs/
+matting_bench/providers/*/outputs/
+matting_bench/providers/*/samples/
+matting_bench/providers/*/upstream/
+matting_bench/providers/*/evidence/
+matting_bench/providers/*/runs/
+matting_bench/providers/*/diagnostics/
+matting_bench/providers/*/run_metrics/
+matting_bench/providers/*/sample_inputs/
+matting_bench/providers/*/sample_outputs/
+matting_bench/providers/*/*.log
+poc_output/matting_benchmark_assets/

@@ -1,0 +1,18 @@
+# Install the CUDA wheels from the official PyTorch CUDA 12.1 index first:
+# python -m pip install torch==2.5.1+cu121 torchvision==0.20.1+cu121 \
+#   --index-url https://download.pytorch.org/whl/cu121
+torch==2.5.1+cu121
+torchvision==0.20.1+cu121
+numpy==1.26.4
+einops==0.8.0
+timm==1.0.12
+huggingface-hub==0.27.1
+safetensors==0.5.2
+opencv-python-headless==4.10.0.84
+Pillow==12.2.0
+wheel==0.45.1
+
+# Official package installed editable and without dependency resolution:
+# pip install --no-deps --editable .models/ben2/source
+# ben2==0.0.1 @ PramaLLC/BEN2 commit
+# 2c99a5da477b5523585bfa5c893888a6e818a8f6

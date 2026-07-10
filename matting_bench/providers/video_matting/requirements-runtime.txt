@@ -1,0 +1,15 @@
+# CUDA wheels are installed separately from the official PyTorch cu124 index.
+torch==2.5.1+cu124
+torchvision==0.20.1+cu124
+
+# Minimal MatAnyone inference/runtime surface. GUI and training packages from the
+# upstream pyproject are intentionally excluded.
+numpy==1.26.4
+Pillow==10.4.0
+opencv-python-headless==4.10.0.84
+omegaconf==2.3.0
+hydra-core==1.3.2
+huggingface-hub==0.27.1
+safetensors==0.5.2
+tqdm==4.67.1
+imageio==2.25.0
