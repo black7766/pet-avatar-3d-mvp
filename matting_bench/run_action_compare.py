@@ -1,4 +1,4 @@
-"""Run every recommended matting provider on one 24-frame pet action."""
+"""Run every recommended matting provider on one pet action sequence."""
 
 from __future__ import annotations
 
@@ -17,6 +17,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 BENCH_ROOT = REPO_ROOT / "matting_bench"
 DATASET_ROOT = BENCH_ROOT / "data" / "pet_20260710_121221_5ce7716e"
 LOCK_RUNNER = BENCH_ROOT / "run_with_gpu_lock.py"
+DEFAULT_FRAME_COUNT = 96
 
 PROVIDER_NAMES = (
     "adaptive_green_baseline",
@@ -47,23 +48,25 @@ def relative(path: Path) -> str:
     return path.resolve().relative_to(REPO_ROOT).as_posix()
 
 
-def output_frames(path: Path) -> list[Path]:
+def output_frames(path: Path, expected_count: int) -> list[Path]:
     direct = sorted(path.glob("*.png"))
-    if len(direct) == 24:
+    if len(direct) == expected_count:
         return direct
     rgba = sorted((path / "rgba").glob("*.png"))
-    if len(rgba) == 24:
+    if len(rgba) == expected_count:
         return rgba
     return []
 
 
-def prepare_source(action: str, output: Path) -> None:
-    if len(sorted(output.glob("*.png"))) == 24:
+def prepare_source(action: str, output: Path, frame_count: int) -> None:
+    if len(sorted(output.glob("*.png"))) == frame_count:
         return
     source = DATASET_ROOT / "full" / action
-    paths = sorted(source.glob("*.png"))[:24]
-    if len(paths) != 24:
-        raise FileNotFoundError(f"expected at least 24 source frames in {source}")
+    paths = sorted(source.glob("*.png"))[:frame_count]
+    if len(paths) != frame_count:
+        raise FileNotFoundError(
+            f"expected at least {frame_count} source frames in {source}"
+        )
     output.mkdir(parents=True, exist_ok=True)
     for index, path in enumerate(paths):
         with Image.open(path) as image:
@@ -78,16 +81,17 @@ def python_in(venv: str) -> Path:
     return path
 
 
-def commands(input_dir: Path, output_root: Path) -> dict[str, list[str]]:
+def commands(
+    input_dir: Path,
+    output_root: Path,
+    frame_count: int,
+) -> dict[str, list[str]]:
     def out(name: str) -> str:
         return str(output_root / name)
 
-    matanyone_output = (
-        BENCH_ROOT / "providers" / "video_matting" / "runs" / f"action_compare_{output_root.name}"
-    )
-    sam2_output = (
-        BENCH_ROOT / "providers" / "sam2_video" / "runs" / f"action_compare_{output_root.name}"
-    )
+    run_slug = f"{output_root.parent.name}_{output_root.name}"
+    matanyone_output = BENCH_ROOT / "providers" / "video_matting" / "runs" / run_slug
+    sam2_output = BENCH_ROOT / "providers" / "sam2_video" / "runs" / run_slug
 
     return {
         "adaptive_green_baseline": [
@@ -206,7 +210,7 @@ def commands(input_dir: Path, output_root: Path) -> dict[str, list[str]]:
             "--output-dir",
             str(matanyone_output),
             "--frames",
-            "24",
+            str(frame_count),
             "--max-size",
             "640",
             "--max-internal-size",
@@ -230,7 +234,7 @@ def commands(input_dir: Path, output_root: Path) -> dict[str, list[str]]:
             "--output-dir",
             str(sam2_output),
             "--frames",
-            "24",
+            str(frame_count),
             "--mask-threshold",
             "128",
             "--logit-threshold",
@@ -267,11 +271,13 @@ def build_fast_walk_manifest(output_root: Path) -> dict[str, Any]:
     source_dir = DATASET_ROOT / "temporal_fast_walk_24_640"
     outputs = {name: REPO_ROOT / path for name, path in FAST_WALK_OUTPUTS.items()}
     for name, directory in outputs.items():
-        if len(output_frames(directory)) != 24:
+        if len(output_frames(directory, 24)) != 24:
             raise FileNotFoundError(f"missing fast-walk output for {name}: {directory}")
     evaluation_path = output_root / "evaluation.json"
     evaluation = evaluate(source_dir, outputs, evaluation_path)
-    return manifest_payload("fast_walk", source_dir, outputs, evaluation, evaluation_path)
+    return manifest_payload(
+        "fast_walk", source_dir, outputs, evaluation, evaluation_path, 24
+    )
 
 
 def metrics_path(directory: Path) -> Path:
@@ -286,10 +292,11 @@ def manifest_payload(
     outputs: dict[str, Path],
     evaluation: dict[str, Any],
     evaluation_path: Path,
+    frame_count: int,
 ) -> dict[str, Any]:
     providers: dict[str, Any] = {}
     for name, directory in outputs.items():
-        frames = output_frames(directory)
+        frames = output_frames(directory, frame_count)
         providers[name] = {
             "output_dir": relative(directory),
             "metrics_json": relative(metrics_path(directory)),
@@ -306,7 +313,7 @@ def manifest_payload(
         "providers": providers,
         "evaluation": {
             "provider_count": len(evaluation.get("providers", {})),
-            "metric_scope": "action-specific 24-frame evaluation",
+            "metric_scope": f"action-specific {frame_count}-frame evaluation",
         },
     }
 
@@ -317,8 +324,9 @@ def main() -> None:
     parser.add_argument(
         "--output-root",
         type=Path,
-        default=Path("matting_bench/outputs/action_compare"),
+        default=Path("matting_bench/outputs/action_compare_5s"),
     )
+    parser.add_argument("--frame-count", type=int, default=DEFAULT_FRAME_COUNT)
     parser.add_argument(
         "--reuse-existing",
         action=argparse.BooleanOptionalAction,
@@ -328,12 +336,12 @@ def main() -> None:
 
     output_root = (REPO_ROOT / args.output_root / args.action).resolve()
     output_root.mkdir(parents=True, exist_ok=True)
-    if args.action == "fast_walk":
+    if args.frame_count == 24 and args.action == "fast_walk":
         payload = build_fast_walk_manifest(output_root)
     else:
-        source_dir = DATASET_ROOT / "temporal_sleep_24_640"
-        prepare_source(args.action, source_dir)
-        provider_commands = commands(source_dir, output_root)
+        source_dir = DATASET_ROOT / f"temporal_{args.action}_{args.frame_count}_640"
+        prepare_source(args.action, source_dir, args.frame_count)
+        provider_commands = commands(source_dir, output_root, args.frame_count)
         outputs: dict[str, Path] = {}
         for name in PROVIDER_NAMES:
             command = provider_commands[name]
@@ -357,7 +365,7 @@ def main() -> None:
                     / "providers"
                     / "video_matting"
                     / "runs"
-                    / f"action_compare_{output_root.name}"
+                    / f"{output_root.parent.name}_{output_root.name}"
                 )
             else:
                 directory = (
@@ -365,11 +373,11 @@ def main() -> None:
                     / "providers"
                     / "sam2_video"
                     / "runs"
-                    / f"action_compare_{output_root.name}"
+                    / f"{output_root.parent.name}_{output_root.name}"
                 )
-            existing = output_frames(directory)
+            existing = output_frames(directory, args.frame_count)
             expected_metrics = metrics_path(directory)
-            complete = len(existing) == 24 and expected_metrics.is_file()
+            complete = len(existing) == args.frame_count and expected_metrics.is_file()
             if not args.reuse_existing or not complete:
                 can_overwrite_in_place = name in {
                     "ZhengPeng7/BiRefNet (General)",
@@ -384,13 +392,20 @@ def main() -> None:
                         f"partial output exists for {name}: {directory}; remove it explicitly before rerun"
                     )
                 run(command, gpu=name != "adaptive_green_baseline")
-            frames = output_frames(directory)
-            if len(frames) != 24:
+            frames = output_frames(directory, args.frame_count)
+            if len(frames) != args.frame_count:
                 raise RuntimeError(f"provider {name} produced {len(frames)} frames")
             outputs[name] = directory / "rgba" if (directory / "rgba").is_dir() else directory
         evaluation_path = output_root / "evaluation.json"
         evaluation = evaluate(source_dir, outputs, evaluation_path)
-        payload = manifest_payload(args.action, source_dir, outputs, evaluation, evaluation_path)
+        payload = manifest_payload(
+            args.action,
+            source_dir,
+            outputs,
+            evaluation,
+            evaluation_path,
+            args.frame_count,
+        )
 
     manifest = output_root / "manifest.json"
     manifest.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

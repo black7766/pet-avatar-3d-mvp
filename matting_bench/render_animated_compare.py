@@ -1,7 +1,7 @@
 """Build an entity-only animated matting comparison page.
 
-The page uses the same 24-frame fast-walk sequence for every provider. Generated
-WebPs are page-local assets so the existing poc_output HTTP server can serve them.
+Every provider receives the same full action sequence. Generated WebPs are
+page-local assets so the existing poc_output HTTP server can serve them.
 """
 
 from __future__ import annotations
@@ -152,17 +152,18 @@ def resolve_temporal_dir(repo_root: Path, provider: dict[str, Any], config: dict
 
 def encode_webp(frame_dir: Path, output: Path, duration_ms: int) -> dict[str, Any]:
     frame_paths = sorted(frame_dir.glob("*.png"))
-    if len(frame_paths) != 24:
-        raise ValueError(f"expected 24 PNGs in {frame_dir}, got {len(frame_paths)}")
+    frame_count = len(frame_paths)
+    if frame_count < 2:
+        raise ValueError(f"expected an image sequence in {frame_dir}, got {frame_count}")
     newest_source = max(path.stat().st_mtime for path in frame_paths)
     if output.is_file() and output.stat().st_mtime >= newest_source:
         with Image.open(output) as image:
-            if getattr(image, "n_frames", 1) == 24 and image.size == (640, 640):
+            if getattr(image, "n_frames", 1) == frame_count and image.size == (640, 640):
                 return {
-                    "frames": 24,
+                    "frames": frame_count,
                     "width": 640,
                     "height": 640,
-                    "duration_ms": duration_ms * 24,
+                    "duration_ms": duration_ms * frame_count,
                     "file_mb": output.stat().st_size / (1024 * 1024),
                     "cached": True,
                 }
@@ -210,7 +211,11 @@ def temporal_metrics_path(frame_dir: Path) -> Path:
     return frame_dir / "metrics.json"
 
 
-def runtime_metrics(provider: str, data: dict[str, Any]) -> dict[str, float | None | str]:
+def runtime_metrics(
+    provider: str,
+    data: dict[str, Any],
+    frame_count: int,
+) -> dict[str, float | None | str]:
     if provider == "adaptive_green_baseline":
         return {
             "task_seconds": float(data["total_seconds"]),
@@ -233,7 +238,7 @@ def runtime_metrics(provider: str, data: dict[str, Any]) -> dict[str, float | No
             "inference_ms": summary["inference_mean_excluding_first_ms"],
             "frame_ms": summary["mean_total_ms"],
             "vram_mb": summary["max_cuda_pipeline_peak_allocated_mib"],
-            "note": "总任务含模型加载、一次预热和 24 帧写盘",
+            "note": f"总任务含模型加载、一次预热和 {frame_count} 帧写盘",
         }
     if provider in {
         "ZhengPeng7/BiRefNet (General)",
@@ -254,7 +259,7 @@ def runtime_metrics(provider: str, data: dict[str, Any]) -> dict[str, float | No
             "inference_ms": data["mean_inference_ms"],
             "frame_ms": data["mean_total_ms"],
             "vram_mb": data["peak_vram_mb"],
-            "note": "总任务含 predictor 加载和预热；核心处理为 24 帧批次",
+            "note": f"总任务含 predictor 加载和预热；核心处理为 {frame_count} 帧批次",
         }
     if provider == "rembg":
         return {
@@ -271,8 +276,8 @@ def runtime_metrics(provider: str, data: dict[str, Any]) -> dict[str, float | No
         return {
             "task_seconds": timing["end_to_end_seconds"],
             "core_seconds": inference["propagation_wall_seconds"],
-            "inference_ms": inference["propagation_wall_seconds"] * 1000 / 24,
-            "frame_ms": inference["propagation_wall_seconds"] * 1000 / 24,
+            "inference_ms": inference["propagation_wall_seconds"] * 1000 / frame_count,
+            "frame_ms": inference["propagation_wall_seconds"] * 1000 / frame_count,
             "vram_mb": inference["peak_memory"]["peak_allocated_mib"],
             "note": "总任务含初始化、首帧提示、传播、诊断和写盘；输出为二值 mask",
         }
@@ -281,8 +286,8 @@ def runtime_metrics(provider: str, data: dict[str, Any]) -> dict[str, float | No
         return {
             "task_seconds": timing["end_to_end_seconds"],
             "core_seconds": timing["output_inference_seconds"],
-            "inference_ms": timing["output_inference_seconds"] * 1000 / 24,
-            "frame_ms": timing["output_inference_seconds"] * 1000 / 24,
+            "inference_ms": timing["output_inference_seconds"] * 1000 / frame_count,
+            "frame_ms": timing["output_inference_seconds"] * 1000 / frame_count,
             "vram_mb": timing["cuda_peak_during_inference"]["peak_allocated_mib"],
             "note": "总任务含模型加载、绿幕 RGB、一次 warmup、诊断和写盘",
         }
@@ -341,12 +346,12 @@ def main() -> None:
     parser.add_argument(
         "--fast-walk-manifest",
         type=Path,
-        default=Path("matting_bench/outputs/action_compare/fast_walk/manifest.json"),
+        default=Path("matting_bench/outputs/action_compare_5s/fast_walk/manifest.json"),
     )
     parser.add_argument(
         "--sleep-manifest",
         type=Path,
-        default=Path("matting_bench/outputs/action_compare/sleep/manifest.json"),
+        default=Path("matting_bench/outputs/action_compare_5s/sleep/manifest.json"),
     )
     parser.add_argument(
         "--source-metrics",
@@ -368,7 +373,7 @@ def main() -> None:
         type=Path,
         default=Path("poc_output/matting_animated_compare_real_20260711.html"),
     )
-    parser.add_argument("--fps", type=float, default=24.0)
+    parser.add_argument("--fps", type=float, default=19.2)
     args = parser.parse_args()
 
     if not 1.0 <= args.fps <= 24.0:
@@ -421,7 +426,7 @@ def main() -> None:
             entry = context["manifest"]["providers"][name]
             frame_dir = repo_root / entry["output_dir"]
             metrics = read_json(repo_root / entry["metrics_json"])
-            runtime = runtime_metrics(name, metrics)
+            runtime = runtime_metrics(name, metrics, int(context["manifest"]["source_frames"]))
             evaluated = context["evaluation"]["providers"][entry["evaluation_key"]]
             webp_path = assets_dir / f"{slug}__{action}__{fps_slug}fps.webp"
             asset = encode_webp(frame_dir, webp_path, duration_ms)
@@ -474,7 +479,7 @@ def main() -> None:
             **ACTION_VIEW[action],
             "source_url": context["source_url"],
             "loop": (
-                f"24 帧 / {args.fps:g} FPS / "
+                f"{context['source_asset']['frames']} 帧 / {args.fps:g} FPS / "
                 f"{context['source_asset']['duration_ms'] / 1000:.1f}s"
             ),
             "providers": {
@@ -490,15 +495,19 @@ def main() -> None:
         record = display_record(item["actions"][initial_action])
         category = "candidate" if item["eligible"] else "research"
         badge_class = "primary" if item["provider"] == "adaptive_green_baseline" else category
+        hidden_attr = "" if category == "candidate" else " hidden"
+        source_attr = (
+            f' src="{html.escape(record["url"])}"' if category == "candidate" else ""
+        )
         card_html.append(
             f"""
-            <article class="model-card" data-category="{category}" data-provider="{html.escape(item['provider'])}">
+            <article class="model-card" data-category="{category}" data-provider="{html.escape(item['provider'])}"{hidden_attr}>
               <header><div><strong>{html.escape(view['name'])}</strong><small>{html.escape(str(item['config']))}</small></div><span class="badge {badge_class}">{html.escape(view['role'])}</span></header>
-              <div class="motion-stage"><img class="motion" src="{html.escape(record['url'])}" data-src="{html.escape(record['url'])}" alt="{html.escape(view['name'])} 实体版动作抠图动图"></div>
+              <div class="motion-stage"><img class="motion"{source_attr} data-src="{html.escape(record['url'])}" alt="{html.escape(view['name'])} 实体版动作抠图动图"></div>
               <p class="summary">{html.escape(view['summary'])}</p>
               <section class="runtime-grid">
                 <div><span>总任务耗时</span><strong data-field="task_seconds">{record['task_seconds']}</strong></div>
-                <div><span>24帧核心处理</span><strong data-field="core_seconds">{record['core_seconds']}</strong></div>
+                <div><span>全序列核心处理</span><strong data-field="core_seconds">{record['core_seconds']}</strong></div>
                 <div><span>稳态推理/帧</span><strong data-field="inference_ms">{record['inference_ms']}</strong></div>
                 <div><span>峰值显存</span><strong data-field="vram_mb">{record['vram_mb']}</strong></div>
               </section>
@@ -530,17 +539,18 @@ def main() -> None:
 .quality{{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}}.quality th,.quality td{{padding:6px 8px;border-bottom:1px solid #edf0ed;text-align:right}}.quality th{{color:var(--muted);font-size:10px;font-weight:500;text-align:left}}.model-card>footer{{display:flex;justify-content:space-between;gap:12px;padding:8px 11px;color:var(--muted);font-size:10px}}.model-card>footer span:last-child{{text-align:right}}.method{{margin-top:12px;padding:11px 0;border-top:1px solid var(--line);color:var(--muted)}}
 @media(max-width:1100px){{.pipeline{{grid-template-columns:repeat(2,1fr)}}.pipeline .decision{{grid-column:1/-1}}.model-grid{{grid-template-columns:repeat(2,minmax(0,1fr))}}}}@media(max-width:700px){{.top,.section-row{{display:block}}.source-grid,.model-grid,.pipeline{{grid-template-columns:1fr}}.pipeline .decision{{grid-column:auto}}.runtime-grid{{grid-template-columns:repeat(2,1fr)}}.runtime-grid div:nth-child(2){{border-right:0}}.runtime-grid div:nth-child(-n+2){{border-bottom:1px solid var(--line)}}}}
 </style></head><body><main class="shell">
-<section class="top"><div><span class="eyebrow">ENTITY VERSION · FAST WALK / SLEEP</span><h1>实体版宠物抠图模型动图对比</h1><p>同一只实体宠物，分别比较快走和睡眠两种动作；页面不包含萌宠版。</p></div><p>全部动图统一为 640×640、24 帧、{args.fps:g} FPS、{actions[initial_action]['source_asset']['duration_ms']/1000:.1f} 秒循环。切换动作时图片、时间和质量指标会同步更新。</p></section>
+<section class="top"><div><span class="eyebrow">ENTITY VERSION · FAST WALK / SLEEP</span><h1>实体版宠物抠图模型动图对比</h1><p>同一只实体宠物，分别比较快走和睡眠两种完整大动作；页面不包含萌宠版。</p></div><p>全部动图统一为 640×640、{actions[initial_action]['source_asset']['frames']} 帧、{args.fps:g} FPS、{actions[initial_action]['source_asset']['duration_ms']/1000:.1f} 秒循环。切换动作时图片、时间和质量指标会同步更新。</p></section>
 <section class="pipeline"><div class="decision"><span>当前生产结论</span><strong>自研绿幕主链 + BiRefNet General 异常后备</strong><span>模型只在失败样本触发，避免默认增加 GPU 时间和边缘污染。</span></div><div><span>单只宠物整套生成</span><strong>{pipeline['total_seconds']:.1f}s</strong><span>约 {pipeline['total_seconds']/60:.1f} 分钟</span></div><div><span>API 图像/视频生成</span><strong>{pipeline['api_seconds']:.1f}s</strong><span>{pipeline['image_tasks']} 个图像任务 + {pipeline['video_tasks']} 个视频任务</span></div><div><span>本地抠图与 WebP</span><strong>{pipeline['matte_seconds']:.1f}s</strong><span>idle / sleep / fast_walk 三段</span></div><div><span>API token</span><strong>{pipeline['tokens']:,}</strong><span>图像与视频任务 usage 合计</span></div></section>
 <h2>实体版素材链路</h2><section class="source-grid"><article class="source-item"><header><strong>1. 上传原图</strong><p>用户真实宠物照片</p></header><div class="source-media"><img src="{original_url}" alt="上传的真实宠物照片"></div><footer><span>实体版输入</span><span>不展示萌宠版</span></footer></article><article class="source-item"><header><strong>2. 实体形象首帧</strong><p>Seedream 图生图结果</p></header><div class="source-media"><img src="{entity_url}" alt="生成的实体宠物形象"></div><footer><span>图生图 {pipeline['stylize_seconds']:.1f}s</span><span>全身居中</span></footer></article><article class="source-item"><header><strong id="source-title">{initial['source_title']}</strong><p id="source-description">{initial['source_description']}</p></header><div class="source-media"><img id="source-motion" class="motion" src="{initial['source_url']}" data-src="{initial['source_url']}" alt="实体宠物动作绿幕源"></div><footer><span id="source-loop">{initial['loop']}</span><span>原视频 720p / 无声</span></footer></article></section>
-<div class="section-row"><h2><span id="action-label">{initial['label']}</span> · 九种抠图路径</h2><div class="controls"><button type="button" data-action="fast_walk" class="action-button active">快走</button><button type="button" data-action="sleep" class="action-button">睡眠</button><button type="button" data-filter="all" class="active">全部</button><button type="button" data-filter="candidate">生产候选</button><button type="button" data-filter="research">研究对照</button><button type="button" data-background="checker" class="active">棋盘格</button><button type="button" data-background="white">白底</button><button type="button" data-background="black">黑底</button><button type="button" id="replay">↻ 同步重播</button></div></div>
+<div class="section-row"><h2><span id="action-label">{initial['label']}</span> · 九种抠图路径</h2><div class="controls"><button type="button" data-action="fast_walk" class="action-button active">快走</button><button type="button" data-action="sleep" class="action-button">睡眠</button><button type="button" data-filter="all">全部</button><button type="button" data-filter="candidate" class="active">生产候选</button><button type="button" data-filter="research">研究对照</button><button type="button" data-background="checker" class="active">棋盘格</button><button type="button" data-background="white">白底</button><button type="button" data-background="black">黑底</button><button type="button" id="replay">↻ 同步重播</button></div></div>
 <section class="model-grid" data-background="checker">{''.join(card_html)}</section>
-<p class="method">计时和质量指标均来自当前所选动作的同一组 24 帧、640×640 连续序列。总任务耗时包含各 provider 实际记录的模型加载、预处理、诊断和写盘；24 帧核心处理用于观察模型批次本身；稳态推理排除首帧冷启动。当前没有人工逐像素 alpha 真值，指标只用于同源相对比较，并经过黑底、白底和棋盘格人工复核。SAM2 的绿边和软 alpha 为零源于二值输出，不代表毛发质量最好。</p>
+<p class="method">计时和质量指标均来自当前所选动作的完整 96 帧、640×640 连续序列。总任务耗时包含各 provider 实际记录的模型加载、预处理、诊断和写盘；全序列核心处理用于观察模型批次本身；稳态推理排除首帧冷启动。当前没有人工逐像素 alpha 真值，指标只用于同源相对比较，并经过黑底、白底和棋盘格人工复核。SAM2 的绿边和软 alpha 为零源于二值输出，不代表毛发质量最好。</p>
 </main><script>
 const actionData={payload_json};const grid=document.querySelector('.model-grid');const cards=[...document.querySelectorAll('.model-card')];const actionButtons=[...document.querySelectorAll('button[data-action]')];const filterButtons=[...document.querySelectorAll('button[data-filter]')];const backgroundButtons=[...document.querySelectorAll('button[data-background]')];
-function replay(){{const stamp=Date.now();document.querySelectorAll('img.motion').forEach(image=>{{const source=image.dataset.src;const separator=source.includes('?')?'&':'?';image.src=source+separator+'sync='+stamp}})}}
-function applyAction(action){{const selected=actionData[action];actionButtons.forEach(button=>button.classList.toggle('active',button.dataset.action===action));document.getElementById('action-label').textContent=selected.label;document.getElementById('source-title').textContent=selected.source_title;document.getElementById('source-description').textContent=selected.source_description;document.getElementById('source-loop').textContent=selected.loop;const source=document.getElementById('source-motion');source.dataset.src=selected.source_url;cards.forEach(card=>{{const record=selected.providers[card.dataset.provider];const image=card.querySelector('img.motion');image.dataset.src=record.url;card.querySelectorAll('[data-field]').forEach(node=>node.textContent=record[node.dataset.field])}});replay()}}
-actionButtons.forEach(button=>button.addEventListener('click',()=>applyAction(button.dataset.action)));filterButtons.forEach(button=>button.addEventListener('click',()=>{{filterButtons.forEach(item=>item.classList.toggle('active',item===button));cards.forEach(card=>card.hidden=button.dataset.filter!=='all'&&card.dataset.category!==button.dataset.filter)}}));backgroundButtons.forEach(button=>button.addEventListener('click',()=>{{backgroundButtons.forEach(item=>item.classList.toggle('active',item===button));grid.dataset.background=button.dataset.background}}));document.getElementById('replay').addEventListener('click',replay);
+function loadVisible(restart){{const stamp=Date.now();document.querySelectorAll('img.motion').forEach(image=>{{const card=image.closest('.model-card');if(card&&card.hidden){{image.removeAttribute('src');return}}const source=image.dataset.src;if(!source)return;if(restart||image.getAttribute('src')!==source){{const separator=source.includes('?')?'&':'?';image.src=source+separator+'sync='+stamp}}}})}}
+function replay(){{loadVisible(true)}}
+function applyAction(action){{const selected=actionData[action];actionButtons.forEach(button=>button.classList.toggle('active',button.dataset.action===action));document.getElementById('action-label').textContent=selected.label;document.getElementById('source-title').textContent=selected.source_title;document.getElementById('source-description').textContent=selected.source_description;document.getElementById('source-loop').textContent=selected.loop;const source=document.getElementById('source-motion');source.dataset.src=selected.source_url;cards.forEach(card=>{{const record=selected.providers[card.dataset.provider];const image=card.querySelector('img.motion');image.dataset.src=record.url;card.querySelectorAll('[data-field]').forEach(node=>node.textContent=record[node.dataset.field])}});loadVisible(true)}}
+actionButtons.forEach(button=>button.addEventListener('click',()=>applyAction(button.dataset.action)));filterButtons.forEach(button=>button.addEventListener('click',()=>{{filterButtons.forEach(item=>item.classList.toggle('active',item===button));cards.forEach(card=>card.hidden=button.dataset.filter!=='all'&&card.dataset.category!==button.dataset.filter);loadVisible(true)}}));backgroundButtons.forEach(button=>button.addEventListener('click',()=>{{backgroundButtons.forEach(item=>item.classList.toggle('active',item===button));grid.dataset.background=button.dataset.background}}));document.getElementById('replay').addEventListener('click',replay);
 </script></body></html>"""
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(document, encoding="utf-8")

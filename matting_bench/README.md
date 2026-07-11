@@ -76,7 +76,7 @@ the model/weight directories.
 
 ## Entity-only animated comparison
 
-Build a page that converts every provider's recommended 24-frame fast-walk and
+Build a page that converts every provider's recommended full fast-walk and
 sleep outputs to synchronized transparent WebPs. It also reads the real-version generation
 metrics and shows API generation time, local matting time, token usage, per-provider
 runtime, VRAM, static quality metrics, and temporal error.
@@ -90,6 +90,7 @@ python matting_bench/render_animated_compare.py
 - Local page: `http://127.0.0.1:8792/matting_animated_compare_real_20260711.html`
 - Scope: entity/real version only; no PaiMomo/cute-version assets
 - Actions: entity-version `fast_walk` and `sleep`, switchable on the same page
-- Playback: 640x640, 24 consecutive frames, 24 FPS, 1-second silent loop
+- Playback: 640x640, 96 real consecutive frames, 19.2 FPS, 5-second silent loop
 - Metrics: runtime and quality values switch with the selected action
 - Controls: production/research filter, checker/white/black background, synchronized replay
+- Loading: production candidates load first; hidden research animations load on demand
