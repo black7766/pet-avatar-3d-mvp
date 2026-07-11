@@ -50,8 +50,10 @@ from ben2.modeling_ben2 import (  # noqa: E402
     img_transform,
     img_transform32,
     postprocess_image,
+    refine_foreground_process,
 )
 from PIL import Image, ImageOps  # noqa: E402
+from torchvision.transforms.functional import to_pil_image  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -76,6 +78,24 @@ def parse_args() -> argparse.Namespace:
         "--metrics-json",
         type=Path,
         help="Metrics path (default: <output-dir>/metrics.json).",
+    )
+    parser.add_argument(
+        "--refine-foreground",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help=(
+            "Run BEN2's optional foreground-estimation postprocess. "
+            "The official default is disabled."
+        ),
+    )
+    parser.add_argument(
+        "--refine-radius",
+        type=int,
+        default=90,
+        help=(
+            "Initial blur radius passed to the official refine_foreground_process "
+            "helper (default: 90)."
+        ),
     )
     return parser.parse_args()
 
@@ -215,6 +235,8 @@ def run_frame(
     input_path: Path,
     output_path: Path | None,
     device: torch.device,
+    refine_foreground: bool,
+    refine_radius: int,
 ) -> dict[str, Any]:
     frame_started = time.perf_counter()
     load_started = frame_started
@@ -241,10 +263,25 @@ def run_frame(
         mib(torch.cuda.max_memory_allocated(device)) if device.type == "cuda" else None
     )
 
-    alpha_array = postprocess_image(prediction, im_size=[height, width])
-    alpha = Image.fromarray(alpha_array)
-    rgba = source_image.copy()
-    rgba.putalpha(alpha)
+    if refine_foreground:
+        # Match BEN_Base.inference(refine_foreground=True): preserve the raw
+        # sigmoid alpha and estimate foreground RGB with the official helper.
+        raw_alpha = to_pil_image(prediction.squeeze())
+        rgba = refine_foreground_process(
+            source_image, raw_alpha, r=refine_radius
+        )
+        alpha = raw_alpha.resize(source_image.size)
+        rgba.putalpha(alpha)
+        alpha_array = np.asarray(alpha, dtype=np.uint8)
+        alpha_postprocess = "raw_sigmoid_to_pil_then_nearest_resize"
+        foreground_postprocess = f"refine_foreground_process(r={refine_radius})"
+    else:
+        alpha_array = postprocess_image(prediction, im_size=[height, width])
+        alpha = Image.fromarray(alpha_array)
+        rgba = source_image.copy()
+        rgba.putalpha(alpha)
+        alpha_postprocess = "postprocess_image_bilinear_minmax_uint8"
+        foreground_postprocess = "source_rgb"
 
     output_hash = None
     output_mode = rgba.mode
@@ -285,6 +322,10 @@ def run_frame(
         ),
         "sha256": output_hash,
         "cuda_forward_peak_allocated_mib": forward_peak_allocated,
+        "refine_foreground": refine_foreground,
+        "refine_radius": refine_radius if refine_foreground else None,
+        "alpha_postprocess": alpha_postprocess,
+        "foreground_postprocess": foreground_postprocess,
     }
     if device.type == "cuda":
         record["cuda_pipeline_peak_allocated_mib"] = mib(
@@ -335,6 +376,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     model_dir = args.model_dir.resolve()
     if args.warmup_runs < 0:
         raise ValueError("--warmup-runs must be non-negative")
+    if args.refine_radius <= 0:
+        raise ValueError("--refine-radius must be positive")
 
     paths = image_files(input_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -358,13 +401,29 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
 
     warmup_records: list[dict[str, Any]] = []
     for _ in range(args.warmup_runs):
-        warmup_records.append(run_frame(model, paths[0], None, device))
+        warmup_records.append(
+            run_frame(
+                model,
+                paths[0],
+                None,
+                device,
+                args.refine_foreground,
+                args.refine_radius,
+            )
+        )
 
     records: list[dict[str, Any]] = []
     measured_started = time.perf_counter()
     for index, input_path in enumerate(paths, start=1):
         output_path = output_dir / input_path.with_suffix(".png").name
-        record = run_frame(model, input_path, output_path, device)
+        record = run_frame(
+            model,
+            input_path,
+            output_path,
+            device,
+            args.refine_foreground,
+            args.refine_radius,
+        )
         records.append(record)
         print(
             f"[{index}/{len(paths)}] {input_path.name}: "
@@ -430,7 +489,18 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "input_size": list(MODEL_INPUT_SIZE),
             "weight_dtype": str(next(model.parameters()).dtype).removeprefix("torch."),
             "official_forward_autocast": "cuda/float16",
-            "refine_foreground": False,
+            "refine_foreground": args.refine_foreground,
+            "refine_radius": args.refine_radius if args.refine_foreground else None,
+            "alpha_postprocess": (
+                "raw_sigmoid_to_pil_then_nearest_resize"
+                if args.refine_foreground
+                else "postprocess_image_bilinear_minmax_uint8"
+            ),
+            "foreground_postprocess": (
+                f"refine_foreground_process(r={args.refine_radius})"
+                if args.refine_foreground
+                else "source_rgb"
+            ),
             "variant_scope": "locally self-hosted open-source Base only; no Full/API model",
             "license": "MIT",
             "license_evidence": [

@@ -1,128 +1,126 @@
 {
-  "generated_at": "2026-07-10T18:05:00+08:00",
+  "generated_at": "2026-07-11T18:00:00+08:00",
   "hardware": "NVIDIA GeForce RTX 2080 Ti 11GB, driver 591.86",
+  "dataset": {
+    "static": "9 fixed 960x960 frames: first/middle/last from idle, fast_walk and sleep",
+    "temporal": "24 consecutive 640x640 fast_walk frames",
+    "ground_truth": "No hand-labeled alpha ground truth; proxy metrics plus black/white/checker visual review"
+  },
   "summary": {
-    "recommended": "当前自适应绿幕算法作为默认主链，BiRefNet-matting 作为结构修复和低置信度回退。",
-    "reason": "当前算法保留细毛最好；BiRefNet-matting 的连续帧稳定性和主体连贯性更好，但背景泄漏略高。",
-    "test_scope": "9 张 960x960 固定帧 + 24 张 640x640 连续快走帧；无人工 alpha 真值。"
+    "recommended": "自研自适应绿幕算法作为默认主链，core_despill 调整为 1.10；BiRefNet General 1024 + 官方 refinement 作为非绿幕或异常样本后备。",
+    "reason": "受控绿幕素材上，自研算法的毛发保留、背景纯净、绿边、成本和工程可控性最均衡；通用模型主要改善主体连通或非绿幕泛化，未整体超过主链。",
+    "provider_count": 9,
+    "configuration_count": 69,
+    "dashboard": "http://127.0.0.1:8792/matting_tuning_report_20260711.html"
   },
   "providers": {
     "baseline": {
-      "display": "当前自研绿幕算法",
-      "badge": "默认主链",
+      "display": "自研自适应绿幕算法",
+      "recommended_config": "despill_1_10",
+      "role": "默认主链",
       "status": "recommended",
       "license": "内部代码",
-      "runtime_ms": 440.7,
-      "runtime_scope": "640p 全流程/帧",
+      "runtime_ms": 577.927,
+      "runtime_scope": "960p CPU 端到端，含后处理与 PNG 写盘",
       "vram_mb": 0,
-      "source": "",
-      "finding": "细毛保留和背景纯净度最好，但容易留下少量独立碎毛与烘焙亮边。"
+      "source": "https://github.com/black7766/pet-avatar-3d-mvp/blob/master/poc.py",
+      "finding": "core_despill 从 0.90 调至 1.10 后，绿边下降约 4.9%，前景损失与时序稳定性基本不变。"
+    },
+    "birefnet_general": {
+      "display": "BiRefNet General",
+      "recommended_config": "general_default_1024_auto",
+      "role": "学习型后备",
+      "status": "candidate",
+      "license": "MIT upstream; verify model-card terms before distribution",
+      "runtime_ms": 200.957,
+      "runtime_scope": "1024p CUDA 热推理/帧",
+      "vram_mb": 1715.158,
+      "source": "https://github.com/ZhengPeng7/BiRefNet",
+      "finding": "主体连通和时序较好；背景泄漏与绿边高于自研主链。必须保留官方 foreground refinement。"
     },
     "birefnet_matting": {
       "display": "BiRefNet-matting",
-      "badge": "首选回退",
-      "status": "recommended",
-      "license": "MIT 上游；模型卡未单列许可证",
-      "runtime_ms": 197.6,
-      "runtime_scope": "640p 热推理/帧",
-      "vram_mb": 1636,
+      "recommended_config": "matting_default_1024_auto",
+      "role": "研究对照",
+      "status": "limited",
+      "license": "MIT upstream; verify model-card terms before distribution",
+      "runtime_ms": 200.429,
+      "runtime_scope": "1024p CUDA 热推理/帧",
+      "vram_mb": 1715.158,
       "source": "https://huggingface.co/ZhengPeng7/BiRefNet-matting",
-      "finding": "轮廓连贯、碎片极少，24 帧稳定性最佳；背景 alpha 略有泄漏，不应再叠加全局去绿。"
-    },
-    "birefnet_general_post": {
-      "display": "BiRefNet General + 去绿",
-      "badge": "备选",
-      "status": "candidate",
-      "license": "MIT",
-      "runtime_ms": 208.4,
-      "runtime_scope": "960p 热推理/帧",
-      "vram_mb": 1636,
-      "source": "https://github.com/ZhengPeng7/BiRefNet",
-      "finding": "主体完整，静态指标接近专用版；毛发 alpha 不如专门的 matting 权重。"
+      "finding": "连续帧误差最低，但宠物静态背景泄漏高于 General；公开检查点训练域以人像抠图为主。"
     },
     "vitmatte": {
       "display": "ViTMatte-S 混合细化",
-      "badge": "实验",
+      "recommended_config": "r02_tight_w35_d25",
+      "role": "窄边缘细化实验",
       "status": "candidate",
-      "license": "代码 MIT / 模型卡 Apache-2.0",
-      "runtime_ms": 78.4,
-      "runtime_scope": "模型热推理；全流程 1139 ms",
-      "vram_mb": 597,
+      "license": "Code MIT; verify checkpoint license",
+      "runtime_ms": 110.812,
+      "runtime_scope": "CUDA 推理/帧；端到端 723.615 ms",
+      "vram_mb": 597.492,
       "source": "https://github.com/hustvl/ViTMatte",
-      "finding": "只处理窄 trimap 时改进有限，仍依赖当前算法先生成可靠 trimap。"
+      "finding": "只细化 2px 窄 trimap 时收益最好，但仍依赖自研算法生成可靠 trimap，增益不足以进入默认链路。"
     },
-    "paddle_human_post": {
-      "display": "Paddle PP-MattingV2 + 去绿",
-      "badge": "人像跨域",
+    "paddle_matting": {
+      "display": "Paddle PP-MattingV2",
+      "recommended_config": "default_512",
+      "role": "百度系本地开源代表",
       "status": "limited",
-      "license": "PaddleSeg Apache-2.0；权重包未单列许可证",
-      "runtime_ms": 49.1,
+      "license": "PaddleSeg Apache-2.0; checkpoint terms not separately listed",
+      "runtime_ms": 18.532,
       "runtime_scope": "512p CUDA 推理/帧",
-      "vram_mb": null,
+      "vram_mb": 186.709,
       "source": "https://github.com/PaddlePaddle/PaddleSeg/tree/release/2.10/Matting",
-      "finding": "速度最快且轮廓干净，但官方检查点是人像模型，不建议直接承担宠物毛发主链。"
+      "finding": "速度最快，但公开检查点是人像域，宠物绿边明显，未通过当前生产门槛。"
     },
-    "ben2_post": {
-      "display": "BEN2 Base + 去绿",
-      "badge": "轮廓模型",
+    "ben2": {
+      "display": "BEN2 Base",
+      "recommended_config": "refine_r90",
+      "role": "轮廓模型对照",
       "status": "limited",
       "license": "MIT",
-      "runtime_ms": 361.7,
-      "runtime_scope": "960p CUDA 推理/帧",
-      "vram_mb": 2587,
+      "runtime_ms": 264.574,
+      "runtime_scope": "1024p CUDA 推理/帧",
+      "vram_mb": 2587.36,
       "source": "https://github.com/PramaLLC/BEN2",
-      "finding": "主体连贯，但前景损失最高，细毛和低对比胡须容易被削弱。"
+      "finding": "官方 r=90 refinement 绿边最少，但前景损失约为自研基线 3.7 倍。"
     },
-    "u2net_post": {
-      "display": "U2Net + 去绿",
-      "badge": "传统基线",
-      "status": "limited",
+    "rembg_u2net": {
+      "display": "rembg U2Net + alpha matting",
+      "recommended_config": "u2net__alpha_default",
+      "role": "成熟部署对照",
+      "status": "candidate",
+      "license": "rembg MIT; U-2-Net Apache-2.0",
+      "runtime_ms": 935.638,
+      "runtime_scope": "960p 热推理/帧，排除首帧",
+      "vram_mb": null,
+      "source": "https://github.com/danielgatis/rembg",
+      "finding": "官方 alpha 默认参数能保留软毛发，但本机路径明显慢于其他候选，没有替换主链的性价比。"
+    },
+    "matanyone": {
+      "display": "MatAnyone v1",
+      "recommended_config": "warmup1",
+      "role": "视频时序研究",
+      "status": "research_only",
+      "license": "S-Lab License 1.0, non-commercial",
+      "runtime_ms": 83.467,
+      "runtime_scope": "640p CUDA 推理/帧",
+      "vram_mb": 697.736,
+      "source": "https://github.com/pq-yang/MatAnyone",
+      "finding": "时序与内部孔洞控制较好，但当前上游许可不适合商用。"
+    },
+    "sam2": {
+      "display": "SAM 2.1 Hiera Small",
+      "recommended_config": "state_cpu",
+      "role": "主体支持区域辅助",
+      "status": "mask_only",
       "license": "Apache-2.0",
-      "runtime_ms": 94.2,
-      "runtime_scope": "960p ONNX 热调用/帧",
-      "vram_mb": null,
-      "source": "https://github.com/xuebinqin/U-2-Net",
-      "finding": "部署成熟、速度尚可，但前景损失和边缘细节明显弱于当前算法。"
-    },
-    "isnet_post": {
-      "display": "ISNet General + 去绿",
-      "badge": "传统基线",
-      "status": "limited",
-      "license": "Apache-2.0",
-      "runtime_ms": 315.6,
-      "runtime_scope": "960p ONNX 热调用/帧",
-      "vram_mb": null,
-      "source": "https://github.com/xuebinqin/DIS",
-      "finding": "碎片少，但毛发前景损失与绿边均高于当前算法。"
-    },
-    "birefnet_lite_post": {
-      "display": "BiRefNet General Lite ONNX",
-      "badge": "不采用",
-      "status": "limited",
-      "license": "MIT",
-      "runtime_ms": 5043.3,
-      "runtime_scope": "960p ONNX 热调用/帧",
-      "vram_mb": null,
-      "source": "https://github.com/ZhengPeng7/BiRefNet",
-      "finding": "当前 Windows ONNX 路径速度异常慢，质量也未超过官方 PyTorch 专用版。"
+      "runtime_ms": 79.797,
+      "runtime_scope": "640p CUDA 传播/帧",
+      "vram_mb": 696.101,
+      "source": "https://github.com/facebookresearch/sam2",
+      "finding": "目标传播稳定，但只输出二值 mask，不能表达半透明毛发，不能作为最终 WebP alpha。"
     }
-  },
-  "video_models": [
-    {
-      "name": "MatAnyone v1",
-      "speed": "11.33 fps @ 640p",
-      "vram": "698 MB allocated peak",
-      "license": "S-Lab 1.0，商用需授权",
-      "result": "未改善本样本时序误差，并出现鼻口内部半透明缺口；不作为最终 alpha。",
-      "source": "https://github.com/pq-yang/MatAnyone"
-    },
-    {
-      "name": "SAM 2.1 Hiera Small",
-      "speed": "9.70 fps @ 960p",
-      "vram": "719 MB allocated peak",
-      "license": "Apache-2.0",
-      "result": "目标传播稳定，但只输出二值语义 mask，无法表达半透明毛发。",
-      "source": "https://github.com/facebookresearch/sam2"
-    }
-  ]
+  }
 }

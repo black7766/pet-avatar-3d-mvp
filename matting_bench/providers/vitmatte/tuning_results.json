@@ -1,0 +1,1009 @@
+{
+  "provider": "vitmatte_adaptive_green_hybrid",
+  "official_docs": [
+    {
+      "url": "https://huggingface.co/docs/transformers/v4.47.1/model_doc/vitmatte",
+      "parameters": {
+        "inputs": "RGB image and same-size single-channel trimap",
+        "model_input": "image and trimap concatenated by VitMatteImageProcessor",
+        "documented_example_output": "1x1x640x960 alpha"
+      }
+    },
+    {
+      "url": "https://github.com/huggingface/transformers/blob/v4.47.1/src/transformers/models/vitmatte/image_processing_vitmatte.py",
+      "parameters": {
+        "rescale_factor": "1/255 for image and trimap",
+        "image_normalization": "checkpoint mean/std; trimap is not normalized",
+        "size_divisibility": 32,
+        "padding": "right and bottom to the next divisible size; no fixed resize"
+      }
+    },
+    {
+      "url": "https://github.com/hustvl/ViTMatte/blob/main/run_one_image.py",
+      "parameters": {
+        "image_mode": "RGB",
+        "trimap_mode": "L",
+        "tensor_conversion": "torchvision to_tensor, preserving 0..1 trimap semantics"
+      }
+    },
+    {
+      "url": "https://huggingface.co/hustvl/vitmatte-small-composition-1k/blob/6a58ad7646403c1df626fbd746900aec7361ea1d/preprocessor_config.json",
+      "parameters": {
+        "resize": "not performed by the Transformers v4.47.1 processor",
+        "do_pad": true,
+        "size_divisibility": 32,
+        "image_mean": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "image_std": [
+          0.5,
+          0.5,
+          0.5
+        ]
+      }
+    }
+  ],
+  "dataset": {
+    "id": "pet_20260710_121221_5ce7716e",
+    "smoke": {
+      "path": "matting_bench/data/pet_20260710_121221_5ce7716e/smoke",
+      "frames": 9,
+      "width": 960,
+      "height": 960
+    },
+    "temporal": {
+      "path": "matting_bench/data/pet_20260710_121221_5ce7716e/temporal_fast_walk_24_640",
+      "frames": 24,
+      "width": 640,
+      "height": 640
+    },
+    "central_evaluator": "matting_bench/evaluate.py"
+  },
+  "benchmark": {
+    "started_at_utc": "2026-07-11T02:43:05.816174+00:00",
+    "device": "cuda",
+    "gpu_lock_held": true,
+    "gpu_lock_wrapper": "matting_bench/run_with_gpu_lock.py",
+    "timing_policy": "All reported CUDA screening and final retest measurements are run inside one exclusive GPU-lock invocation.",
+    "completed_at_utc": "2026-07-11T02:48:50.725641+00:00",
+    "successful_screening_configs": 20
+  },
+  "configs": [
+    {
+      "id": "r02_tight_w35_d25",
+      "parameters": {
+        "background_threshold": 0.02,
+        "foreground_threshold": 0.98,
+        "unknown_radius_px": 2,
+        "fusion_weight": 0.35,
+        "fusion_max_delta": 0.25,
+        "threshold_preset": "tight",
+        "fusion_preset": "conservative",
+        "trimap_values": {
+          "known_background": 0,
+          "unknown": 128,
+          "known_foreground": 255
+        }
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/vitmatte/runs/tuning/final/r02_tight_w35_d25/smoke",
+      "quality": {
+        "pseudo_mae": 0.0019059792749531981,
+        "background_alpha_mean": 0.0011001778443136977,
+        "foreground_loss_mean": 0.0027117807055926984,
+        "green_fringe": 0.01446982566267252,
+        "fragment_pct": 0.11057270064721102,
+        "soft_alpha_pct": 1.0003978587962965
+      },
+      "runtime": {
+        "mean_inference_ms": 110.81216666692247,
+        "end_to_end_ms": 723.6152777784608,
+        "peak_vram_mb": 597.49169921875,
+        "mean_inference_excluding_first_ms": 73.99777499085758
+      },
+      "unknown_region_pct": 1.4043692129629628,
+      "temporal_alpha_mae": 0.013724140316733847,
+      "notes": [
+        "Quality and temporal metrics computed by matting_bench/evaluate.py.",
+        "Runtime mean includes the first inference; the warm mean is retained as an extra field.",
+        "Required final smoke speed/VRAM retest completed while the GPU lock was held.",
+        "Temporal metric comes from the locked 24-frame final retest."
+      ],
+      "attempts": 1,
+      "selection_score": 2.5789473684210527,
+      "selection_score_rule": "lower is better; weighted normalized ranks over pseudo_mae=5, background_alpha_mean=2, foreground_loss_mean=2, green_fringe=3, fragment_pct=1",
+      "screening": {
+        "output_dir": "matting_bench/providers/vitmatte/runs/tuning/screening/r02_tight_w35_d25",
+        "quality": {
+          "pseudo_mae": 0.0019059792749531981,
+          "background_alpha_mean": 0.0011001778443136977,
+          "foreground_loss_mean": 0.0027117807055926984,
+          "green_fringe": 0.01446982566267252,
+          "fragment_pct": 0.11057270064721102,
+          "soft_alpha_pct": 1.0003978587962965
+        },
+        "runtime": {
+          "mean_inference_ms": 115.99148890107041,
+          "end_to_end_ms": 733.0935222433053,
+          "peak_vram_mb": 597.49169921875,
+          "mean_inference_excluding_first_ms": 73.7231125094695
+        },
+        "unknown_region_pct": 1.4043692129629628
+      },
+      "temporal_output_dir": "matting_bench/providers/vitmatte/runs/tuning/final/r02_tight_w35_d25/temporal_fast_walk_24_640",
+      "temporal_runtime": {
+        "mean_inference_ms": 64.38996667566244,
+        "end_to_end_ms": 333.1855833239388,
+        "peak_vram_mb": 299.619140625,
+        "mean_inference_excluding_first_ms": 49.259143486699976
+      },
+      "temporal_status": "ok"
+    },
+    {
+      "id": "r02_tight_w70_d50",
+      "parameters": {
+        "background_threshold": 0.02,
+        "foreground_threshold": 0.98,
+        "unknown_radius_px": 2,
+        "fusion_weight": 0.7,
+        "fusion_max_delta": 0.5,
+        "threshold_preset": "tight",
+        "fusion_preset": "moderate",
+        "trimap_values": {
+          "known_background": 0,
+          "unknown": 128,
+          "known_foreground": 255
+        }
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/vitmatte/runs/tuning/screening/r02_tight_w70_d50",
+      "quality": {
+        "pseudo_mae": 0.0020712671685032547,
+        "background_alpha_mean": 0.0015127630904316902,
+        "foreground_loss_mean": 0.002629771246574819,
+        "green_fringe": 0.015402157687478595,
+        "fragment_pct": 0.10969692638857383,
+        "soft_alpha_pct": 1.0056544174382718
+      },
+      "runtime": {
+        "mean_inference_ms": 115.68527777368824,
+        "end_to_end_ms": 733.5377000013573,
+        "peak_vram_mb": 597.49169921875,
+        "mean_inference_excluding_first_ms": 74.79113749286626
+      },
+      "unknown_region_pct": 1.4043692129629628,
+      "temporal_alpha_mae": null,
+      "notes": [
+        "Quality and temporal metrics computed by matting_bench/evaluate.py.",
+        "Runtime mean includes the first inference; the warm mean is retained as an extra field."
+      ],
+      "attempts": 1,
+      "selection_score": 7.842105263157896,
+      "selection_score_rule": "lower is better; weighted normalized ranks over pseudo_mae=5, background_alpha_mean=2, foreground_loss_mean=2, green_fringe=3, fragment_pct=1"
+    },
+    {
+      "id": "r02_relaxed_w35_d25",
+      "parameters": {
+        "background_threshold": 0.04,
+        "foreground_threshold": 0.96,
+        "unknown_radius_px": 2,
+        "fusion_weight": 0.35,
+        "fusion_max_delta": 0.25,
+        "threshold_preset": "relaxed",
+        "fusion_preset": "conservative",
+        "trimap_values": {
+          "known_background": 0,
+          "unknown": 128,
+          "known_foreground": 255
+        }
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/vitmatte/runs/tuning/final/r02_relaxed_w35_d25/smoke",
+      "quality": {
+        "pseudo_mae": 0.0019010927385857536,
+        "background_alpha_mean": 0.0010890850486854713,
+        "foreground_loss_mean": 0.002713100428486036,
+        "green_fringe": 0.014580585476424959,
+        "fragment_pct": 0.1160499579653054,
+        "soft_alpha_pct": 0.9903549382716049
+      },
+      "runtime": {
+        "mean_inference_ms": 120.6563111110073,
+        "end_to_end_ms": 756.7063333182078,
+        "peak_vram_mb": 597.49169921875,
+        "mean_inference_excluding_first_ms": 75.55422499717679
+      },
+      "unknown_region_pct": 1.3626302083333333,
+      "temporal_alpha_mae": 0.013749519767968552,
+      "notes": [
+        "Quality and temporal metrics computed by matting_bench/evaluate.py.",
+        "Runtime mean includes the first inference; the warm mean is retained as an extra field.",
+        "Required final smoke speed/VRAM retest completed while the GPU lock was held.",
+        "Temporal metric comes from the locked 24-frame final retest."
+      ],
+      "attempts": 1,
+      "selection_score": 3.2105263157894735,
+      "selection_score_rule": "lower is better; weighted normalized ranks over pseudo_mae=5, background_alpha_mean=2, foreground_loss_mean=2, green_fringe=3, fragment_pct=1",
+      "screening": {
+        "output_dir": "matting_bench/providers/vitmatte/runs/tuning/screening/r02_relaxed_w35_d25",
+        "quality": {
+          "pseudo_mae": 0.0019010927385857536,
+          "background_alpha_mean": 0.0010890850486854713,
+          "foreground_loss_mean": 0.002713100428486036,
+          "green_fringe": 0.014580585476424959,
+          "fragment_pct": 0.1160499579653054,
+          "soft_alpha_pct": 0.9903549382716049
+        },
+        "runtime": {
+          "mean_inference_ms": 113.6486889121847,
+          "end_to_end_ms": 738.2314555709146,
+          "peak_vram_mb": 597.49169921875,
+          "mean_inference_excluding_first_ms": 75.64380002440885
+        },
+        "unknown_region_pct": 1.3626302083333333
+      },
+      "temporal_output_dir": "matting_bench/providers/vitmatte/runs/tuning/final/r02_relaxed_w35_d25/temporal_fast_walk_24_640",
+      "temporal_runtime": {
+        "mean_inference_ms": 64.25483331743938,
+        "end_to_end_ms": 339.85624583147,
+        "peak_vram_mb": 299.619140625,
+        "mean_inference_excluding_first_ms": 49.71337389788064
+      },
+      "temporal_status": "ok"
+    },
+    {
+      "id": "r02_relaxed_w70_d50",
+      "parameters": {
+        "background_threshold": 0.04,
+        "foreground_threshold": 0.96,
+        "unknown_radius_px": 2,
+        "fusion_weight": 0.7,
+        "fusion_max_delta": 0.5,
+        "threshold_preset": "relaxed",
+        "fusion_preset": "moderate",
+        "trimap_values": {
+          "known_background": 0,
+          "unknown": 128,
+          "known_foreground": 255
+        }
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/vitmatte/runs/tuning/screening/r02_relaxed_w70_d50",
+      "quality": {
+        "pseudo_mae": 0.0020579202035959396,
+        "background_alpha_mean": 0.0014922608259237474,
+        "foreground_loss_mean": 0.0026235795812681317,
+        "green_fringe": 0.015501112470196353,
+        "fragment_pct": 0.11573845278408032,
+        "soft_alpha_pct": 0.9940803433641976
+      },
+      "runtime": {
+        "mean_inference_ms": 114.45407778955996,
+        "end_to_end_ms": 720.4210333422653,
+        "peak_vram_mb": 597.49169921875,
+        "mean_inference_excluding_first_ms": 73.474075019476
+      },
+      "unknown_region_pct": 1.3626302083333333,
+      "temporal_alpha_mae": null,
+      "notes": [
+        "Quality and temporal metrics computed by matting_bench/evaluate.py.",
+        "Runtime mean includes the first inference; the warm mean is retained as an extra field."
+      ],
+      "attempts": 1,
+      "selection_score": 8.0,
+      "selection_score_rule": "lower is better; weighted normalized ranks over pseudo_mae=5, background_alpha_mean=2, foreground_loss_mean=2, green_fringe=3, fragment_pct=1"
+    },
+    {
+      "id": "r04_tight_w35_d25",
+      "parameters": {
+        "background_threshold": 0.02,
+        "foreground_threshold": 0.98,
+        "unknown_radius_px": 4,
+        "fusion_weight": 0.35,
+        "fusion_max_delta": 0.25,
+        "threshold_preset": "tight",
+        "fusion_preset": "conservative",
+        "trimap_values": {
+          "known_background": 0,
+          "unknown": 128,
+          "known_foreground": 255
+        }
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/vitmatte/runs/tuning/screening/r04_tight_w35_d25",
+      "quality": {
+        "pseudo_mae": 0.0019192598960621075,
+        "background_alpha_mean": 0.001096001405838049,
+        "foreground_loss_mean": 0.002742518386286166,
+        "green_fringe": 0.014439194980594847,
+        "fragment_pct": 0.11041642983305505,
+        "soft_alpha_pct": 1.0061366705246912
+      },
+      "runtime": {
+        "mean_inference_ms": 118.45951112142454,
+        "end_to_end_ms": 742.5741111057706,
+        "peak_vram_mb": 597.49169921875,
+        "mean_inference_excluding_first_ms": 75.68510000419337
+      },
+      "unknown_region_pct": 2.0684317129629632,
+      "temporal_alpha_mae": null,
+      "notes": [
+        "Quality and temporal metrics computed by matting_bench/evaluate.py.",
+        "Runtime mean includes the first inference; the warm mean is retained as an extra field."
+      ],
+      "attempts": 1,
+      "selection_score": 3.8947368421052633,
+      "selection_score_rule": "lower is better; weighted normalized ranks over pseudo_mae=5, background_alpha_mean=2, foreground_loss_mean=2, green_fringe=3, fragment_pct=1"
+    },
+    {
+      "id": "r04_tight_w70_d50",
+      "parameters": {
+        "background_threshold": 0.02,
+        "foreground_threshold": 0.98,
+        "unknown_radius_px": 4,
+        "fusion_weight": 0.7,
+        "fusion_max_delta": 0.5,
+        "threshold_preset": "tight",
+        "fusion_preset": "moderate",
+        "trimap_values": {
+          "known_background": 0,
+          "unknown": 128,
+          "known_foreground": 255
+        }
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/vitmatte/runs/tuning/screening/r04_tight_w70_d50",
+      "quality": {
+        "pseudo_mae": 0.0020940399263054132,
+        "background_alpha_mean": 0.0014985900682707627,
+        "foreground_loss_mean": 0.0026894897843400636,
+        "green_fringe": 0.015336502032975355,
+        "fragment_pct": 0.10966246378734525,
+        "soft_alpha_pct": 1.0179759837962963
+      },
+      "runtime": {
+        "mean_inference_ms": 113.34652224710833,
+        "end_to_end_ms": 723.179777773718,
+        "peak_vram_mb": 597.49169921875,
+        "mean_inference_excluding_first_ms": 73.26160001684912
+      },
+      "unknown_region_pct": 2.0684317129629632,
+      "temporal_alpha_mae": null,
+      "notes": [
+        "Quality and temporal metrics computed by matting_bench/evaluate.py.",
+        "Runtime mean includes the first inference; the warm mean is retained as an extra field."
+      ],
+      "attempts": 1,
+      "selection_score": 7.894736842105262,
+      "selection_score_rule": "lower is better; weighted normalized ranks over pseudo_mae=5, background_alpha_mean=2, foreground_loss_mean=2, green_fringe=3, fragment_pct=1"
+    },
+    {
+      "id": "r04_relaxed_w35_d25",
+      "parameters": {
+        "background_threshold": 0.04,
+        "foreground_threshold": 0.96,
+        "unknown_radius_px": 4,
+        "fusion_weight": 0.35,
+        "fusion_max_delta": 0.25,
+        "threshold_preset": "relaxed",
+        "fusion_preset": "conservative",
+        "trimap_values": {
+          "known_background": 0,
+          "unknown": 128,
+          "known_foreground": 255
+        }
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/vitmatte/runs/tuning/screening/r04_relaxed_w35_d25",
+      "quality": {
+        "pseudo_mae": 0.0019145884855081225,
+        "background_alpha_mean": 0.0010849168562951188,
+        "foreground_loss_mean": 0.002744260114721126,
+        "green_fringe": 0.014543991328941451,
+        "fragment_pct": 0.11598608378423703,
+        "soft_alpha_pct": 0.9964433834876544
+      },
+      "runtime": {
+        "mean_inference_ms": 113.61818889983827,
+        "end_to_end_ms": 720.2269333259513,
+        "peak_vram_mb": 597.49169921875,
+        "mean_inference_excluding_first_ms": 75.29351252014749
+      },
+      "unknown_region_pct": 2.0252821180555554,
+      "temporal_alpha_mae": null,
+      "notes": [
+        "Quality and temporal metrics computed by matting_bench/evaluate.py.",
+        "Runtime mean includes the first inference; the warm mean is retained as an extra field."
+      ],
+      "attempts": 1,
+      "selection_score": 4.263157894736842,
+      "selection_score_rule": "lower is better; weighted normalized ranks over pseudo_mae=5, background_alpha_mean=2, foreground_loss_mean=2, green_fringe=3, fragment_pct=1"
+    },
+    {
+      "id": "r04_relaxed_w70_d50",
+      "parameters": {
+        "background_threshold": 0.04,
+        "foreground_threshold": 0.96,
+        "unknown_radius_px": 4,
+        "fusion_weight": 0.7,
+        "fusion_max_delta": 0.5,
+        "threshold_preset": "relaxed",
+        "fusion_preset": "moderate",
+        "trimap_values": {
+          "known_background": 0,
+          "unknown": 128,
+          "known_foreground": 255
+        }
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/vitmatte/runs/tuning/screening/r04_relaxed_w70_d50",
+      "quality": {
+        "pseudo_mae": 0.0020857052489494285,
+        "background_alpha_mean": 0.0014781511983730728,
+        "foreground_loss_mean": 0.0026932592995257843,
+        "green_fringe": 0.015422631986439228,
+        "fragment_pct": 0.11577473641966447,
+        "soft_alpha_pct": 1.0079933449074074
+      },
+      "runtime": {
+        "mean_inference_ms": 115.88581112058212,
+        "end_to_end_ms": 717.5845110970032,
+        "peak_vram_mb": 597.49169921875,
+        "mean_inference_excluding_first_ms": 74.93847500882111
+      },
+      "unknown_region_pct": 2.0252821180555554,
+      "temporal_alpha_mae": null,
+      "notes": [
+        "Quality and temporal metrics computed by matting_bench/evaluate.py.",
+        "Runtime mean includes the first inference; the warm mean is retained as an extra field."
+      ],
+      "attempts": 1,
+      "selection_score": 8.473684210526317,
+      "selection_score_rule": "lower is better; weighted normalized ranks over pseudo_mae=5, background_alpha_mean=2, foreground_loss_mean=2, green_fringe=3, fragment_pct=1"
+    },
+    {
+      "id": "r06_tight_w35_d25",
+      "parameters": {
+        "background_threshold": 0.02,
+        "foreground_threshold": 0.98,
+        "unknown_radius_px": 6,
+        "fusion_weight": 0.35,
+        "fusion_max_delta": 0.25,
+        "threshold_preset": "tight",
+        "fusion_preset": "conservative",
+        "trimap_values": {
+          "known_background": 0,
+          "unknown": 128,
+          "known_foreground": 255
+        }
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/vitmatte/runs/tuning/screening/r06_tight_w35_d25",
+      "quality": {
+        "pseudo_mae": 0.0019240266669334637,
+        "background_alpha_mean": 0.0010934932183267341,
+        "foreground_loss_mean": 0.0027545601155401934,
+        "green_fringe": 0.014426562728153335,
+        "fragment_pct": 0.11096652835721403,
+        "soft_alpha_pct": 1.0083188657407407
+      },
+      "runtime": {
+        "mean_inference_ms": 117.17723331983304,
+        "end_to_end_ms": 730.6680444291688,
+        "peak_vram_mb": 597.49169921875,
+        "mean_inference_excluding_first_ms": 76.26858749426901
+      },
+      "unknown_region_pct": 2.6810619212962963,
+      "temporal_alpha_mae": null,
+      "notes": [
+        "Quality and temporal metrics computed by matting_bench/evaluate.py.",
+        "Runtime mean includes the first inference; the warm mean is retained as an extra field."
+      ],
+      "attempts": 1,
+      "selection_score": 4.7368421052631575,
+      "selection_score_rule": "lower is better; weighted normalized ranks over pseudo_mae=5, background_alpha_mean=2, foreground_loss_mean=2, green_fringe=3, fragment_pct=1"
+    },
+    {
+      "id": "r06_tight_w70_d50",
+      "parameters": {
+        "background_threshold": 0.02,
+        "foreground_threshold": 0.98,
+        "unknown_radius_px": 6,
+        "fusion_weight": 0.7,
+        "fusion_max_delta": 0.5,
+        "threshold_preset": "tight",
+        "fusion_preset": "moderate",
+        "trimap_values": {
+          "known_background": 0,
+          "unknown": 128,
+          "known_foreground": 255
+        }
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/vitmatte/runs/tuning/screening/r06_tight_w70_d50",
+      "quality": {
+        "pseudo_mae": 0.0021027458844602937,
+        "background_alpha_mean": 0.0014907576971583897,
+        "foreground_loss_mean": 0.0027147340717621976,
+        "green_fringe": 0.01529091876000166,
+        "fragment_pct": 0.10984297516260594,
+        "soft_alpha_pct": 1.0232807677469138
+      },
+      "runtime": {
+        "mean_inference_ms": 114.71214442927804,
+        "end_to_end_ms": 727.3346888832748,
+        "peak_vram_mb": 597.49169921875,
+        "mean_inference_excluding_first_ms": 74.50969998899382
+      },
+      "unknown_region_pct": 2.6810619212962963,
+      "temporal_alpha_mae": null,
+      "notes": [
+        "Quality and temporal metrics computed by matting_bench/evaluate.py.",
+        "Runtime mean includes the first inference; the warm mean is retained as an extra field."
+      ],
+      "attempts": 1,
+      "selection_score": 8.894736842105264,
+      "selection_score_rule": "lower is better; weighted normalized ranks over pseudo_mae=5, background_alpha_mean=2, foreground_loss_mean=2, green_fringe=3, fragment_pct=1"
+    },
+    {
+      "id": "r06_relaxed_w35_d25",
+      "parameters": {
+        "background_threshold": 0.04,
+        "foreground_threshold": 0.96,
+        "unknown_radius_px": 6,
+        "fusion_weight": 0.35,
+        "fusion_max_delta": 0.25,
+        "threshold_preset": "relaxed",
+        "fusion_preset": "conservative",
+        "trimap_values": {
+          "known_background": 0,
+          "unknown": 128,
+          "known_foreground": 255
+        }
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/vitmatte/runs/tuning/screening/r06_relaxed_w35_d25",
+      "quality": {
+        "pseudo_mae": 0.0019187828293070197,
+        "background_alpha_mean": 0.0010822831860019101,
+        "foreground_loss_mean": 0.0027552824726121295,
+        "green_fringe": 0.014533139661782317,
+        "fragment_pct": 0.11606816323030067,
+        "soft_alpha_pct": 0.9986376350308643
+      },
+      "runtime": {
+        "mean_inference_ms": 115.06299999180352,
+        "end_to_end_ms": 733.2754666503105,
+        "peak_vram_mb": 597.49169921875,
+        "mean_inference_excluding_first_ms": 75.31572498555761
+      },
+      "unknown_region_pct": 2.6376109182098766,
+      "temporal_alpha_mae": null,
+      "notes": [
+        "Quality and temporal metrics computed by matting_bench/evaluate.py.",
+        "Runtime mean includes the first inference; the warm mean is retained as an extra field."
+      ],
+      "attempts": 1,
+      "selection_score": 4.578947368421052,
+      "selection_score_rule": "lower is better; weighted normalized ranks over pseudo_mae=5, background_alpha_mean=2, foreground_loss_mean=2, green_fringe=3, fragment_pct=1"
+    },
+    {
+      "id": "r06_relaxed_w70_d50",
+      "parameters": {
+        "background_threshold": 0.04,
+        "foreground_threshold": 0.96,
+        "unknown_radius_px": 6,
+        "fusion_weight": 0.7,
+        "fusion_max_delta": 0.5,
+        "threshold_preset": "relaxed",
+        "fusion_preset": "moderate",
+        "trimap_values": {
+          "known_background": 0,
+          "unknown": 128,
+          "known_foreground": 255
+        }
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/vitmatte/runs/tuning/screening/r06_relaxed_w70_d50",
+      "quality": {
+        "pseudo_mae": 0.0020932525642112726,
+        "background_alpha_mean": 0.0014700854533455437,
+        "foreground_loss_mean": 0.002716419675077001,
+        "green_fringe": 0.015377531759440899,
+        "fragment_pct": 0.11582511474813358,
+        "soft_alpha_pct": 1.0137924382716048
+      },
+      "runtime": {
+        "mean_inference_ms": 118.15014447913403,
+        "end_to_end_ms": 744.9954444180347,
+        "peak_vram_mb": 597.49169921875,
+        "mean_inference_excluding_first_ms": 77.06261253042612
+      },
+      "unknown_region_pct": 2.6376109182098766,
+      "temporal_alpha_mae": null,
+      "notes": [
+        "Quality and temporal metrics computed by matting_bench/evaluate.py.",
+        "Runtime mean includes the first inference; the warm mean is retained as an extra field."
+      ],
+      "attempts": 1,
+      "selection_score": 8.68421052631579,
+      "selection_score_rule": "lower is better; weighted normalized ranks over pseudo_mae=5, background_alpha_mean=2, foreground_loss_mean=2, green_fringe=3, fragment_pct=1"
+    },
+    {
+      "id": "r08_tight_w35_d25",
+      "parameters": {
+        "background_threshold": 0.02,
+        "foreground_threshold": 0.98,
+        "unknown_radius_px": 8,
+        "fusion_weight": 0.35,
+        "fusion_max_delta": 0.25,
+        "threshold_preset": "tight",
+        "fusion_preset": "conservative",
+        "trimap_values": {
+          "known_background": 0,
+          "unknown": 128,
+          "known_foreground": 255
+        }
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/vitmatte/runs/tuning/screening/r08_tight_w35_d25",
+      "quality": {
+        "pseudo_mae": 0.0019255193118523392,
+        "background_alpha_mean": 0.001091485299790899,
+        "foreground_loss_mean": 0.0027595533239137796,
+        "green_fringe": 0.014419282786548138,
+        "fragment_pct": 0.11193756209366741,
+        "soft_alpha_pct": 1.0094762731481481
+      },
+      "runtime": {
+        "mean_inference_ms": 115.94067777817448,
+        "end_to_end_ms": 731.6808444835866,
+        "peak_vram_mb": 597.49169921875,
+        "mean_inference_excluding_first_ms": 73.38055000582244
+      },
+      "unknown_region_pct": 3.311354648919753,
+      "temporal_alpha_mae": null,
+      "notes": [
+        "Quality and temporal metrics computed by matting_bench/evaluate.py.",
+        "Runtime mean includes the first inference; the warm mean is retained as an extra field."
+      ],
+      "attempts": 1,
+      "selection_score": 5.421052631578948,
+      "selection_score_rule": "lower is better; weighted normalized ranks over pseudo_mae=5, background_alpha_mean=2, foreground_loss_mean=2, green_fringe=3, fragment_pct=1"
+    },
+    {
+      "id": "r08_tight_w70_d50",
+      "parameters": {
+        "background_threshold": 0.02,
+        "foreground_threshold": 0.98,
+        "unknown_radius_px": 8,
+        "fusion_weight": 0.7,
+        "fusion_max_delta": 0.5,
+        "threshold_preset": "tight",
+        "fusion_preset": "moderate",
+        "trimap_values": {
+          "known_background": 0,
+          "unknown": 128,
+          "known_foreground": 255
+        }
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/vitmatte/runs/tuning/screening/r08_tight_w70_d50",
+      "quality": {
+        "pseudo_mae": 0.00210502351142673,
+        "background_alpha_mean": 0.0014842890539310044,
+        "foreground_loss_mean": 0.0027257579689224563,
+        "green_fringe": 0.015266275861197047,
+        "fragment_pct": 0.10967273104332825,
+        "soft_alpha_pct": 1.02563175154321
+      },
+      "runtime": {
+        "mean_inference_ms": 116.58632223649572,
+        "end_to_end_ms": 745.8617999865156,
+        "peak_vram_mb": 597.49169921875,
+        "mean_inference_excluding_first_ms": 74.74440001533367
+      },
+      "unknown_region_pct": 3.311354648919753,
+      "temporal_alpha_mae": null,
+      "notes": [
+        "Quality and temporal metrics computed by matting_bench/evaluate.py.",
+        "Runtime mean includes the first inference; the warm mean is retained as an extra field."
+      ],
+      "attempts": 1,
+      "selection_score": 9.263157894736842,
+      "selection_score_rule": "lower is better; weighted normalized ranks over pseudo_mae=5, background_alpha_mean=2, foreground_loss_mean=2, green_fringe=3, fragment_pct=1"
+    },
+    {
+      "id": "r08_relaxed_w35_d25",
+      "parameters": {
+        "background_threshold": 0.04,
+        "foreground_threshold": 0.96,
+        "unknown_radius_px": 8,
+        "fusion_weight": 0.35,
+        "fusion_max_delta": 0.25,
+        "threshold_preset": "relaxed",
+        "fusion_preset": "conservative",
+        "trimap_values": {
+          "known_background": 0,
+          "unknown": 128,
+          "known_foreground": 255
+        }
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/vitmatte/runs/tuning/screening/r08_relaxed_w35_d25",
+      "quality": {
+        "pseudo_mae": 0.0019211640723774002,
+        "background_alpha_mean": 0.0010802503287171323,
+        "foreground_loss_mean": 0.002762077816037668,
+        "green_fringe": 0.014519711025059223,
+        "fragment_pct": 0.11611048747615678,
+        "soft_alpha_pct": 1.000024112654321
+      },
+      "runtime": {
+        "mean_inference_ms": 116.18244446193178,
+        "end_to_end_ms": 745.4324555712648,
+        "peak_vram_mb": 597.49169921875,
+        "mean_inference_excluding_first_ms": 74.86588750907686
+      },
+      "unknown_region_pct": 3.267361111111111,
+      "temporal_alpha_mae": null,
+      "notes": [
+        "Quality and temporal metrics computed by matting_bench/evaluate.py.",
+        "Runtime mean includes the first inference; the warm mean is retained as an extra field."
+      ],
+      "attempts": 1,
+      "selection_score": 5.578947368421053,
+      "selection_score_rule": "lower is better; weighted normalized ranks over pseudo_mae=5, background_alpha_mean=2, foreground_loss_mean=2, green_fringe=3, fragment_pct=1"
+    },
+    {
+      "id": "r08_relaxed_w70_d50",
+      "parameters": {
+        "background_threshold": 0.04,
+        "foreground_threshold": 0.96,
+        "unknown_radius_px": 8,
+        "fusion_weight": 0.7,
+        "fusion_max_delta": 0.5,
+        "threshold_preset": "relaxed",
+        "fusion_preset": "moderate",
+        "trimap_values": {
+          "known_background": 0,
+          "unknown": 128,
+          "known_foreground": 255
+        }
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/vitmatte/runs/tuning/screening/r08_relaxed_w70_d50",
+      "quality": {
+        "pseudo_mae": 0.0020978294649264878,
+        "background_alpha_mean": 0.0014634409841770928,
+        "foreground_loss_mean": 0.002732217945675883,
+        "green_fringe": 0.01534678569684426,
+        "fragment_pct": 0.11574414258227467,
+        "soft_alpha_pct": 1.0166015625
+      },
+      "runtime": {
+        "mean_inference_ms": 114.01490001784016,
+        "end_to_end_ms": 728.4875888661999,
+        "peak_vram_mb": 597.49169921875,
+        "mean_inference_excluding_first_ms": 74.2832625110168
+      },
+      "unknown_region_pct": 3.267361111111111,
+      "temporal_alpha_mae": null,
+      "notes": [
+        "Quality and temporal metrics computed by matting_bench/evaluate.py.",
+        "Runtime mean includes the first inference; the warm mean is retained as an extra field."
+      ],
+      "attempts": 1,
+      "selection_score": 9.421052631578947,
+      "selection_score_rule": "lower is better; weighted normalized ranks over pseudo_mae=5, background_alpha_mean=2, foreground_loss_mean=2, green_fringe=3, fragment_pct=1"
+    },
+    {
+      "id": "r12_tight_w35_d25",
+      "parameters": {
+        "background_threshold": 0.02,
+        "foreground_threshold": 0.98,
+        "unknown_radius_px": 12,
+        "fusion_weight": 0.35,
+        "fusion_max_delta": 0.25,
+        "threshold_preset": "tight",
+        "fusion_preset": "conservative",
+        "trimap_values": {
+          "known_background": 0,
+          "unknown": 128,
+          "known_foreground": 255
+        }
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/vitmatte/runs/tuning/screening/r12_tight_w35_d25",
+      "quality": {
+        "pseudo_mae": 0.0019241007749870834,
+        "background_alpha_mean": 0.0010891559132788745,
+        "foreground_loss_mean": 0.0027590456366952923,
+        "green_fringe": 0.014415725755194822,
+        "fragment_pct": 0.11190711647884176,
+        "soft_alpha_pct": 1.0092592592592593
+      },
+      "runtime": {
+        "mean_inference_ms": 114.9909222084615,
+        "end_to_end_ms": 736.1693000032877,
+        "peak_vram_mb": 597.49169921875,
+        "mean_inference_excluding_first_ms": 73.98614998965058
+      },
+      "unknown_region_pct": 4.5473813657407405,
+      "temporal_alpha_mae": null,
+      "notes": [
+        "Quality and temporal metrics computed by matting_bench/evaluate.py.",
+        "Runtime mean includes the first inference; the warm mean is retained as an extra field."
+      ],
+      "attempts": 1,
+      "selection_score": 4.7368421052631575,
+      "selection_score_rule": "lower is better; weighted normalized ranks over pseudo_mae=5, background_alpha_mean=2, foreground_loss_mean=2, green_fringe=3, fragment_pct=1"
+    },
+    {
+      "id": "r12_tight_w70_d50",
+      "parameters": {
+        "background_threshold": 0.02,
+        "foreground_threshold": 0.98,
+        "unknown_radius_px": 12,
+        "fusion_weight": 0.7,
+        "fusion_max_delta": 0.5,
+        "threshold_preset": "tight",
+        "fusion_preset": "moderate",
+        "trimap_values": {
+          "known_background": 0,
+          "unknown": 128,
+          "known_foreground": 255
+        }
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/vitmatte/runs/tuning/screening/r12_tight_w70_d50",
+      "quality": {
+        "pseudo_mae": 0.0021034169217778575,
+        "background_alpha_mean": 0.001477938507580095,
+        "foreground_loss_mean": 0.0027288953359756204,
+        "green_fringe": 0.01525195056779517,
+        "fragment_pct": 0.10900145209615582,
+        "soft_alpha_pct": 1.0255111882716048
+      },
+      "runtime": {
+        "mean_inference_ms": 115.14460001813455,
+        "end_to_end_ms": 731.0388666681118,
+        "peak_vram_mb": 597.49169921875,
+        "mean_inference_excluding_first_ms": 74.74963751155883
+      },
+      "unknown_region_pct": 4.5473813657407405,
+      "temporal_alpha_mae": null,
+      "notes": [
+        "Quality and temporal metrics computed by matting_bench/evaluate.py.",
+        "Runtime mean includes the first inference; the warm mean is retained as an extra field."
+      ],
+      "attempts": 1,
+      "selection_score": 8.631578947368421,
+      "selection_score_rule": "lower is better; weighted normalized ranks over pseudo_mae=5, background_alpha_mean=2, foreground_loss_mean=2, green_fringe=3, fragment_pct=1"
+    },
+    {
+      "id": "r12_relaxed_w35_d25",
+      "parameters": {
+        "background_threshold": 0.04,
+        "foreground_threshold": 0.96,
+        "unknown_radius_px": 12,
+        "fusion_weight": 0.35,
+        "fusion_max_delta": 0.25,
+        "threshold_preset": "relaxed",
+        "fusion_preset": "conservative",
+        "trimap_values": {
+          "known_background": 0,
+          "unknown": 128,
+          "known_foreground": 255
+        }
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/vitmatte/runs/tuning/screening/r12_relaxed_w35_d25",
+      "quality": {
+        "pseudo_mae": 0.00191962475138199,
+        "background_alpha_mean": 0.0010780059189225237,
+        "foreground_loss_mean": 0.002761243583841456,
+        "green_fringe": 0.014515327289700508,
+        "fragment_pct": 0.11617008526030882,
+        "soft_alpha_pct": 0.9999397183641976
+      },
+      "runtime": {
+        "mean_inference_ms": 122.0855222394069,
+        "end_to_end_ms": 752.6490444627901,
+        "peak_vram_mb": 597.49169921875,
+        "mean_inference_excluding_first_ms": 76.08698750846088
+      },
+      "unknown_region_pct": 4.5032069830246915,
+      "temporal_alpha_mae": null,
+      "notes": [
+        "Quality and temporal metrics computed by matting_bench/evaluate.py.",
+        "Runtime mean includes the first inference; the warm mean is retained as an extra field."
+      ],
+      "attempts": 1,
+      "selection_score": 5.0,
+      "selection_score_rule": "lower is better; weighted normalized ranks over pseudo_mae=5, background_alpha_mean=2, foreground_loss_mean=2, green_fringe=3, fragment_pct=1"
+    },
+    {
+      "id": "r12_relaxed_w70_d50",
+      "parameters": {
+        "background_threshold": 0.04,
+        "foreground_threshold": 0.96,
+        "unknown_radius_px": 12,
+        "fusion_weight": 0.7,
+        "fusion_max_delta": 0.5,
+        "threshold_preset": "relaxed",
+        "fusion_preset": "moderate",
+        "trimap_values": {
+          "known_background": 0,
+          "unknown": 128,
+          "known_foreground": 255
+        }
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/vitmatte/runs/tuning/screening/r12_relaxed_w70_d50",
+      "quality": {
+        "pseudo_mae": 0.0020957311757633258,
+        "background_alpha_mean": 0.0014574492298480538,
+        "foreground_loss_mean": 0.0027340131216785973,
+        "green_fringe": 0.01534083392471075,
+        "fragment_pct": 0.11502262695947883,
+        "soft_alpha_pct": 1.0168185763888888
+      },
+      "runtime": {
+        "mean_inference_ms": 115.81270000897348,
+        "end_to_end_ms": 748.697177778619,
+        "peak_vram_mb": 597.49169921875,
+        "mean_inference_excluding_first_ms": 76.05121251253877
+      },
+      "unknown_region_pct": 4.5032069830246915,
+      "temporal_alpha_mae": null,
+      "notes": [
+        "Quality and temporal metrics computed by matting_bench/evaluate.py.",
+        "Runtime mean includes the first inference; the warm mean is retained as an extra field."
+      ],
+      "attempts": 1,
+      "selection_score": 8.894736842105264,
+      "selection_score_rule": "lower is better; weighted normalized ranks over pseudo_mae=5, background_alpha_mean=2, foreground_loss_mean=2, green_fringe=3, fragment_pct=1"
+    }
+  ],
+  "recommendation": {
+    "selected_config_id": "r02_tight_w35_d25",
+    "finalists": [
+      "r02_tight_w35_d25",
+      "r02_relaxed_w35_d25"
+    ],
+    "parameters": {
+      "background_threshold": 0.02,
+      "foreground_threshold": 0.98,
+      "unknown_radius_px": 2,
+      "fusion_weight": 0.35,
+      "fusion_max_delta": 0.25,
+      "threshold_preset": "tight",
+      "fusion_preset": "conservative",
+      "trimap_values": {
+        "known_background": 0,
+        "unknown": 128,
+        "known_foreground": 255
+      }
+    },
+    "quality": {
+      "pseudo_mae": 0.0019059792749531981,
+      "background_alpha_mean": 0.0011001778443136977,
+      "foreground_loss_mean": 0.0027117807055926984,
+      "green_fringe": 0.01446982566267252,
+      "fragment_pct": 0.11057270064721102,
+      "soft_alpha_pct": 1.0003978587962965
+    },
+    "runtime": {
+      "mean_inference_ms": 110.81216666692247,
+      "end_to_end_ms": 723.6152777784608,
+      "peak_vram_mb": 597.49169921875,
+      "mean_inference_excluding_first_ms": 73.99777499085758
+    },
+    "unknown_region_pct": 1.4043692129629628,
+    "temporal_alpha_mae": 0.013724140316733847,
+    "basis": "Lowest weighted smoke quality rank; the two best smoke configurations were independently rerun on smoke and temporal_fast_walk_24_640 while holding the exclusive GPU benchmark lock."
+  }
+}

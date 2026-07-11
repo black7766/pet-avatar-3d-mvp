@@ -5,9 +5,11 @@ This directory is an isolated Windows/CUDA deployment of the official
 arbitrary assigned objects from a frame-zero mask and does not substitute a
 human-only RVM model for pet footage.
 
-The measured pet result, limitations, timing, VRAM, and evidence index are in
-[`BENCHMARK.md`](BENCHMARK.md). The final verified 24-frame run is under
-`runs/fast_walk_24_final/`.
+The original deployment result and evidence index are in
+[`BENCHMARK.md`](BENCHMARK.md). The controlled default-plus-three sweep is in
+[`TUNING_REPORT.md`](TUNING_REPORT.md), with machine-readable results in
+[`tuning_results.json`](tuning_results.json). For the fixed 24-frame 640 input,
+the newer tuning report supersedes the historical warmup recommendation.
 
 ## Reproduce
 
@@ -16,12 +18,14 @@ From the repository root in PowerShell:
 ```powershell
 & .\matting_bench\providers\video_matting\setup.ps1
 
-& .\matting_bench\providers\video_matting\run.ps1 `
-  -InputPath .\poc_output\pet_20260710_121221_5ce7716e_real_after\raw_fast_walk.mp4 `
-  -OutputDir .\matting_bench\providers\video_matting\runs\fast_walk_24 `
+python .\matting_bench\run_with_gpu_lock.py -- `
+  powershell -NoProfile -ExecutionPolicy Bypass `
+  -File .\matting_bench\providers\video_matting\run.ps1 `
+  -InputPath .\matting_bench\data\pet_20260710_121221_5ce7716e\temporal_fast_walk_24_640 `
+  -OutputDir .\matting_bench\providers\video_matting\runs\tuning_warmup1 `
   -Frames 24 `
   -MaxSize 640 `
-  -Warmup 10 `
+  -Warmup 1 `
   -InitKind mask `
   -Overwrite
 ```

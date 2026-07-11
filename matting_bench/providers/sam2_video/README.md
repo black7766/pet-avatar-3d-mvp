@@ -5,6 +5,10 @@ This is an isolated Windows/CUDA experiment using Meta's official Apache-2.0
 subject mask from frame 0 over 24 consecutive `fast_walk` frames with
 `sam2.1_hiera_small`, selected for an RTX 2080 Ti 11 GB.
 
+The controlled default-plus-four sweep is in
+[`TUNING_REPORT.md`](TUNING_REPORT.md), with machine-readable results in
+[`tuning_results.json`](tuning_results.json).
+
 The provider is intentionally not registered in the central benchmark harness. It only
 reads `poc.py` and the prepared input frames. All generated files remain under this
 provider; source and environment assets remain under `.models/sam2_video` and
@@ -16,7 +20,10 @@ From the repository root in PowerShell:
 
 ```powershell
 & .\matting_bench\providers\sam2_video\setup.ps1
-& .\matting_bench\providers\sam2_video\run.ps1 -Overwrite
+python .\matting_bench\run_with_gpu_lock.py -- `
+  powershell -NoProfile -ExecutionPolicy Bypass `
+  -File .\matting_bench\providers\sam2_video\run.ps1 `
+  -OffloadStateToCpu -Overwrite
 ```
 
 The exact direct invocation is:
@@ -24,11 +31,14 @@ The exact direct invocation is:
 ```powershell
 & .\.venvs\sam2_video\Scripts\python.exe `
   .\matting_bench\providers\sam2_video\infer.py `
-  --input-dir .\matting_bench\data\pet_20260710_121221_5ce7716e\full\fast_walk `
-  --output-dir .\matting_bench\providers\sam2_video\runs\fast_walk_24_sam2_1_small `
+  --input-dir .\matting_bench\data\pet_20260710_121221_5ce7716e\temporal_fast_walk_24_640 `
+  --output-dir .\matting_bench\providers\sam2_video\runs\tuning_state_cpu `
   --frames 24 `
   --mask-threshold 128 `
+  --logit-threshold 0 `
   --precision fp16 `
+  --offload-video-to-cpu `
+  --offload-state-to-cpu `
   --overwrite
 ```
 

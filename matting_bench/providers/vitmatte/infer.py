@@ -25,7 +25,9 @@ MODEL_REVISION = "6a58ad7646403c1df626fbd746900aec7361ea1d"
 WEIGHT_SHA256 = "bda9289db1bb6762d978b42d1c62ae3f34daf7497171a347a1d09657efd788cb"
 DEFAULT_BG_THRESHOLD = 0.02
 DEFAULT_FG_THRESHOLD = 0.98
-DEFAULT_UNKNOWN_RADIUS = 6
+DEFAULT_UNKNOWN_RADIUS = 2
+DEFAULT_FUSION_WEIGHT = 0.35
+DEFAULT_FUSION_MAX_DELTA = 0.25
 
 # Inference is deliberately offline. download_model.py is the only networked step.
 os.environ.setdefault("HF_HOME", str(MODEL_ROOT / "hf-cache"))
@@ -79,6 +81,24 @@ def parse_args() -> argparse.Namespace:
         help="Inward foreground-erosion radius in source pixels.",
     )
     parser.add_argument(
+        "--fusion-weight",
+        type=float,
+        default=DEFAULT_FUSION_WEIGHT,
+        help=(
+            "ViTMatte contribution in the unknown region: 0 keeps adaptive alpha, "
+            "1 uses the model prediction."
+        ),
+    )
+    parser.add_argument(
+        "--fusion-max-delta",
+        type=float,
+        default=DEFAULT_FUSION_MAX_DELTA,
+        help=(
+            "Maximum absolute per-pixel alpha correction before fusion weighting; "
+            "1 disables practical clipping."
+        ),
+    )
+    parser.add_argument(
         "--diagnostics-dir",
         type=Path,
         help="Optional directory for baseline alpha, trimap, model alpha, and final alpha PNGs.",
@@ -129,6 +149,10 @@ def validate_args(args: argparse.Namespace) -> tuple[Path, Path, Path, list[Path
         )
     if not 1 <= args.unknown_radius <= 64:
         raise ValueError("unknown-radius must be between 1 and 64 source pixels")
+    if not 0.0 <= args.fusion_weight <= 1.0:
+        raise ValueError("fusion-weight must be between 0 and 1")
+    if not 0.0 < args.fusion_max_delta <= 1.0:
+        raise ValueError("fusion-max-delta must be greater than 0 and at most 1")
     input_paths = sorted(
         path
         for path in input_dir.iterdir()
@@ -171,6 +195,41 @@ def clamp_to_trimap(model_alpha: np.ndarray, trimap: np.ndarray) -> np.ndarray:
     alpha[trimap == 0] = 0.0
     alpha[trimap == 255] = 1.0
     return alpha
+
+
+def fuse_unknown_alpha(
+    adaptive_alpha: np.ndarray,
+    model_alpha: np.ndarray,
+    trimap: np.ndarray,
+    fusion_weight: float,
+    fusion_max_delta: float,
+) -> tuple[np.ndarray, dict[str, float]]:
+    unknown = trimap == 128
+    raw_delta = model_alpha - adaptive_alpha
+    limited_delta = np.clip(raw_delta, -fusion_max_delta, fusion_max_delta)
+    fused = adaptive_alpha.astype(np.float32, copy=True)
+    fused[unknown] += fusion_weight * limited_delta[unknown]
+    fused[trimap == 0] = 0.0
+    fused[trimap == 255] = 1.0
+    np.clip(fused, 0.0, 1.0, out=fused)
+
+    if unknown.any():
+        stats = {
+            "mean_abs_model_delta_unknown": float(np.abs(raw_delta[unknown]).mean()),
+            "mean_abs_fused_delta_unknown": float(
+                np.abs(fused[unknown] - adaptive_alpha[unknown]).mean()
+            ),
+            "clipped_delta_pct_unknown": float(
+                (np.abs(raw_delta[unknown]) > fusion_max_delta).mean() * 100.0
+            ),
+        }
+    else:
+        stats = {
+            "mean_abs_model_delta_unknown": 0.0,
+            "mean_abs_fused_delta_unknown": 0.0,
+            "clipped_delta_pct_unknown": 0.0,
+        }
+    return fused, stats
 
 
 def save_gray(path: Path, values: np.ndarray) -> None:
@@ -280,6 +339,8 @@ def run(args: argparse.Namespace) -> dict[str, object]:
         pixel_values = inputs["pixel_values"].to(
             device=device, dtype=dtype, non_blocking=False
         )
+        model_input_height = int(pixel_values.shape[-2])
+        model_input_width = int(pixel_values.shape[-1])
         synchronize(device)
         preprocess_seconds = time.perf_counter() - preprocess_started
 
@@ -297,10 +358,17 @@ def run(args: argparse.Namespace) -> dict[str, object]:
             )
         raw_model_alpha = raw_model_alpha[:height, :width]
         model_alpha = clamp_to_trimap(raw_model_alpha, trimap)
+        fused_alpha, fusion_stats = fuse_unknown_alpha(
+            adaptive_alpha,
+            model_alpha,
+            trimap,
+            args.fusion_weight,
+            args.fusion_max_delta,
+        )
 
         postprocess_started = time.perf_counter()
         clean_rgb, final_alpha = refine_reframed_halo(
-            adaptive_rgba[:, :, :3], model_alpha, profile="real"
+            adaptive_rgba[:, :, :3], fused_alpha, profile="real"
         )
         clean_rgb[final_alpha == 0.0] = 0.0
         packed = np.dstack((np.clip(clean_rgb, 0.0, 1.0), final_alpha))
@@ -314,6 +382,7 @@ def run(args: argparse.Namespace) -> dict[str, object]:
             save_gray(diagnostics_dir / f"{input_path.stem}__baseline_alpha.png", adaptive_alpha)
             save_gray(diagnostics_dir / f"{input_path.stem}__trimap.png", trimap)
             save_gray(diagnostics_dir / f"{input_path.stem}__model_alpha.png", model_alpha)
+            save_gray(diagnostics_dir / f"{input_path.stem}__fused_alpha.png", fused_alpha)
             save_gray(diagnostics_dir / f"{input_path.stem}__final_alpha.png", final_alpha)
 
         unknown = trimap == 128
@@ -325,6 +394,10 @@ def run(args: argparse.Namespace) -> dict[str, object]:
                 "output": str(output_path),
                 "width": image.width,
                 "height": image.height,
+                "model_input_width": model_input_width,
+                "model_input_height": model_input_height,
+                "padding_right": model_input_width - image.width,
+                "padding_bottom": model_input_height - image.height,
                 "adaptive_seconds": adaptive_seconds,
                 "trimap_seconds": trimap_seconds,
                 "preprocess_seconds": preprocess_seconds,
@@ -346,6 +419,7 @@ def run(args: argparse.Namespace) -> dict[str, object]:
                     "max_abs_delta_unknown": (
                         float(alpha_abs_delta[unknown].max()) if unknown.any() else 0.0
                     ),
+                    "fusion": fusion_stats,
                 },
             }
         )
@@ -389,14 +463,29 @@ def run(args: argparse.Namespace) -> dict[str, object]:
             "foreground_threshold": args.foreground_threshold,
             "unknown_radius_source_pixels_inward": args.unknown_radius,
             "morphology_kernel": "ellipse; foreground erosion only",
+            "fusion_weight": args.fusion_weight,
+            "fusion_max_delta": args.fusion_max_delta,
+            "fusion_policy": (
+                "adaptive + weight * clip(model - adaptive, +/-max_delta) in "
+                "unknown pixels only"
+            ),
             "background_policy": (
                 "adaptive alpha <= background threshold is locked to known background"
             ),
-            "known_region_policy": "force background=0 and foreground=1 after model",
+            "known_region_policy": (
+                "force background=0 and foreground=1 after model fusion; the "
+                "downstream real-profile halo refinement may feather halo pixels"
+            ),
             "rgb_policy": (
                 "adaptive_green_matte_frame cleaned RGB + poc.refine_reframed_halo"
             ),
             "mean_unknown_pct": statistics.fmean(unknown_percentages),
+            "processor": {
+                "image_and_trimap_same_source_size": True,
+                "trimap_channel_values_uint8": [0, 128, 255],
+                "size_divisibility": int(processor.size_divisibility),
+                "padding": "right and bottom only; output cropped to source size",
+            },
             "green_profile": {
                 "bg_floor": float(profile["bg_floor"]),
                 "key_rgb_0_1": [float(value) for value in profile["key_rgb"]],

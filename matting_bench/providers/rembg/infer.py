@@ -37,6 +37,39 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model", choices=tuple(MODEL_SPECS), required=True)
     parser.add_argument("--device", choices=("cpu", "cuda"), required=True)
     parser.add_argument(
+        "--alpha-matting",
+        action="store_true",
+        help="Run rembg's PyMatting refinement after model mask prediction.",
+    )
+    parser.add_argument(
+        "--alpha-matting-foreground-threshold",
+        type=int,
+        default=240,
+        help="Mask values above this become known foreground (rembg default: 240).",
+    )
+    parser.add_argument(
+        "--alpha-matting-background-threshold",
+        type=int,
+        default=10,
+        help="Mask values below this become known background (rembg default: 10).",
+    )
+    parser.add_argument(
+        "--alpha-matting-erode-size",
+        type=int,
+        default=10,
+        help="Square erosion structure size used to expand the unknown trimap band.",
+    )
+    parser.add_argument(
+        "--post-process-mask",
+        action="store_true",
+        help="Apply rembg's opening, Gaussian blur, and 127 binary threshold.",
+    )
+    parser.add_argument(
+        "--omp-num-threads",
+        type=int,
+        help="Set OMP_NUM_THREADS before new_session (controls ORT inter/intra-op threads).",
+    )
+    parser.add_argument(
         "--metrics-json",
         type=Path,
         help="Defaults to <output-dir>/metrics.json.",
@@ -47,6 +80,21 @@ def parse_args() -> argparse.Namespace:
         help="Replace same-name PNGs already present in the output directory.",
     )
     return parser.parse_args()
+
+
+def validate_args(args: argparse.Namespace) -> None:
+    foreground = args.alpha_matting_foreground_threshold
+    background = args.alpha_matting_background_threshold
+    if not 0 <= foreground <= 255:
+        raise ValueError("alpha matting foreground threshold must be in [0, 255]")
+    if not 0 <= background <= 255:
+        raise ValueError("alpha matting background threshold must be in [0, 255]")
+    if background >= foreground:
+        raise ValueError("alpha matting background threshold must be below foreground")
+    if args.alpha_matting_erode_size < 0:
+        raise ValueError("alpha matting erode size must be non-negative")
+    if args.omp_num_threads is not None and args.omp_num_threads < 1:
+        raise ValueError("OMP thread count must be positive")
 
 
 def package_version(name: str) -> str:
@@ -102,6 +150,11 @@ def environment_details(session: object) -> dict[str, object]:
         "available_providers": ort.get_available_providers(),
         "active_providers": inner_session.get_providers(),
         "provider_options": inner_session.get_provider_options(),
+        "omp_num_threads": (
+            int(os.environ["OMP_NUM_THREADS"])
+            if os.environ.get("OMP_NUM_THREADS")
+            else None
+        ),
         "packages": {
             "rembg": package_version("rembg"),
             "onnxruntime-gpu": package_version("onnxruntime-gpu"),
@@ -113,6 +166,7 @@ def environment_details(session: object) -> dict[str, object]:
 
 
 def run(args: argparse.Namespace) -> dict[str, object]:
+    validate_args(args)
     run_started = time.perf_counter()
     started_at = datetime.now(timezone.utc).isoformat()
     input_dir = args.input_dir.resolve()
@@ -146,6 +200,9 @@ def run(args: argparse.Namespace) -> dict[str, object]:
             f"{len(existing)} output PNG(s) already exist; pass --overwrite to replace them"
         )
 
+    if args.omp_num_threads is not None:
+        os.environ["OMP_NUM_THREADS"] = str(args.omp_num_threads)
+
     requested_providers, preload_seconds, nvidia_dll_dirs = configure_providers(
         args.device
     )
@@ -178,7 +235,19 @@ def run(args: argparse.Namespace) -> dict[str, object]:
         load_seconds = time.perf_counter() - frame_started
 
         remove_started = time.perf_counter()
-        result = remove(source, session=session)
+        result = remove(
+            source,
+            session=session,
+            alpha_matting=args.alpha_matting,
+            alpha_matting_foreground_threshold=(
+                args.alpha_matting_foreground_threshold
+            ),
+            alpha_matting_background_threshold=(
+                args.alpha_matting_background_threshold
+            ),
+            alpha_matting_erode_size=args.alpha_matting_erode_size,
+            post_process_mask=args.post_process_mask,
+        )
         remove_seconds = time.perf_counter() - remove_started
         frame_active_providers = session.inner_session.get_providers()
         if (
@@ -239,7 +308,7 @@ def run(args: argparse.Namespace) -> dict[str, object]:
         )
 
     result = {
-        "schema_version": 1,
+        "schema_version": 2,
         "status": "ok",
         "started_at_utc": started_at,
         "completed_at_utc": datetime.now(timezone.utc).isoformat(),
@@ -251,6 +320,24 @@ def run(args: argparse.Namespace) -> dict[str, object]:
             "actual_md5": actual_md5,
         },
         "device": args.device,
+        "parameters": {
+            "alpha_matting": args.alpha_matting,
+            "alpha_matting_foreground_threshold": (
+                args.alpha_matting_foreground_threshold
+            ),
+            "alpha_matting_background_threshold": (
+                args.alpha_matting_background_threshold
+            ),
+            "alpha_matting_erode_size": args.alpha_matting_erode_size,
+            "post_process_mask": args.post_process_mask,
+            "model_input_size": list(spec.input_size),
+            "session_reused_across_frames": True,
+            "omp_num_threads": (
+                int(os.environ["OMP_NUM_THREADS"])
+                if os.environ.get("OMP_NUM_THREADS")
+                else None
+            ),
+        },
         "requested_providers": requested_providers,
         "nvidia_dll_dirs": nvidia_dll_dirs,
         "input_dir": str(input_dir),
@@ -270,6 +357,11 @@ def run(args: argparse.Namespace) -> dict[str, object]:
         ),
         "end_to_end_total_seconds": sum(end_to_end_times),
         "end_to_end_mean_seconds": statistics.fmean(end_to_end_times),
+        "end_to_end_mean_excluding_first_seconds": (
+            statistics.fmean(end_to_end_times[1:])
+            if len(end_to_end_times) > 1
+            else end_to_end_times[0]
+        ),
         "run_wall_seconds": time.perf_counter() - run_started,
         "images": image_metrics,
         "environment": environment_details(session),

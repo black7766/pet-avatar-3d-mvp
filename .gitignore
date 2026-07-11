@@ -41,5 +41,9 @@ matting_bench/providers/*/diagnostics/
 matting_bench/providers/*/run_metrics/
 matting_bench/providers/*/sample_inputs/
 matting_bench/providers/*/sample_outputs/
+matting_bench/providers/*/visual_review/
 matting_bench/providers/*/*.log
 poc_output/matting_benchmark_assets/
+poc_output/matting_benchmark_*.html
+poc_output/matting_tuning_report_*.html
+poc_output/matting_tuning_report_*_assets/

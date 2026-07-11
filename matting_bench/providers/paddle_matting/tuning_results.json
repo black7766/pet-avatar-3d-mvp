@@ -1,0 +1,179 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-11",
+  "provider": "paddle_matting",
+  "model": "PP-MattingV2-STDC1-human-512",
+  "official_docs": [
+    {
+      "url": "https://github.com/PaddlePaddle/PaddleSeg/blob/d459390adcec7fa6dd010c21b71aeb73f2afded9/Matting/ppmatting/transforms/transforms.py#L231-L253",
+      "parameters": [
+        "ResizeToIntMult.mult_int defaults to 32 and floors both dimensions to that multiple."
+      ]
+    },
+    {
+      "url": "https://github.com/PaddlePaddle/PaddleSeg/blob/d459390adcec7fa6dd010c21b71aeb73f2afded9/Matting/ppmatting/transforms/transforms.py#L442-L493",
+      "parameters": [
+        "LimitShort.max_short limits a larger short edge.",
+        "LimitShort.min_short can enlarge a smaller short edge.",
+        "Both parameters are optional and preserve aspect ratio."
+      ]
+    },
+    {
+      "url": "https://github.com/PaddlePaddle/PaddleSeg/blob/d459390adcec7fa6dd010c21b71aeb73f2afded9/Matting/configs/ppmattingv2/ppmattingv2-stdc1-human_512.yml",
+      "parameters": [
+        "The released human-512 validation pipeline uses LimitShort(max_short=512), ResizeToIntMult(mult_int=32), and Normalize."
+      ]
+    },
+    {
+      "url": "https://github.com/PaddlePaddle/PaddleSeg/blob/d459390adcec7fa6dd010c21b71aeb73f2afded9/Matting/deploy/python/infer.py#L39-L146",
+      "parameters": [
+        "Official deploy options include batch_size, device, fg_estimate, CPU threads, MKLDNN, TensorRT, and TensorRT precision."
+      ]
+    },
+    {
+      "url": "https://www.paddlepaddle.org.cn/documentation/docs/zh/api/paddle/device/max_memory_allocated_cn.html",
+      "parameters": [
+        "paddle.device.max_memory_allocated reports peak allocated tensor memory in bytes."
+      ]
+    }
+  ],
+  "dataset": {
+    "smoke": "matting_bench/data/pet_20260710_121221_5ce7716e/smoke",
+    "smoke_frames": 9,
+    "smoke_resolution": [960, 960],
+    "temporal": "matting_bench/data/pet_20260710_121221_5ce7716e/temporal_fast_walk_24_640",
+    "temporal_frames": 24,
+    "temporal_resolution": [640, 640],
+    "evaluator": "matting_bench/evaluate.py",
+    "ground_truth": null,
+    "metric_note": "Quality values are controlled-green-screen pseudo metrics; boundary quality also received visual review."
+  },
+  "configs": [
+    {
+      "id": "short_384",
+      "parameters": {
+        "device": "cuda",
+        "max_short": 384,
+        "min_short": null,
+        "resize_mult": 32,
+        "short_edge_policy": "LimitShort downscale-only",
+        "warmup_runs": 1
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/paddle_matting/evidence/tuning/locked_smoke/short_384",
+      "quality": {
+        "pseudo_mae": 0.0031111183375792783,
+        "background_alpha_mean": 0.004044691023106377,
+        "foreground_loss_mean": 0.002177545652052181,
+        "green_fringe": 0.10069590061903,
+        "fragment_pct": 0.03752037141275326,
+        "soft_alpha_pct": 2.246358989197531
+      },
+      "runtime": {
+        "mean_inference_ms": 15.226,
+        "end_to_end_ms": 110.022,
+        "peak_vram_mb": 175.99
+      },
+      "temporal_alpha_mae": null,
+      "notes": [
+        "Held the shared GPU benchmark lock for the full CUDA command.",
+        "The square smoke inputs reached a 384x384 network input.",
+        "Fastest and lowest VRAM, but worse pseudo MAE and foreground loss than 512 and 640."
+      ]
+    },
+    {
+      "id": "default_512",
+      "parameters": {
+        "device": "cuda",
+        "max_short": 512,
+        "min_short": null,
+        "resize_mult": 32,
+        "short_edge_policy": "official deploy.yaml LimitShort downscale-only",
+        "warmup_runs": 1
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/paddle_matting/evidence/tuning/locked_recheck/default_512",
+      "quality": {
+        "pseudo_mae": 0.0023449903981397962,
+        "background_alpha_mean": 0.0034552298796673617,
+        "foreground_loss_mean": 0.0012347509166122312,
+        "green_fringe": 0.10751219673289193,
+        "fragment_pct": 0.008115201393725064,
+        "soft_alpha_pct": 1.76415412808642
+      },
+      "runtime": {
+        "mean_inference_ms": 18.532,
+        "end_to_end_ms": 120.048,
+        "peak_vram_mb": 186.709
+      },
+      "temporal_alpha_mae": 0.012076559618277393,
+      "notes": [
+        "This is the unchanged official deploy transform default.",
+        "Runtime and VRAM are from an independent GPU-lock recheck; the first locked matrix run measured 24.626 ms inference and 124.250 ms end to end.",
+        "The 24-frame temporal run also held the GPU lock and used the same parameters."
+      ]
+    },
+    {
+      "id": "short_640",
+      "parameters": {
+        "device": "cuda",
+        "max_short": 640,
+        "min_short": null,
+        "resize_mult": 32,
+        "short_edge_policy": "LimitShort downscale-only",
+        "warmup_runs": 1
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/paddle_matting/evidence/tuning/locked_smoke/short_640",
+      "quality": {
+        "pseudo_mae": 0.0021688980761811966,
+        "background_alpha_mean": 0.0034916181013815934,
+        "foreground_loss_mean": 0.0008461780509807997,
+        "green_fringe": 0.11489669316344792,
+        "fragment_pct": 0.16604919206544141,
+        "soft_alpha_pct": 1.6245539158950617
+      },
+      "runtime": {
+        "mean_inference_ms": 20.026,
+        "end_to_end_ms": 126.196,
+        "peak_vram_mb": 200.49
+      },
+      "temporal_alpha_mae": null,
+      "notes": [
+        "Held the shared GPU benchmark lock after one lock-acquisition retry.",
+        "Lowest pseudo MAE and foreground loss, but the contact sheet shows an isolated green fragment above idle__f_0048.",
+        "Fragment percentage is about 20 times the default-512 value, so this is not recommended."
+      ]
+    }
+  ],
+  "recommendation": {
+    "config_id": "default_512",
+    "parameters": {
+      "max_short": 512,
+      "min_short": null,
+      "resize_mult": 32
+    },
+    "reason": "It is the released checkpoint's native transform configuration and gives the best balance of pseudo error, foreground retention, clean connected output, runtime, and VRAM. The nominal 640 pseudo-MAE gain is rejected because it introduces a visible detached green fragment and a much higher fragment score.",
+    "smoke_recheck_output_dir": "matting_bench/providers/paddle_matting/evidence/tuning/locked_recheck/default_512",
+    "temporal_output_dir": "matting_bench/providers/paddle_matting/evidence/tuning/locked_temporal/default_512",
+    "temporal_alpha_mae": 0.012076559618277393,
+    "gpu_lock_verified": true,
+    "scope_note": "This is the best PP-MattingV2 setting tested here, not a recommendation to use this human checkpoint as the production pet-matting model."
+  },
+  "failed_attempts": [
+    {
+      "kind": "infrastructure_lock",
+      "config_id": "short_640",
+      "status": "retried_successfully",
+      "error": "OSError [Errno 36] Resource deadlock avoided before model launch",
+      "log": "matting_bench/providers/paddle_matting/evidence/tuning/locked_smoke_short_640.log"
+    },
+    {
+      "kind": "infrastructure_lock",
+      "config_id": "default_512_recheck",
+      "status": "retried_successfully",
+      "error": "21 lock-acquisition attempts returned OSError [Errno 36] before the successful locked run",
+      "log": "matting_bench/providers/paddle_matting/evidence/tuning/locked_recheck_default_512.log"
+    }
+  ]
+}

@@ -1,0 +1,1377 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-07-11T02:55:36.989611+00:00",
+  "provider": "rembg",
+  "provider_meta": {
+    "version": "2.0.76",
+    "models": [
+      "u2net",
+      "isnet-general-use",
+      "birefnet-general-lite"
+    ],
+    "timing_protocol": "CUDA inference serialized by matting_bench/run_with_gpu_lock.py; reported means exclude the first frame",
+    "peak_vram_instrumented": false
+  },
+  "official_docs": [
+    {
+      "url": "https://github.com/danielgatis/rembg/blob/main/README.md",
+      "parameters": {
+        "models": [
+          "u2net",
+          "isnet-general-use",
+          "birefnet-general-lite"
+        ],
+        "batching": "reuse one new_session() across images",
+        "environment": {
+          "U2NET_HOME": "model directory",
+          "OMP_NUM_THREADS": "ONNX Runtime thread count"
+        }
+      }
+    },
+    {
+      "url": "https://github.com/danielgatis/rembg/blob/main/USAGE.md",
+      "parameters": {
+        "alpha_matting": "optional post-processing refinement",
+        "documented_example": {
+          "foreground_threshold": 270,
+          "background_threshold": 20,
+          "erode_size": 11
+        },
+        "post_process_mask": "optional mask post-processing"
+      }
+    },
+    {
+      "url": "https://github.com/danielgatis/rembg/blob/main/rembg/bg.py",
+      "parameters": {
+        "remove_defaults": {
+          "alpha_matting": false,
+          "foreground_threshold": 240,
+          "background_threshold": 10,
+          "erode_size": 10,
+          "post_process_mask": false
+        },
+        "trimap": "mask > foreground is known FG; mask < background is known BG; both regions are eroded",
+        "post_process_mask": "disk-radius-1 opening, Gaussian sigma=2, threshold at 127 to binary"
+      }
+    },
+    {
+      "url": "https://github.com/danielgatis/rembg/blob/main/rembg/session_factory.py",
+      "parameters": {
+        "session_options": "default onnxruntime.SessionOptions",
+        "OMP_NUM_THREADS": "sets both inter_op_num_threads and intra_op_num_threads",
+        "providers": "passed through new_session() to ONNX Runtime"
+      }
+    },
+    {
+      "url": "https://github.com/danielgatis/rembg/blob/main/rembg/sessions/u2net.py",
+      "parameters": {
+        "input_size": [
+          320,
+          320
+        ],
+        "mean": [
+          0.485,
+          0.456,
+          0.406
+        ],
+        "std": [
+          0.229,
+          0.224,
+          0.225
+        ]
+      }
+    },
+    {
+      "url": "https://github.com/danielgatis/rembg/blob/main/rembg/sessions/dis_general_use.py",
+      "parameters": {
+        "input_size": [
+          1024,
+          1024
+        ],
+        "mean": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "std": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "url": "https://github.com/danielgatis/rembg/blob/main/rembg/sessions/birefnet_general.py",
+      "parameters": {
+        "input_size": [
+          1024,
+          1024
+        ],
+        "mean": [
+          0.485,
+          0.456,
+          0.406
+        ],
+        "std": [
+          0.229,
+          0.224,
+          0.225
+        ],
+        "activation": "sigmoid before per-image min-max normalization"
+      }
+    },
+    {
+      "url": "https://github.com/xuebinqin/U-2-Net/blob/master/u2net_test.py",
+      "parameters": {
+        "upstream_input_size": [
+          320,
+          320
+        ],
+        "output": "first side output with per-image min-max normalization"
+      }
+    },
+    {
+      "url": "https://github.com/xuebinqin/DIS/blob/main/IS-Net/Inference.py",
+      "parameters": {
+        "upstream_input_size": [
+          1024,
+          1024
+        ],
+        "mean": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "std": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "url": "https://github.com/ZhengPeng7/BiRefNet",
+      "parameters": {
+        "default_input_size": [
+          1024,
+          1024
+        ],
+        "onnx_note": "upstream reports extra ONNX latency and slight output differences"
+      }
+    }
+  ],
+  "dataset": {
+    "smoke": {
+      "path": "matting_bench/data/pet_20260710_121221_5ce7716e/smoke",
+      "frames": 9,
+      "frame_size": [
+        960,
+        960
+      ],
+      "ordered_basenames": [
+        "fast_walk__f_0000.png",
+        "fast_walk__f_0048.png",
+        "fast_walk__f_0096.png",
+        "idle__f_0000.png",
+        "idle__f_0048.png",
+        "idle__f_0096.png",
+        "sleep__f_0000.png",
+        "sleep__f_0048.png",
+        "sleep__f_0096.png"
+      ]
+    },
+    "temporal": {
+      "path": "matting_bench/data/pet_20260710_121221_5ce7716e/temporal_fast_walk_24_640",
+      "frames": 24,
+      "frame_size": [
+        640,
+        640
+      ],
+      "ordered_basenames": [
+        "f_0000.png",
+        "f_0001.png",
+        "f_0002.png",
+        "f_0003.png",
+        "f_0004.png",
+        "f_0005.png",
+        "f_0006.png",
+        "f_0007.png",
+        "f_0008.png",
+        "f_0009.png",
+        "f_0010.png",
+        "f_0011.png",
+        "f_0012.png",
+        "f_0013.png",
+        "f_0014.png",
+        "f_0015.png",
+        "f_0016.png",
+        "f_0017.png",
+        "f_0018.png",
+        "f_0019.png",
+        "f_0020.png",
+        "f_0021.png",
+        "f_0022.png",
+        "f_0023.png"
+      ]
+    },
+    "evaluator": "matting_bench/evaluate.py",
+    "ground_truth": "controlled-green-screen pseudo metrics; no hand-painted alpha"
+  },
+  "configs": [
+    {
+      "id": "u2net__default",
+      "parameters": {
+        "model": "u2net",
+        "model_input": {
+          "size": [
+            320,
+            320
+          ],
+          "normalization_mean": [
+            0.485,
+            0.456,
+            0.406
+          ],
+          "normalization_std": [
+            0.229,
+            0.224,
+            0.225
+          ],
+          "mask_activation": "first ONNX output, per-image min-max normalization",
+          "resize": "RGB LANCZOS stretch to 320x320; mask LANCZOS to source size"
+        },
+        "alpha_matting": false,
+        "alpha_matting_foreground_threshold": 240,
+        "alpha_matting_background_threshold": 10,
+        "alpha_matting_erode_size": 10,
+        "post_process_mask": false,
+        "session": {
+          "device": "cuda",
+          "requested_execution_providers": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "active_execution_providers": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "provider_options": {
+            "CUDAExecutionProvider": {
+              "device_id": "0",
+              "has_user_compute_stream": "0",
+              "cudnn_conv1d_pad_to_nc1d": "0",
+              "user_compute_stream": "0",
+              "gpu_external_alloc": "0",
+              "gpu_mem_limit": "18446744073709551615",
+              "enable_cuda_graph": "0",
+              "gpu_external_free": "0",
+              "gpu_external_empty_cache": "0",
+              "arena_extend_strategy": "kNextPowerOfTwo",
+              "cudnn_conv_algo_search": "EXHAUSTIVE",
+              "do_copy_in_default_stream": "1",
+              "cudnn_conv_use_max_workspace": "1",
+              "tunable_op_enable": "0",
+              "tunable_op_tuning_enable": "0",
+              "tunable_op_max_tuning_duration_ms": "0",
+              "enable_skip_layer_norm_strict_mode": "0",
+              "prefer_nhwc": "0",
+              "use_ep_level_unified_stream": "0",
+              "use_tf32": "1",
+              "sdpa_kernel": "0",
+              "fuse_conv_bias": "0"
+            },
+            "CPUExecutionProvider": {}
+          },
+          "omp_num_threads": null,
+          "reused_across_frames": true
+        }
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/rembg/outputs/tuning/smoke/u2net__default",
+      "quality": {
+        "pseudo_mae": 0.004421486111823469,
+        "background_alpha_mean": 0.0022984522834627163,
+        "foreground_loss_mean": 0.0065445199401842225,
+        "green_fringe": 0.04124700050387117,
+        "fragment_pct": 0.0023815261384603154,
+        "soft_alpha_pct": 1.700171199845679
+      },
+      "runtime": {
+        "mean_inference_ms": 61.356312507996336,
+        "end_to_end_ms": 116.08317500213161,
+        "peak_vram_mb": null
+      },
+      "temporal_alpha_mae": null,
+      "temporal_output_dir": null,
+      "temporal_frames": null,
+      "notes": [
+        "Unmodified rembg output; preserves the model's continuous mask.",
+        "Runtime means exclude the first frame; peak VRAM was not instrumented.",
+        "Final smoke timing ran serially under matting_bench/run_with_gpu_lock.py."
+      ]
+    },
+    {
+      "id": "u2net__alpha_default",
+      "parameters": {
+        "model": "u2net",
+        "model_input": {
+          "size": [
+            320,
+            320
+          ],
+          "normalization_mean": [
+            0.485,
+            0.456,
+            0.406
+          ],
+          "normalization_std": [
+            0.229,
+            0.224,
+            0.225
+          ],
+          "mask_activation": "first ONNX output, per-image min-max normalization",
+          "resize": "RGB LANCZOS stretch to 320x320; mask LANCZOS to source size"
+        },
+        "alpha_matting": true,
+        "alpha_matting_foreground_threshold": 240,
+        "alpha_matting_background_threshold": 10,
+        "alpha_matting_erode_size": 10,
+        "post_process_mask": false,
+        "session": {
+          "device": "cuda",
+          "requested_execution_providers": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "active_execution_providers": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "provider_options": {
+            "CUDAExecutionProvider": {
+              "device_id": "0",
+              "has_user_compute_stream": "0",
+              "cudnn_conv1d_pad_to_nc1d": "0",
+              "user_compute_stream": "0",
+              "gpu_external_alloc": "0",
+              "gpu_mem_limit": "18446744073709551615",
+              "enable_cuda_graph": "0",
+              "gpu_external_free": "0",
+              "gpu_external_empty_cache": "0",
+              "arena_extend_strategy": "kNextPowerOfTwo",
+              "cudnn_conv_algo_search": "EXHAUSTIVE",
+              "do_copy_in_default_stream": "1",
+              "cudnn_conv_use_max_workspace": "1",
+              "tunable_op_enable": "0",
+              "tunable_op_tuning_enable": "0",
+              "tunable_op_max_tuning_duration_ms": "0",
+              "enable_skip_layer_norm_strict_mode": "0",
+              "prefer_nhwc": "0",
+              "use_ep_level_unified_stream": "0",
+              "use_tf32": "1",
+              "sdpa_kernel": "0",
+              "fuse_conv_bias": "0"
+            },
+            "CPUExecutionProvider": {}
+          },
+          "omp_num_threads": null,
+          "reused_across_frames": true
+        }
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/rembg/outputs/tuning/smoke/u2net__alpha_default",
+      "quality": {
+        "pseudo_mae": 0.0020569932530634105,
+        "background_alpha_mean": 0.0031346947006467315,
+        "foreground_loss_mean": 0.0009792918054800895,
+        "green_fringe": 0.012665998087161116,
+        "fragment_pct": 0.0012492508026352373,
+        "soft_alpha_pct": 1.6412519290123457
+      },
+      "runtime": {
+        "mean_inference_ms": 935.6379499804461,
+        "end_to_end_ms": 1042.7126124850474,
+        "peak_vram_mb": null
+      },
+      "temporal_alpha_mae": 0.012752817943692207,
+      "temporal_output_dir": "matting_bench/providers/rembg/outputs/tuning/temporal/u2net__alpha_default",
+      "temporal_frames": 24,
+      "notes": [
+        "Official remove() alpha defaults; broad unknown trimap for edge refinement.",
+        "Runtime means exclude the first frame; peak VRAM was not instrumented.",
+        "Final smoke timing ran serially under matting_bench/run_with_gpu_lock.py.",
+        "24-frame temporal run completed under the GPU lock; temporal alpha MAE=0.0127528."
+      ]
+    },
+    {
+      "id": "u2net__alpha_fur_safe",
+      "parameters": {
+        "model": "u2net",
+        "model_input": {
+          "size": [
+            320,
+            320
+          ],
+          "normalization_mean": [
+            0.485,
+            0.456,
+            0.406
+          ],
+          "normalization_std": [
+            0.229,
+            0.224,
+            0.225
+          ],
+          "mask_activation": "first ONNX output, per-image min-max normalization",
+          "resize": "RGB LANCZOS stretch to 320x320; mask LANCZOS to source size"
+        },
+        "alpha_matting": true,
+        "alpha_matting_foreground_threshold": 225,
+        "alpha_matting_background_threshold": 5,
+        "alpha_matting_erode_size": 3,
+        "post_process_mask": false,
+        "session": {
+          "device": "cuda",
+          "requested_execution_providers": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "active_execution_providers": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "provider_options": {
+            "CUDAExecutionProvider": {
+              "device_id": "0",
+              "has_user_compute_stream": "0",
+              "cudnn_conv1d_pad_to_nc1d": "0",
+              "user_compute_stream": "0",
+              "gpu_external_alloc": "0",
+              "gpu_mem_limit": "18446744073709551615",
+              "enable_cuda_graph": "0",
+              "gpu_external_free": "0",
+              "gpu_external_empty_cache": "0",
+              "arena_extend_strategy": "kNextPowerOfTwo",
+              "cudnn_conv_algo_search": "EXHAUSTIVE",
+              "do_copy_in_default_stream": "1",
+              "cudnn_conv_use_max_workspace": "1",
+              "tunable_op_enable": "0",
+              "tunable_op_tuning_enable": "0",
+              "tunable_op_max_tuning_duration_ms": "0",
+              "enable_skip_layer_norm_strict_mode": "0",
+              "prefer_nhwc": "0",
+              "use_ep_level_unified_stream": "0",
+              "use_tf32": "1",
+              "sdpa_kernel": "0",
+              "fuse_conv_bias": "0"
+            },
+            "CPUExecutionProvider": {}
+          },
+          "omp_num_threads": null,
+          "reused_across_frames": true
+        }
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/rembg/outputs/tuning/smoke/u2net__alpha_fur_safe",
+      "quality": {
+        "pseudo_mae": 0.001629327611428582,
+        "background_alpha_mean": 0.0027428100454724496,
+        "foreground_loss_mean": 0.0005158451773847142,
+        "green_fringe": 0.018248838786449697,
+        "fragment_pct": 0.0034096629460095332,
+        "soft_alpha_pct": 1.1989173418209877
+      },
+      "runtime": {
+        "mean_inference_ms": 561.6033999831416,
+        "end_to_end_ms": 654.4369750190526,
+        "peak_vram_mb": null
+      },
+      "temporal_alpha_mae": null,
+      "temporal_output_dir": null,
+      "temporal_frames": null,
+      "notes": [
+        "Protect low-confidence fur by shrinking known BG and limiting trimap erosion.",
+        "Runtime means exclude the first frame; peak VRAM was not instrumented.",
+        "Final smoke timing ran serially under matting_bench/run_with_gpu_lock.py.",
+        "Versus alpha_default, lost 280.6 soft-detail pixels/frame and uniquely added only 6.9; not fine-hair safe."
+      ]
+    },
+    {
+      "id": "u2net__postprocess_binary",
+      "parameters": {
+        "model": "u2net",
+        "model_input": {
+          "size": [
+            320,
+            320
+          ],
+          "normalization_mean": [
+            0.485,
+            0.456,
+            0.406
+          ],
+          "normalization_std": [
+            0.229,
+            0.224,
+            0.225
+          ],
+          "mask_activation": "first ONNX output, per-image min-max normalization",
+          "resize": "RGB LANCZOS stretch to 320x320; mask LANCZOS to source size"
+        },
+        "alpha_matting": false,
+        "alpha_matting_foreground_threshold": 240,
+        "alpha_matting_background_threshold": 10,
+        "alpha_matting_erode_size": 10,
+        "post_process_mask": true,
+        "session": {
+          "device": "cuda",
+          "requested_execution_providers": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "active_execution_providers": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "provider_options": {
+            "CUDAExecutionProvider": {
+              "device_id": "0",
+              "has_user_compute_stream": "0",
+              "cudnn_conv1d_pad_to_nc1d": "0",
+              "user_compute_stream": "0",
+              "gpu_external_alloc": "0",
+              "gpu_mem_limit": "18446744073709551615",
+              "enable_cuda_graph": "0",
+              "gpu_external_free": "0",
+              "gpu_external_empty_cache": "0",
+              "arena_extend_strategy": "kNextPowerOfTwo",
+              "cudnn_conv_algo_search": "EXHAUSTIVE",
+              "do_copy_in_default_stream": "1",
+              "cudnn_conv_use_max_workspace": "1",
+              "tunable_op_enable": "0",
+              "tunable_op_tuning_enable": "0",
+              "tunable_op_max_tuning_duration_ms": "0",
+              "enable_skip_layer_norm_strict_mode": "0",
+              "prefer_nhwc": "0",
+              "use_ep_level_unified_stream": "0",
+              "use_tf32": "1",
+              "sdpa_kernel": "0",
+              "fuse_conv_bias": "0"
+            },
+            "CPUExecutionProvider": {}
+          },
+          "omp_num_threads": null,
+          "reused_across_frames": true
+        }
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/rembg/outputs/tuning/smoke/u2net__postprocess_binary",
+      "quality": {
+        "pseudo_mae": 0.001131650776692873,
+        "background_alpha_mean": 0.0009950064801766227,
+        "foreground_loss_mean": 0.0012682950732091235,
+        "green_fringe": 0.0,
+        "fragment_pct": 0.0,
+        "soft_alpha_pct": 0.0
+      },
+      "runtime": {
+        "mean_inference_ms": 101.4050375088118,
+        "end_to_end_ms": 160.15616251388565,
+        "peak_vram_mb": null
+      },
+      "temporal_alpha_mae": null,
+      "temporal_output_dir": null,
+      "temporal_frames": null,
+      "notes": [
+        "Test fragment cleanup separately; binary output is a fine-hair risk.",
+        "Runtime means exclude the first frame; peak VRAM was not instrumented.",
+        "Final smoke timing ran serially under matting_bench/run_with_gpu_lock.py.",
+        "Rejected for final use: soft_alpha_pct is zero and visual QA shows hard-cut whiskers/fur."
+      ]
+    },
+    {
+      "id": "isnet-general-use__default",
+      "parameters": {
+        "model": "isnet-general-use",
+        "model_input": {
+          "size": [
+            1024,
+            1024
+          ],
+          "normalization_mean": [
+            0.5,
+            0.5,
+            0.5
+          ],
+          "normalization_std": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "mask_activation": "first ONNX output, per-image min-max normalization",
+          "resize": "RGB LANCZOS stretch to 1024x1024; mask LANCZOS to source size"
+        },
+        "alpha_matting": false,
+        "alpha_matting_foreground_threshold": 240,
+        "alpha_matting_background_threshold": 10,
+        "alpha_matting_erode_size": 10,
+        "post_process_mask": false,
+        "session": {
+          "device": "cuda",
+          "requested_execution_providers": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "active_execution_providers": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "provider_options": {
+            "CUDAExecutionProvider": {
+              "device_id": "0",
+              "has_user_compute_stream": "0",
+              "cudnn_conv1d_pad_to_nc1d": "0",
+              "user_compute_stream": "0",
+              "gpu_external_alloc": "0",
+              "gpu_mem_limit": "18446744073709551615",
+              "enable_cuda_graph": "0",
+              "gpu_external_free": "0",
+              "gpu_external_empty_cache": "0",
+              "arena_extend_strategy": "kNextPowerOfTwo",
+              "cudnn_conv_algo_search": "EXHAUSTIVE",
+              "do_copy_in_default_stream": "1",
+              "cudnn_conv_use_max_workspace": "1",
+              "tunable_op_enable": "0",
+              "tunable_op_tuning_enable": "0",
+              "tunable_op_max_tuning_duration_ms": "0",
+              "enable_skip_layer_norm_strict_mode": "0",
+              "prefer_nhwc": "0",
+              "use_ep_level_unified_stream": "0",
+              "use_tf32": "1",
+              "sdpa_kernel": "0",
+              "fuse_conv_bias": "0"
+            },
+            "CPUExecutionProvider": {}
+          },
+          "omp_num_threads": null,
+          "reused_across_frames": true
+        }
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/rembg/outputs/tuning/smoke/isnet-general-use__default",
+      "quality": {
+        "pseudo_mae": 0.0034489660821337667,
+        "background_alpha_mean": 0.0016937243312390314,
+        "foreground_loss_mean": 0.005204207833028502,
+        "green_fringe": 0.05965917350517379,
+        "fragment_pct": 0.004164553768063752,
+        "soft_alpha_pct": 1.147557388117284
+      },
+      "runtime": {
+        "mean_inference_ms": 165.33143748529255,
+        "end_to_end_ms": 223.4511499555083,
+        "peak_vram_mb": null
+      },
+      "temporal_alpha_mae": null,
+      "temporal_output_dir": null,
+      "temporal_frames": null,
+      "notes": [
+        "Unmodified rembg output; preserves the model's continuous mask.",
+        "Runtime means exclude the first frame; peak VRAM was not instrumented.",
+        "Final smoke timing ran serially under matting_bench/run_with_gpu_lock.py."
+      ]
+    },
+    {
+      "id": "isnet-general-use__alpha_default",
+      "parameters": {
+        "model": "isnet-general-use",
+        "model_input": {
+          "size": [
+            1024,
+            1024
+          ],
+          "normalization_mean": [
+            0.5,
+            0.5,
+            0.5
+          ],
+          "normalization_std": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "mask_activation": "first ONNX output, per-image min-max normalization",
+          "resize": "RGB LANCZOS stretch to 1024x1024; mask LANCZOS to source size"
+        },
+        "alpha_matting": true,
+        "alpha_matting_foreground_threshold": 240,
+        "alpha_matting_background_threshold": 10,
+        "alpha_matting_erode_size": 10,
+        "post_process_mask": false,
+        "session": {
+          "device": "cuda",
+          "requested_execution_providers": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "active_execution_providers": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "provider_options": {
+            "CUDAExecutionProvider": {
+              "device_id": "0",
+              "has_user_compute_stream": "0",
+              "cudnn_conv1d_pad_to_nc1d": "0",
+              "user_compute_stream": "0",
+              "gpu_external_alloc": "0",
+              "gpu_mem_limit": "18446744073709551615",
+              "enable_cuda_graph": "0",
+              "gpu_external_free": "0",
+              "gpu_external_empty_cache": "0",
+              "arena_extend_strategy": "kNextPowerOfTwo",
+              "cudnn_conv_algo_search": "EXHAUSTIVE",
+              "do_copy_in_default_stream": "1",
+              "cudnn_conv_use_max_workspace": "1",
+              "tunable_op_enable": "0",
+              "tunable_op_tuning_enable": "0",
+              "tunable_op_max_tuning_duration_ms": "0",
+              "enable_skip_layer_norm_strict_mode": "0",
+              "prefer_nhwc": "0",
+              "use_ep_level_unified_stream": "0",
+              "use_tf32": "1",
+              "sdpa_kernel": "0",
+              "fuse_conv_bias": "0"
+            },
+            "CPUExecutionProvider": {}
+          },
+          "omp_num_threads": null,
+          "reused_across_frames": true
+        }
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/rembg/outputs/tuning/smoke/isnet-general-use__alpha_default",
+      "quality": {
+        "pseudo_mae": 0.0019785001770489747,
+        "background_alpha_mean": 0.003087600925937295,
+        "foreground_loss_mean": 0.0008693994281606541,
+        "green_fringe": 0.013150508308576213,
+        "fragment_pct": 0.0012285200385388957,
+        "soft_alpha_pct": 1.5648027584876543
+      },
+      "runtime": {
+        "mean_inference_ms": 956.0407750104787,
+        "end_to_end_ms": 1054.3400250026025,
+        "peak_vram_mb": null
+      },
+      "temporal_alpha_mae": 0.012757118730603353,
+      "temporal_output_dir": "matting_bench/providers/rembg/outputs/tuning/temporal/isnet-general-use__alpha_default",
+      "temporal_frames": 24,
+      "notes": [
+        "Official remove() alpha defaults; broad unknown trimap for edge refinement.",
+        "Runtime means exclude the first frame; peak VRAM was not instrumented.",
+        "Final smoke timing ran serially under matting_bench/run_with_gpu_lock.py.",
+        "24-frame temporal run completed under the GPU lock; temporal alpha MAE=0.0127571."
+      ]
+    },
+    {
+      "id": "isnet-general-use__alpha_fur_safe",
+      "parameters": {
+        "model": "isnet-general-use",
+        "model_input": {
+          "size": [
+            1024,
+            1024
+          ],
+          "normalization_mean": [
+            0.5,
+            0.5,
+            0.5
+          ],
+          "normalization_std": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "mask_activation": "first ONNX output, per-image min-max normalization",
+          "resize": "RGB LANCZOS stretch to 1024x1024; mask LANCZOS to source size"
+        },
+        "alpha_matting": true,
+        "alpha_matting_foreground_threshold": 225,
+        "alpha_matting_background_threshold": 5,
+        "alpha_matting_erode_size": 3,
+        "post_process_mask": false,
+        "session": {
+          "device": "cuda",
+          "requested_execution_providers": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "active_execution_providers": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "provider_options": {
+            "CUDAExecutionProvider": {
+              "device_id": "0",
+              "has_user_compute_stream": "0",
+              "cudnn_conv1d_pad_to_nc1d": "0",
+              "user_compute_stream": "0",
+              "gpu_external_alloc": "0",
+              "gpu_mem_limit": "18446744073709551615",
+              "enable_cuda_graph": "0",
+              "gpu_external_free": "0",
+              "gpu_external_empty_cache": "0",
+              "arena_extend_strategy": "kNextPowerOfTwo",
+              "cudnn_conv_algo_search": "EXHAUSTIVE",
+              "do_copy_in_default_stream": "1",
+              "cudnn_conv_use_max_workspace": "1",
+              "tunable_op_enable": "0",
+              "tunable_op_tuning_enable": "0",
+              "tunable_op_max_tuning_duration_ms": "0",
+              "enable_skip_layer_norm_strict_mode": "0",
+              "prefer_nhwc": "0",
+              "use_ep_level_unified_stream": "0",
+              "use_tf32": "1",
+              "sdpa_kernel": "0",
+              "fuse_conv_bias": "0"
+            },
+            "CPUExecutionProvider": {}
+          },
+          "omp_num_threads": null,
+          "reused_across_frames": true
+        }
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/rembg/outputs/tuning/smoke/isnet-general-use__alpha_fur_safe",
+      "quality": {
+        "pseudo_mae": 0.0014173814791623347,
+        "background_alpha_mean": 0.002584658899447984,
+        "foreground_loss_mean": 0.0002501040588766854,
+        "green_fringe": 0.025522959729035694,
+        "fragment_pct": 0.0016294007993411662,
+        "soft_alpha_pct": 0.9951895254629631
+      },
+      "runtime": {
+        "mean_inference_ms": 627.980099976412,
+        "end_to_end_ms": 722.9731874831486,
+        "peak_vram_mb": null
+      },
+      "temporal_alpha_mae": null,
+      "temporal_output_dir": null,
+      "temporal_frames": null,
+      "notes": [
+        "Protect low-confidence fur by shrinking known BG and limiting trimap erosion.",
+        "Runtime means exclude the first frame; peak VRAM was not instrumented.",
+        "Final smoke timing ran serially under matting_bench/run_with_gpu_lock.py.",
+        "Versus alpha_default, lost 589.0 soft-detail pixels/frame and uniquely added only 8.7; not fine-hair safe."
+      ]
+    },
+    {
+      "id": "isnet-general-use__postprocess_binary",
+      "parameters": {
+        "model": "isnet-general-use",
+        "model_input": {
+          "size": [
+            1024,
+            1024
+          ],
+          "normalization_mean": [
+            0.5,
+            0.5,
+            0.5
+          ],
+          "normalization_std": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "mask_activation": "first ONNX output, per-image min-max normalization",
+          "resize": "RGB LANCZOS stretch to 1024x1024; mask LANCZOS to source size"
+        },
+        "alpha_matting": false,
+        "alpha_matting_foreground_threshold": 240,
+        "alpha_matting_background_threshold": 10,
+        "alpha_matting_erode_size": 10,
+        "post_process_mask": true,
+        "session": {
+          "device": "cuda",
+          "requested_execution_providers": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "active_execution_providers": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "provider_options": {
+            "CUDAExecutionProvider": {
+              "device_id": "0",
+              "has_user_compute_stream": "0",
+              "cudnn_conv1d_pad_to_nc1d": "0",
+              "user_compute_stream": "0",
+              "gpu_external_alloc": "0",
+              "gpu_mem_limit": "18446744073709551615",
+              "enable_cuda_graph": "0",
+              "gpu_external_free": "0",
+              "gpu_external_empty_cache": "0",
+              "arena_extend_strategy": "kNextPowerOfTwo",
+              "cudnn_conv_algo_search": "EXHAUSTIVE",
+              "do_copy_in_default_stream": "1",
+              "cudnn_conv_use_max_workspace": "1",
+              "tunable_op_enable": "0",
+              "tunable_op_tuning_enable": "0",
+              "tunable_op_max_tuning_duration_ms": "0",
+              "enable_skip_layer_norm_strict_mode": "0",
+              "prefer_nhwc": "0",
+              "use_ep_level_unified_stream": "0",
+              "use_tf32": "1",
+              "sdpa_kernel": "0",
+              "fuse_conv_bias": "0"
+            },
+            "CPUExecutionProvider": {}
+          },
+          "omp_num_threads": null,
+          "reused_across_frames": true
+        }
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/rembg/outputs/tuning/smoke/isnet-general-use__postprocess_binary",
+      "quality": {
+        "pseudo_mae": 0.0007726266946216734,
+        "background_alpha_mean": 0.0012213759602875346,
+        "foreground_loss_mean": 0.0003238774289558124,
+        "green_fringe": 0.0,
+        "fragment_pct": 0.0,
+        "soft_alpha_pct": 0.0
+      },
+      "runtime": {
+        "mean_inference_ms": 183.4744999796385,
+        "end_to_end_ms": 236.1236500000814,
+        "peak_vram_mb": null
+      },
+      "temporal_alpha_mae": null,
+      "temporal_output_dir": null,
+      "temporal_frames": null,
+      "notes": [
+        "Test fragment cleanup separately; binary output is a fine-hair risk.",
+        "Runtime means exclude the first frame; peak VRAM was not instrumented.",
+        "Final smoke timing ran serially under matting_bench/run_with_gpu_lock.py.",
+        "Rejected for final use: soft_alpha_pct is zero and visual QA shows hard-cut whiskers/fur."
+      ]
+    },
+    {
+      "id": "birefnet-general-lite__default",
+      "parameters": {
+        "model": "birefnet-general-lite",
+        "model_input": {
+          "size": [
+            1024,
+            1024
+          ],
+          "normalization_mean": [
+            0.485,
+            0.456,
+            0.406
+          ],
+          "normalization_std": [
+            0.229,
+            0.224,
+            0.225
+          ],
+          "mask_activation": "sigmoid on first ONNX output, then per-image min-max normalization",
+          "resize": "RGB LANCZOS stretch to 1024x1024; mask LANCZOS to source size"
+        },
+        "alpha_matting": false,
+        "alpha_matting_foreground_threshold": 240,
+        "alpha_matting_background_threshold": 10,
+        "alpha_matting_erode_size": 10,
+        "post_process_mask": false,
+        "session": {
+          "device": "cuda",
+          "requested_execution_providers": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "active_execution_providers": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "provider_options": {
+            "CUDAExecutionProvider": {
+              "device_id": "0",
+              "has_user_compute_stream": "0",
+              "cudnn_conv1d_pad_to_nc1d": "0",
+              "user_compute_stream": "0",
+              "gpu_external_alloc": "0",
+              "gpu_mem_limit": "18446744073709551615",
+              "enable_cuda_graph": "0",
+              "gpu_external_free": "0",
+              "gpu_external_empty_cache": "0",
+              "arena_extend_strategy": "kNextPowerOfTwo",
+              "cudnn_conv_algo_search": "EXHAUSTIVE",
+              "do_copy_in_default_stream": "1",
+              "cudnn_conv_use_max_workspace": "1",
+              "tunable_op_enable": "0",
+              "tunable_op_tuning_enable": "0",
+              "tunable_op_max_tuning_duration_ms": "0",
+              "enable_skip_layer_norm_strict_mode": "0",
+              "prefer_nhwc": "0",
+              "use_ep_level_unified_stream": "0",
+              "use_tf32": "1",
+              "sdpa_kernel": "0",
+              "fuse_conv_bias": "0"
+            },
+            "CPUExecutionProvider": {}
+          },
+          "omp_num_threads": null,
+          "reused_across_frames": true
+        }
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/rembg/outputs/tuning/smoke/birefnet-general-lite__default",
+      "quality": {
+        "pseudo_mae": 0.0037916504079476,
+        "background_alpha_mean": 0.0028654667548835278,
+        "foreground_loss_mean": 0.004717834061011672,
+        "green_fringe": 0.08460736771424611,
+        "fragment_pct": 0.0004058097344827488,
+        "soft_alpha_pct": 0.9834587191358024
+      },
+      "runtime": {
+        "mean_inference_ms": 5034.085400009644,
+        "end_to_end_ms": 5095.209999999497,
+        "peak_vram_mb": null
+      },
+      "temporal_alpha_mae": null,
+      "temporal_output_dir": null,
+      "temporal_frames": null,
+      "notes": [
+        "Unmodified rembg output; preserves the model's continuous mask.",
+        "Runtime means exclude the first frame; peak VRAM was not instrumented.",
+        "Final smoke timing ran serially under matting_bench/run_with_gpu_lock.py."
+      ]
+    },
+    {
+      "id": "birefnet-general-lite__alpha_default",
+      "parameters": {
+        "model": "birefnet-general-lite",
+        "model_input": {
+          "size": [
+            1024,
+            1024
+          ],
+          "normalization_mean": [
+            0.485,
+            0.456,
+            0.406
+          ],
+          "normalization_std": [
+            0.229,
+            0.224,
+            0.225
+          ],
+          "mask_activation": "sigmoid on first ONNX output, then per-image min-max normalization",
+          "resize": "RGB LANCZOS stretch to 1024x1024; mask LANCZOS to source size"
+        },
+        "alpha_matting": true,
+        "alpha_matting_foreground_threshold": 240,
+        "alpha_matting_background_threshold": 10,
+        "alpha_matting_erode_size": 10,
+        "post_process_mask": false,
+        "session": {
+          "device": "cuda",
+          "requested_execution_providers": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "active_execution_providers": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "provider_options": {
+            "CUDAExecutionProvider": {
+              "device_id": "0",
+              "has_user_compute_stream": "0",
+              "cudnn_conv1d_pad_to_nc1d": "0",
+              "user_compute_stream": "0",
+              "gpu_external_alloc": "0",
+              "gpu_mem_limit": "18446744073709551615",
+              "enable_cuda_graph": "0",
+              "gpu_external_free": "0",
+              "gpu_external_empty_cache": "0",
+              "arena_extend_strategy": "kNextPowerOfTwo",
+              "cudnn_conv_algo_search": "EXHAUSTIVE",
+              "do_copy_in_default_stream": "1",
+              "cudnn_conv_use_max_workspace": "1",
+              "tunable_op_enable": "0",
+              "tunable_op_tuning_enable": "0",
+              "tunable_op_max_tuning_duration_ms": "0",
+              "enable_skip_layer_norm_strict_mode": "0",
+              "prefer_nhwc": "0",
+              "use_ep_level_unified_stream": "0",
+              "use_tf32": "1",
+              "sdpa_kernel": "0",
+              "fuse_conv_bias": "0"
+            },
+            "CPUExecutionProvider": {}
+          },
+          "omp_num_threads": null,
+          "reused_across_frames": true
+        }
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/rembg/outputs/tuning/smoke/birefnet-general-lite__alpha_default",
+      "quality": {
+        "pseudo_mae": 0.0022832494222610774,
+        "background_alpha_mean": 0.003129302394679851,
+        "foreground_loss_mean": 0.001437196449842304,
+        "green_fringe": 0.013911643582913611,
+        "fragment_pct": 0.0012834091755500967,
+        "soft_alpha_pct": 1.5807773919753085
+      },
+      "runtime": {
+        "mean_inference_ms": 5003.948562487494,
+        "end_to_end_ms": 5096.097749992623,
+        "peak_vram_mb": null
+      },
+      "temporal_alpha_mae": null,
+      "temporal_output_dir": null,
+      "temporal_frames": null,
+      "notes": [
+        "Official remove() alpha defaults; broad unknown trimap for edge refinement.",
+        "Runtime means exclude the first frame; peak VRAM was not instrumented.",
+        "Final smoke timing ran serially under matting_bench/run_with_gpu_lock.py."
+      ]
+    },
+    {
+      "id": "birefnet-general-lite__alpha_fur_safe",
+      "parameters": {
+        "model": "birefnet-general-lite",
+        "model_input": {
+          "size": [
+            1024,
+            1024
+          ],
+          "normalization_mean": [
+            0.485,
+            0.456,
+            0.406
+          ],
+          "normalization_std": [
+            0.229,
+            0.224,
+            0.225
+          ],
+          "mask_activation": "sigmoid on first ONNX output, then per-image min-max normalization",
+          "resize": "RGB LANCZOS stretch to 1024x1024; mask LANCZOS to source size"
+        },
+        "alpha_matting": true,
+        "alpha_matting_foreground_threshold": 225,
+        "alpha_matting_background_threshold": 5,
+        "alpha_matting_erode_size": 3,
+        "post_process_mask": false,
+        "session": {
+          "device": "cuda",
+          "requested_execution_providers": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "active_execution_providers": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "provider_options": {
+            "CUDAExecutionProvider": {
+              "device_id": "0",
+              "has_user_compute_stream": "0",
+              "cudnn_conv1d_pad_to_nc1d": "0",
+              "user_compute_stream": "0",
+              "gpu_external_alloc": "0",
+              "gpu_mem_limit": "18446744073709551615",
+              "enable_cuda_graph": "0",
+              "gpu_external_free": "0",
+              "gpu_external_empty_cache": "0",
+              "arena_extend_strategy": "kNextPowerOfTwo",
+              "cudnn_conv_algo_search": "EXHAUSTIVE",
+              "do_copy_in_default_stream": "1",
+              "cudnn_conv_use_max_workspace": "1",
+              "tunable_op_enable": "0",
+              "tunable_op_tuning_enable": "0",
+              "tunable_op_max_tuning_duration_ms": "0",
+              "enable_skip_layer_norm_strict_mode": "0",
+              "prefer_nhwc": "0",
+              "use_ep_level_unified_stream": "0",
+              "use_tf32": "1",
+              "sdpa_kernel": "0",
+              "fuse_conv_bias": "0"
+            },
+            "CPUExecutionProvider": {}
+          },
+          "omp_num_threads": null,
+          "reused_across_frames": true
+        }
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/rembg/outputs/tuning/smoke/birefnet-general-lite__alpha_fur_safe",
+      "quality": {
+        "pseudo_mae": 0.0018313197596297767,
+        "background_alpha_mean": 0.002953996623141898,
+        "foreground_loss_mean": 0.0007086428961176554,
+        "green_fringe": 0.03201936971810129,
+        "fragment_pct": 0.0022060061282960673,
+        "soft_alpha_pct": 1.011863425925926
+      },
+      "runtime": {
+        "mean_inference_ms": 4875.550449985894,
+        "end_to_end_ms": 4966.857300008996,
+        "peak_vram_mb": null
+      },
+      "temporal_alpha_mae": null,
+      "temporal_output_dir": null,
+      "temporal_frames": null,
+      "notes": [
+        "Protect low-confidence fur by shrinking known BG and limiting trimap erosion.",
+        "Runtime means exclude the first frame; peak VRAM was not instrumented.",
+        "Final smoke timing ran serially under matting_bench/run_with_gpu_lock.py.",
+        "Versus alpha_default, lost 267.2 soft-detail pixels/frame and uniquely added only 12.4; not fine-hair safe."
+      ]
+    },
+    {
+      "id": "birefnet-general-lite__postprocess_binary",
+      "parameters": {
+        "model": "birefnet-general-lite",
+        "model_input": {
+          "size": [
+            1024,
+            1024
+          ],
+          "normalization_mean": [
+            0.485,
+            0.456,
+            0.406
+          ],
+          "normalization_std": [
+            0.229,
+            0.224,
+            0.225
+          ],
+          "mask_activation": "sigmoid on first ONNX output, then per-image min-max normalization",
+          "resize": "RGB LANCZOS stretch to 1024x1024; mask LANCZOS to source size"
+        },
+        "alpha_matting": false,
+        "alpha_matting_foreground_threshold": 240,
+        "alpha_matting_background_threshold": 10,
+        "alpha_matting_erode_size": 10,
+        "post_process_mask": true,
+        "session": {
+          "device": "cuda",
+          "requested_execution_providers": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "active_execution_providers": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "provider_options": {
+            "CUDAExecutionProvider": {
+              "device_id": "0",
+              "has_user_compute_stream": "0",
+              "cudnn_conv1d_pad_to_nc1d": "0",
+              "user_compute_stream": "0",
+              "gpu_external_alloc": "0",
+              "gpu_mem_limit": "18446744073709551615",
+              "enable_cuda_graph": "0",
+              "gpu_external_free": "0",
+              "gpu_external_empty_cache": "0",
+              "arena_extend_strategy": "kNextPowerOfTwo",
+              "cudnn_conv_algo_search": "EXHAUSTIVE",
+              "do_copy_in_default_stream": "1",
+              "cudnn_conv_use_max_workspace": "1",
+              "tunable_op_enable": "0",
+              "tunable_op_tuning_enable": "0",
+              "tunable_op_max_tuning_duration_ms": "0",
+              "enable_skip_layer_norm_strict_mode": "0",
+              "prefer_nhwc": "0",
+              "use_ep_level_unified_stream": "0",
+              "use_tf32": "1",
+              "sdpa_kernel": "0",
+              "fuse_conv_bias": "0"
+            },
+            "CPUExecutionProvider": {}
+          },
+          "omp_num_threads": null,
+          "reused_across_frames": true
+        }
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/rembg/outputs/tuning/smoke/birefnet-general-lite__postprocess_binary",
+      "quality": {
+        "pseudo_mae": 0.0015821669037702829,
+        "background_alpha_mean": 0.002398835792620149,
+        "foreground_loss_mean": 0.000765498014920417,
+        "green_fringe": 0.0,
+        "fragment_pct": 0.0,
+        "soft_alpha_pct": 0.0
+      },
+      "runtime": {
+        "mean_inference_ms": 4309.588487492874,
+        "end_to_end_ms": 4363.128087497898,
+        "peak_vram_mb": null
+      },
+      "temporal_alpha_mae": null,
+      "temporal_output_dir": null,
+      "temporal_frames": null,
+      "notes": [
+        "Test fragment cleanup separately; binary output is a fine-hair risk.",
+        "Runtime means exclude the first frame; peak VRAM was not instrumented.",
+        "Final smoke timing ran serially under matting_bench/run_with_gpu_lock.py.",
+        "Rejected for final use: soft_alpha_pct is zero and visual QA shows hard-cut whiskers/fur."
+      ]
+    }
+  ],
+  "recommendation": {
+    "primary": "u2net__alpha_default",
+    "secondary": "isnet-general-use__alpha_default",
+    "rationale": "U2Net with official alpha defaults is the primary fine-hair-safe balance: it kept more soft detail outside the binary core, matched ISNet temporal stability, and was faster. ISNet with the same alpha defaults is the tighter secondary choice with marginally lower pseudo error and fragment ratio.",
+    "production_parameters": {
+      "alpha_matting": true,
+      "alpha_matting_foreground_threshold": 240,
+      "alpha_matting_background_threshold": 10,
+      "alpha_matting_erode_size": 10,
+      "post_process_mask": false
+    },
+    "soft_detail_comparison": {
+      "u2net": {
+        "alpha_default_detail_pixels_per_frame": 6520.666666666667,
+        "fur_safe_detail_pixels_per_frame": 5729.555555555556,
+        "fur_safe_lost_default_pixels_per_frame": 280.55555555555554,
+        "fur_safe_only_pixels_per_frame": 6.888888888888889
+      },
+      "isnet-general-use": {
+        "alpha_default_detail_pixels_per_frame": 5728.888888888889,
+        "fur_safe_detail_pixels_per_frame": 4620.222222222223,
+        "fur_safe_lost_default_pixels_per_frame": 589.0,
+        "fur_safe_only_pixels_per_frame": 8.666666666666666
+      },
+      "birefnet-general-lite": {
+        "alpha_default_detail_pixels_per_frame": 4683.444444444444,
+        "fur_safe_detail_pixels_per_frame": 4004.0,
+        "fur_safe_lost_default_pixels_per_frame": 267.22222222222223,
+        "fur_safe_only_pixels_per_frame": 12.444444444444445
+      }
+    },
+    "rejected_patterns": [
+      "post_process_mask=True: binary alpha removed whiskers and all soft alpha",
+      "alpha_fur_safe 225/5/3: narrower unknown band deleted more soft detail than it recovered",
+      "birefnet-general-lite: about 4.9-5.0 seconds per hot 960px frame without a quality win"
+    ],
+    "visual_review_artifacts": [
+      "matting_bench/providers/rembg/visual_review/smoke_candidates_contact.jpg",
+      "matting_bench/providers/rembg/visual_review/fast_walk_mid_full_600.jpg",
+      "matting_bench/providers/rembg/visual_review/idle_mid_head_600.jpg"
+    ],
+    "fine_hair_guardrail": "Do not select on pseudo_mae alone; inspect whiskers, ear tufts, tail fur, soft_alpha_pct, and foreground_loss_mean."
+  }
+}

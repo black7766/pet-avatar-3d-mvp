@@ -1,0 +1,288 @@
+{
+  "provider": "ZhengPeng7/BiRefNet (General)",
+  "generated_at": "2026-07-11",
+  "official_docs": [
+    {
+      "url": "https://huggingface.co/ZhengPeng7/BiRefNet/blob/e2bf8e4460fc8fa32bba5ea4d94b3233d367b0e4/README.md",
+      "parameters": {
+        "model_load": "AutoModelForImageSegmentation.from_pretrained(..., trust_remote_code=True)",
+        "input_resolution": "1024x1024 in the official inference example",
+        "normalization": "ImageNet mean/std: [0.485,0.456,0.406] / [0.229,0.224,0.225]",
+        "cuda_precision": "FP16"
+      }
+    },
+    {
+      "url": "https://huggingface.co/ZhengPeng7/BiRefNet/blob/e2bf8e4460fc8fa32bba5ea4d94b3233d367b0e4/handler.py",
+      "parameters": {
+        "input_resolution": "1024x1024 for General",
+        "foreground_refinement": "two-pass blur-fusion foreground estimator",
+        "foreground_refinement_radii": [
+          90,
+          6
+        ]
+      }
+    },
+    {
+      "url": "https://github.com/ZhengPeng7/BiRefNet/blob/d83f35576a13fd90f8cca7c5e73d0907c2297328/image_proc.py",
+      "parameters": {
+        "foreground_refinement_modes": [
+          "official-cpu",
+          "official-gpu"
+        ],
+        "foreground_refinement_radii": [
+          90,
+          6
+        ]
+      }
+    },
+    {
+      "url": "https://huggingface.co/spaces/ZhengPeng7/BiRefNet_demo/blob/main/app.py",
+      "parameters": {
+        "custom_resolution": "WxH values are normalized to multiples of 32",
+        "recommended_resolution": "1024x1024 for the standard checkpoint",
+        "foreground_refinement_device": "GPU on CUDA, CPU otherwise"
+      }
+    }
+  ],
+  "dataset": {
+    "name": "pet_20260710_121221_5ce7716e",
+    "smoke": {
+      "path": "matting_bench/data/pet_20260710_121221_5ce7716e/smoke",
+      "frames": 9,
+      "frame_size": "960x960",
+      "sampling": "first, middle, and last frame from idle, fast_walk, and sleep"
+    },
+    "temporal": {
+      "path": "matting_bench/data/pet_20260710_121221_5ce7716e/temporal_fast_walk_24_640",
+      "frames": 24,
+      "frame_size": "640x640",
+      "sampling": "consecutive fast_walk frames"
+    },
+    "evaluator": "matting_bench/evaluate.py",
+    "ground_truth": "No hand-painted alpha; quality values are controlled-green-screen pseudo metrics."
+  },
+  "measurement_policy": {
+    "quality": "All smoke configs and baseline were compared in one central evaluate.py invocation.",
+    "final_cuda_runtime": "Only the recommended config was rerun through matting_bench/run_with_gpu_lock.py.",
+    "mean_definition": "Final mean_inference_ms and end_to_end_ms exclude the first frame; all-frame and first-frame values are retained as extra fields.",
+    "memory_unit": "peak_vram_mb uses decimal MB (10^6 bytes).",
+    "screening_runtime": "Unlocked sweep timings are retained only under screening_runtime_unlocked and are not final benchmark numbers."
+  },
+  "configs": [
+    {
+      "id": "baseline",
+      "parameters": {
+        "provider": "adaptive_green_baseline",
+        "device": "cpu"
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/outputs/baseline/smoke",
+      "quality": {
+        "pseudo_mae": 0.0017913058658854829,
+        "background_alpha_mean": 0.000831099033045272,
+        "foreground_loss_mean": 0.002751512698725694,
+        "green_fringe": 0.014522721266580952,
+        "fragment_pct": 0.1345109472301563,
+        "soft_alpha_pct": 0.9979142554012347,
+        "opaque_green_leak_pct": 0.1036964699074074
+      },
+      "runtime": {
+        "mean_inference_ms": null,
+        "end_to_end_ms": 1414.543,
+        "peak_vram_mb": null,
+        "measurement": "CPU provider reports one per-frame total, not isolated model inference."
+      },
+      "temporal_alpha_mae": 0.0138207430060467,
+      "temporal_output_dir": "matting_bench/outputs/baseline/temporal_fast_walk_24_640",
+      "notes": [
+        "Production adaptive green-screen reference.",
+        "Best smoke pseudo MAE, background suppression, and green-fringe score; more small fragments than either BiRefNet checkpoint."
+      ]
+    },
+    {
+      "id": "general_default_1024_auto",
+      "parameters": {
+        "model_repo": "ZhengPeng7/BiRefNet",
+        "model_revision": "e2bf8e4460fc8fa32bba5ea4d94b3233d367b0e4",
+        "input_resolution": 1024,
+        "foreground_refinement": "official-auto",
+        "foreground_refinement_resolved": "official-gpu",
+        "foreground_refinement_radii": [
+          90,
+          6
+        ],
+        "device": "cuda",
+        "dtype": "float16",
+        "is_provider_default": true
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/outputs/birefnet_tuning/locked/smoke/general_1024_auto",
+      "quality": {
+        "pseudo_mae": 0.0023932085281962324,
+        "background_alpha_mean": 0.0027396626149614653,
+        "foreground_loss_mean": 0.002046754441430999,
+        "green_fringe": 0.01871700191663371,
+        "fragment_pct": 0.0020598270714590364,
+        "soft_alpha_pct": 1.5131172839506175,
+        "opaque_green_leak_pct": 0.28063512731481477
+      },
+      "runtime": {
+        "mean_inference_ms": 200.95672497700434,
+        "end_to_end_ms": 352.14324996923096,
+        "peak_vram_mb": 1715.158016,
+        "mean_inference_all_frames_ms": 278.44818887145567,
+        "end_to_end_all_frames_ms": 432.96583330569166,
+        "first_inference_ms": 898.3799000270665,
+        "model_load_ms": 2098.7439000746235,
+        "mean_foreground_refinement_ms": 63.81898890766832,
+        "peak_vram_reserved_mb": 2980.052992,
+        "measurement": "GPU lock held; warm mean excludes first frame."
+      },
+      "temporal_alpha_mae": 0.012839490102361078,
+      "temporal_output_dir": "matting_bench/outputs/birefnet_tuning/locked/temporal_fast_walk_24_640/general_1024_auto",
+      "temporal_runtime": {
+        "mean_inference_ms": 204.16751305532196,
+        "end_to_end_ms": 289.27456522259215,
+        "peak_vram_mb": 1715.158016,
+        "measurement": "GPU lock held; 24 frames; warm mean excludes first frame."
+      },
+      "notes": [
+        "Recommended BiRefNet General configuration.",
+        "Locked smoke wait was 2.023 s before acquisition; wait time is outside infer.py metrics.",
+        "The locked temporal run acquired on retry attempt 6 and then waited 1.014 s; only the successful locked child metrics are reported."
+      ]
+    },
+    {
+      "id": "general_768_auto",
+      "parameters": {
+        "model_repo": "ZhengPeng7/BiRefNet",
+        "model_revision": "e2bf8e4460fc8fa32bba5ea4d94b3233d367b0e4",
+        "input_resolution": 768,
+        "foreground_refinement": "official-auto",
+        "foreground_refinement_resolved": "official-gpu",
+        "device": "cuda",
+        "dtype": "float16"
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/outputs/birefnet_tuning/smoke/general_768_auto",
+      "quality": {
+        "pseudo_mae": 0.0033623500801493516,
+        "background_alpha_mean": 0.0037611794864965808,
+        "foreground_loss_mean": 0.0029635206738021225,
+        "green_fringe": 0.03750662071009477,
+        "fragment_pct": 0.0021544191736617836,
+        "soft_alpha_pct": 1.5186873070987654,
+        "opaque_green_leak_pct": 0.36887538580246915
+      },
+      "runtime": {
+        "mean_inference_ms": null,
+        "end_to_end_ms": null,
+        "peak_vram_mb": null
+      },
+      "screening_runtime_unlocked": {
+        "mean_inference_ms": 111.40823751338758,
+        "end_to_end_ms": 246.90878752153367,
+        "peak_vram_mb": 1171.98336,
+        "not_final": true
+      },
+      "temporal_alpha_mae": null,
+      "notes": [
+        "Quality screening completed on all 9 frames.",
+        "CUDA timing was not captured under the GPU lock and is deliberately null in runtime.",
+        "Pseudo MAE and green fringe are both worse than 1024."
+      ]
+    },
+    {
+      "id": "general_512_auto",
+      "parameters": {
+        "model_repo": "ZhengPeng7/BiRefNet",
+        "model_revision": "e2bf8e4460fc8fa32bba5ea4d94b3233d367b0e4",
+        "input_resolution": 512,
+        "foreground_refinement": "official-auto",
+        "foreground_refinement_resolved": "official-gpu",
+        "device": "cuda",
+        "dtype": "float16"
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/outputs/birefnet_tuning/smoke/general_512_auto",
+      "quality": {
+        "pseudo_mae": 0.0032935896370973852,
+        "background_alpha_mean": 0.0035351375117897987,
+        "foreground_loss_mean": 0.0030520417624049717,
+        "green_fringe": 0.014715600810531113,
+        "fragment_pct": 0.0,
+        "soft_alpha_pct": 1.9847487461419755,
+        "opaque_green_leak_pct": 0.3051576967592593
+      },
+      "runtime": {
+        "mean_inference_ms": null,
+        "end_to_end_ms": null,
+        "peak_vram_mb": null
+      },
+      "screening_runtime_unlocked": {
+        "mean_inference_ms": 103.38083753595129,
+        "end_to_end_ms": 227.02477498387452,
+        "peak_vram_mb": 779.02592,
+        "not_final": true
+      },
+      "temporal_alpha_mae": null,
+      "notes": [
+        "Quality screening completed on all 9 frames.",
+        "CUDA timing was not captured under the GPU lock and is deliberately null in runtime.",
+        "Lower green fringe and zero measured fragments do not offset the higher pseudo MAE and foreground loss."
+      ]
+    },
+    {
+      "id": "general_1024_none",
+      "parameters": {
+        "model_repo": "ZhengPeng7/BiRefNet",
+        "model_revision": "e2bf8e4460fc8fa32bba5ea4d94b3233d367b0e4",
+        "input_resolution": 1024,
+        "foreground_refinement": "none",
+        "device": "cuda",
+        "dtype": "float16",
+        "ablation_only": true
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/outputs/birefnet_tuning/smoke/general_1024_none",
+      "quality": {
+        "pseudo_mae": 0.0023932085281962324,
+        "background_alpha_mean": 0.0027396626149614653,
+        "foreground_loss_mean": 0.002046754441430999,
+        "green_fringe": 0.10110227515300114,
+        "fragment_pct": 0.0020598270714590364,
+        "soft_alpha_pct": 1.5131172839506175,
+        "opaque_green_leak_pct": 0.28063512731481477
+      },
+      "runtime": {
+        "mean_inference_ms": null,
+        "end_to_end_ms": null,
+        "peak_vram_mb": null
+      },
+      "screening_runtime_unlocked": {
+        "mean_inference_ms": 166.15023746271618,
+        "end_to_end_ms": 268.63697497174144,
+        "peak_vram_mb": 1715.158016,
+        "not_final": true
+      },
+      "temporal_alpha_mae": null,
+      "notes": [
+        "Ablation switch; the official handlers refine the foreground RGB.",
+        "Alpha-derived metrics are unchanged, while green fringe is 5.40x the refined 1024 result.",
+        "CUDA timing was not captured under the GPU lock and is deliberately null in runtime."
+      ]
+    }
+  ],
+  "recommendation": {
+    "recommended_config_id": "general_default_1024_auto",
+    "verdict": "conditionally_recommended",
+    "production_decision": "Do not replace the adaptive green-screen baseline on this controlled-green dataset.",
+    "recommended_role": "Use as a learned fallback for non-green inputs or baseline failure cases, with 1024 input and official foreground refinement enabled.",
+    "reasons": [
+      "It is the best General configuration on smoke pseudo MAE and foreground loss.",
+      "Its 24-frame temporal alpha MAE (0.0128395) is better than baseline (0.0138207).",
+      "The baseline remains better on smoke pseudo MAE, background suppression, and green fringe.",
+      "The official refinement is mandatory for these outputs; disabling it increases green fringe by 5.40x."
+    ]
+  }
+}

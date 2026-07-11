@@ -37,6 +37,14 @@ CHECKPOINT = MODEL_BASE / "checkpoints" / "matanyone.pth"
 OFFICIAL_COMMIT = "e5ddc534c1fff9bb9e54cf476095d29071b7cb4f"
 CHECKPOINT_SHA256 = "dd26b991d020ed5eb4be50996f97354c45cfdfc0f59958e8983ac6a198f4809d"
 IMAGE_EXTENSIONS = {".bmp", ".jpeg", ".jpg", ".png", ".tif", ".tiff", ".webp"}
+QUALITY_FIELDS = (
+    "pseudo_mae",
+    "background_alpha_mean",
+    "foreground_loss_mean",
+    "green_fringe",
+    "fragment_pct",
+    "soft_alpha_pct",
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -66,6 +74,19 @@ def parse_args() -> argparse.Namespace:
         help="Feed the soft green-screen alpha or its binary target mask",
     )
     parser.add_argument("--mask-threshold", type=int, default=128)
+    parser.add_argument(
+        "--max-internal-size",
+        type=int,
+        default=-1,
+        help="Official InferenceCore short-side limit; output is restored to decoded size",
+    )
+    parser.add_argument("--mem-every", type=int, default=5)
+    parser.add_argument("--max-mem-frames", type=int, default=5)
+    parser.add_argument(
+        "--use-long-term",
+        action="store_true",
+        help="Enable the official long-term memory tier",
+    )
     parser.add_argument(
         "--rgba-rgb",
         choices=("green-clean", "source"),
@@ -193,7 +214,12 @@ def load_green_module() -> Any:
     if spec is None or spec.loader is None:
         raise RuntimeError(f"cannot import existing green-screen implementation from {poc_path}")
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    previous_bytecode_setting = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.dont_write_bytecode = previous_bytecode_setting
     return module
 
 
@@ -290,7 +316,14 @@ def choose_device(torch: Any) -> Any:
     return torch.device("cuda")
 
 
-def load_official_model(device: Any) -> tuple[Any, dict[str, Any]]:
+def load_official_model(
+    device: Any,
+    *,
+    max_internal_size: int,
+    mem_every: int,
+    max_mem_frames: int,
+    use_long_term: bool,
+) -> tuple[Any, dict[str, Any]]:
     if str(MODEL_REPO) not in sys.path:
         sys.path.insert(0, str(MODEL_REPO))
 
@@ -312,6 +345,10 @@ def load_official_model(device: Any) -> tuple[Any, dict[str, Any]]:
         # The release checkpoint includes both encoders. This avoids two redundant
         # ImageNet downloads performed by the upstream constructor default.
         config.model.pretrained_resnet = False
+        config.max_internal_size = max_internal_size
+        config.mem_every = mem_every
+        config.max_mem_frames = max_mem_frames
+        config.use_long_term = use_long_term
 
     network = MatAnyone(config, single_object=True).to(device).eval()
     state = torch.load(CHECKPOINT, map_location="cpu", weights_only=True)
@@ -330,6 +367,14 @@ def load_official_model(device: Any) -> tuple[Any, dict[str, Any]]:
         "gpu": torch.cuda.get_device_name(device) if device.type == "cuda" else None,
         "gpu_driver": query_gpu_driver() if device.type == "cuda" else None,
         "pretrained_resnet_download_disabled": True,
+        "inference_config": {
+            "max_internal_size": max_internal_size,
+            "mem_every": mem_every,
+            "max_mem_frames": max_mem_frames,
+            "use_long_term": use_long_term,
+            "stagger_updates": int(config.stagger_updates),
+            "top_k": int(config.top_k),
+        },
     }
     return processor, metadata
 
@@ -443,8 +488,10 @@ def alpha_diagnostics(alphas: list[np.ndarray]) -> dict[str, Any]:
     components: list[int] = []
     consecutive_diffs: list[float] = []
     edge_touch_frames = 0
+    alpha_values: set[int] = set()
 
     for index, alpha in enumerate(alphas):
+        alpha_values.update(int(value) for value in np.unique(alpha))
         visible = alpha >= 16
         coverages.append(float(visible.mean()))
         soft_coverages.append(float(((alpha > 0) & (alpha < 250)).mean()))
@@ -469,6 +516,10 @@ def alpha_diagnostics(alphas: list[np.ndarray]) -> dict[str, Any]:
         statistics.pstdev(coverages) / coverage_mean if coverage_mean > 0 and len(coverages) > 1 else 0.0
     )
     return {
+        "alpha_type": "fractional probability quantized to uint8",
+        "alpha_unique_value_count": len(alpha_values),
+        "alpha_value_min": min(alpha_values, default=0),
+        "alpha_value_max": max(alpha_values, default=0),
         "visible_coverage_mean": round(coverage_mean, 6),
         "visible_coverage_cv": round(coverage_cv, 6),
         "visible_coverage_min": round(min(coverages), 6),
@@ -513,6 +564,44 @@ def compare_to_green_reference(
     return {
         key: round(statistics.fmean(row[key] for row in frame_rows), 6)
         for key in frame_rows[0]
+    }
+
+
+def standardized_benchmark_metrics(
+    frames: list[np.ndarray], output_rgbs: list[np.ndarray], alphas: list[np.ndarray]
+) -> dict[str, Any]:
+    """Use the repository benchmark metric implementation without writing centrally."""
+    evaluator_path = REPO_ROOT / "matting_bench" / "evaluate.py"
+    spec = importlib.util.spec_from_file_location(
+        "petavatar_matanyone_benchmark_evaluator", evaluator_path
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"cannot import benchmark evaluator from {evaluator_path}")
+    module = importlib.util.module_from_spec(spec)
+    previous_bytecode_setting = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.dont_write_bytecode = previous_bytecode_setting
+
+    sources = [frame.astype(np.float32) / 255.0 for frame in frames]
+    alpha_float = [alpha.astype(np.float32) / 255.0 for alpha in alphas]
+    outputs = [
+        np.dstack([rgb.astype(np.float32) / 255.0, alpha])
+        for rgb, alpha in zip(output_rgbs, alpha_float, strict=True)
+    ]
+    frame_values = [
+        module.frame_metrics(source, output)
+        for source, output in zip(sources, outputs, strict=True)
+    ]
+    mean = module.summarize(frame_values)
+    return {
+        "definition_file": str(evaluator_path),
+        "quality": {field: float(mean[field]) for field in QUALITY_FIELDS},
+        "temporal_alpha_mae": module.temporal_error(sources, alpha_float),
+        "frames": len(frame_values),
+        "reference_kind": "controlled-green-screen confident-region proxy",
     }
 
 
@@ -623,6 +712,14 @@ def main() -> int:
 
     run_started = time.perf_counter()
     try:
+        if not 0 <= args.mask_threshold <= 255:
+            raise ValueError("--mask-threshold must be in [0, 255]")
+        if args.mem_every < 1:
+            raise ValueError("--mem-every must be positive")
+        if args.max_mem_frames < 1:
+            raise ValueError("--max-mem-frames must be positive")
+        if args.max_internal_size == 0 or args.max_internal_size < -1:
+            raise ValueError("--max-internal-size must be -1 or a positive integer")
         asset_meta = verify_model_assets()
         decode_started = time.perf_counter()
         frames, input_meta = decode_frames(
@@ -663,7 +760,13 @@ def main() -> int:
         torch_import_seconds = time.perf_counter() - torch_import_started
 
         device = choose_device(torch)
-        processor, runtime_meta = load_official_model(device)
+        processor, runtime_meta = load_official_model(
+            device,
+            max_internal_size=args.max_internal_size,
+            mem_every=args.mem_every,
+            max_mem_frames=args.max_mem_frames,
+            use_long_term=args.use_long_term,
+        )
         selected_init = init_alpha if args.init_kind == "alpha" else init_mask
         alphas, inference_meta = run_inference(
             processor=processor,
@@ -685,6 +788,7 @@ def main() -> int:
         output_meta, _, _ = write_outputs(
             output_dir, output_rgbs, alphas, rgb_policy=rgb_policy
         )
+        benchmark_meta = standardized_benchmark_metrics(frames, output_rgbs, alphas)
         diagnostics = alpha_diagnostics(alphas)
         green_reference_meta["timing_seconds"] = round(green_reference_seconds, 6)
         green_reference_meta["alpha_diagnostics"] = alpha_diagnostics(green_reference_alphas)
@@ -692,6 +796,7 @@ def main() -> int:
             alphas, green_reference_alphas
         )
 
+        end_to_end_seconds = time.perf_counter() - run_started
         metrics = {
             "status": "succeeded",
             "provider": "official_matanyone_v1",
@@ -716,10 +821,22 @@ def main() -> int:
                 "green_reference_seconds": round(green_reference_seconds, 6),
                 **inference_meta,
                 "output_write_seconds": output_meta["write_seconds"],
-                "end_to_end_seconds": round(time.perf_counter() - run_started, 6),
+                "end_to_end_seconds": round(end_to_end_seconds, 6),
             },
             "diagnostics": diagnostics,
+            "benchmark": benchmark_meta,
             "output": output_meta,
+            "tuning_parameters": {
+                "decoded_max_size": args.max_size,
+                "max_internal_size": args.max_internal_size,
+                "warmup": args.warmup,
+                "init_kind": args.init_kind,
+                "mask_threshold": args.mask_threshold,
+                "precision": "fp16_autocast" if not args.no_amp else "fp32",
+                "mem_every": args.mem_every,
+                "max_mem_frames": args.max_mem_frames,
+                "use_long_term": args.use_long_term,
+            },
             "notes": [
                 "The central poc.py is imported read-only for frame-0 target initialization.",
                 "MatAnyone predicts alpha only; existing green cleanup supplies RGB without changing predicted alpha.",

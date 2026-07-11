@@ -1,0 +1,375 @@
+{
+  "provider": "adaptive_green_baseline",
+  "official_docs": [
+    {
+      "url": "https://github.com/black7766/pet-avatar-3d-mvp/blob/master/poc.py",
+      "parameters": [
+        "foreground_score",
+        "border_quantile",
+        "alpha_gamma",
+        "core_despill",
+        "core_radius_ratio",
+        "halo_strength",
+        "halo_profile"
+      ]
+    }
+  ],
+  "dataset": {
+    "smoke": "matting_bench/data/pet_20260710_121221_5ce7716e/smoke",
+    "temporal": "matting_bench/data/pet_20260710_121221_5ce7716e/temporal_fast_walk_24_640"
+  },
+  "configs": [
+    {
+      "id": "default",
+      "parameters": {
+        "foreground_score": 0.025,
+        "border_quantile": 0.002,
+        "alpha_gamma": 1.22,
+        "core_despill": 0.9,
+        "core_radius_ratio": 0.16,
+        "halo_strength": 0.9,
+        "halo_profile": "real"
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/outputs/tuning/baseline/default",
+      "quality": {
+        "pseudo_mae": 0.001791305856184206,
+        "background_alpha_mean": 0.0008310990653828614,
+        "foreground_loss_mean": 0.002751512646985551,
+        "green_fringe": 0.014522721473541524,
+        "fragment_pct": 0.1345109472301563,
+        "soft_alpha_pct": 0.9979142554012347
+      },
+      "runtime": {
+        "mean_inference_ms": null,
+        "end_to_end_ms": 657.828,
+        "peak_vram_mb": 0.0
+      },
+      "temporal_alpha_mae": 0.013820742965554413,
+      "notes": "CPU end-to-end includes halo refinement and PNG output."
+    },
+    {
+      "id": "gamma_1_05",
+      "parameters": {
+        "foreground_score": 0.025,
+        "border_quantile": 0.002,
+        "alpha_gamma": 1.05,
+        "core_despill": 0.9,
+        "core_radius_ratio": 0.16,
+        "halo_strength": 0.9,
+        "halo_profile": "real"
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/outputs/tuning/baseline/gamma_1_05",
+      "quality": {
+        "pseudo_mae": 0.0018474341324892724,
+        "background_alpha_mean": 0.001045207124358664,
+        "foreground_loss_mean": 0.0026496611406198805,
+        "green_fringe": 0.015456779652999507,
+        "fragment_pct": 0.13259203032692332,
+        "soft_alpha_pct": 1.0176384066358024
+      },
+      "runtime": {
+        "mean_inference_ms": null,
+        "end_to_end_ms": 561.799,
+        "peak_vram_mb": 0.0
+      },
+      "temporal_alpha_mae": null,
+      "notes": "CPU end-to-end includes halo refinement and PNG output."
+    },
+    {
+      "id": "gamma_1_40",
+      "parameters": {
+        "foreground_score": 0.025,
+        "border_quantile": 0.002,
+        "alpha_gamma": 1.4,
+        "core_despill": 0.9,
+        "core_radius_ratio": 0.16,
+        "halo_strength": 0.9,
+        "halo_profile": "real"
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/outputs/tuning/baseline/gamma_1_40",
+      "quality": {
+        "pseudo_mae": 0.0017497655547534425,
+        "background_alpha_mean": 0.0006565376986852951,
+        "foreground_loss_mean": 0.00284299341082159,
+        "green_fringe": 0.013838130670289198,
+        "fragment_pct": 0.12390086332088732,
+        "soft_alpha_pct": 0.9741632908950617
+      },
+      "runtime": {
+        "mean_inference_ms": null,
+        "end_to_end_ms": 646.914,
+        "peak_vram_mb": 0.0
+      },
+      "temporal_alpha_mae": null,
+      "notes": "CPU end-to-end includes halo refinement and PNG output."
+    },
+    {
+      "id": "fg_0_018",
+      "parameters": {
+        "foreground_score": 0.018,
+        "border_quantile": 0.002,
+        "alpha_gamma": 1.22,
+        "core_despill": 0.9,
+        "core_radius_ratio": 0.16,
+        "halo_strength": 0.9,
+        "halo_profile": "real"
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/outputs/tuning/baseline/fg_0_018",
+      "quality": {
+        "pseudo_mae": 0.001814309278011529,
+        "background_alpha_mean": 0.0008222470383366777,
+        "foreground_loss_mean": 0.00280637151768638,
+        "green_fringe": 0.014419179099301497,
+        "fragment_pct": 0.13417657691582133,
+        "soft_alpha_pct": 1.0098982445987654
+      },
+      "runtime": {
+        "mean_inference_ms": null,
+        "end_to_end_ms": 564.988,
+        "peak_vram_mb": 0.0
+      },
+      "temporal_alpha_mae": null,
+      "notes": "CPU end-to-end includes halo refinement and PNG output."
+    },
+    {
+      "id": "fg_0_035",
+      "parameters": {
+        "foreground_score": 0.035,
+        "border_quantile": 0.002,
+        "alpha_gamma": 1.22,
+        "core_despill": 0.9,
+        "core_radius_ratio": 0.16,
+        "halo_strength": 0.9,
+        "halo_profile": "real"
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/outputs/tuning/baseline/fg_0_035",
+      "quality": {
+        "pseudo_mae": 0.001758421095372695,
+        "background_alpha_mean": 0.0008453396989756988,
+        "foreground_loss_mean": 0.0026715024917696915,
+        "green_fringe": 0.014564685937431123,
+        "fragment_pct": 0.1352584523032359,
+        "soft_alpha_pct": 0.9803240740740738
+      },
+      "runtime": {
+        "mean_inference_ms": null,
+        "end_to_end_ms": 676.925,
+        "peak_vram_mb": 0.0
+      },
+      "temporal_alpha_mae": null,
+      "notes": "CPU end-to-end includes halo refinement and PNG output."
+    },
+    {
+      "id": "despill_0_65",
+      "parameters": {
+        "foreground_score": 0.025,
+        "border_quantile": 0.002,
+        "alpha_gamma": 1.22,
+        "core_despill": 0.65,
+        "core_radius_ratio": 0.16,
+        "halo_strength": 0.9,
+        "halo_profile": "real"
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/outputs/tuning/baseline/despill_0_65",
+      "quality": {
+        "pseudo_mae": 0.0018091755175393904,
+        "background_alpha_mean": 0.0008310990653828614,
+        "foreground_loss_mean": 0.002787251969695919,
+        "green_fringe": 0.015398767155905565,
+        "fragment_pct": 0.1345109472301563,
+        "soft_alpha_pct": 1.0026282793209877
+      },
+      "runtime": {
+        "mean_inference_ms": null,
+        "end_to_end_ms": 573.097,
+        "peak_vram_mb": 0.0
+      },
+      "temporal_alpha_mae": null,
+      "notes": "CPU end-to-end includes halo refinement and PNG output."
+    },
+    {
+      "id": "despill_1_10",
+      "parameters": {
+        "foreground_score": 0.025,
+        "border_quantile": 0.002,
+        "alpha_gamma": 1.22,
+        "core_despill": 1.1,
+        "core_radius_ratio": 0.16,
+        "halo_strength": 0.9,
+        "halo_profile": "real"
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/outputs/tuning/baseline/despill_1_10",
+      "quality": {
+        "pseudo_mae": 0.0017878632481572116,
+        "background_alpha_mean": 0.0008310990653828614,
+        "foreground_loss_mean": 0.0027446274309315616,
+        "green_fringe": 0.013815600735445818,
+        "fragment_pct": 0.1345109472301563,
+        "soft_alpha_pct": 0.9970100308641974
+      },
+      "runtime": {
+        "mean_inference_ms": null,
+        "end_to_end_ms": 577.927,
+        "peak_vram_mb": 0.0
+      },
+      "temporal_alpha_mae": 0.013822870369514694,
+      "notes": "CPU end-to-end includes halo refinement and PNG output."
+    },
+    {
+      "id": "radius_0_10",
+      "parameters": {
+        "foreground_score": 0.025,
+        "border_quantile": 0.002,
+        "alpha_gamma": 1.22,
+        "core_despill": 0.9,
+        "core_radius_ratio": 0.1,
+        "halo_strength": 0.9,
+        "halo_profile": "real"
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/outputs/tuning/baseline/radius_0_10",
+      "quality": {
+        "pseudo_mae": 0.001791305856184206,
+        "background_alpha_mean": 0.0008310990653828614,
+        "foreground_loss_mean": 0.002751512646985551,
+        "green_fringe": 0.014522721473541524,
+        "fragment_pct": 0.1345109472301563,
+        "soft_alpha_pct": 0.9979142554012347
+      },
+      "runtime": {
+        "mean_inference_ms": null,
+        "end_to_end_ms": 608.736,
+        "peak_vram_mb": 0.0
+      },
+      "temporal_alpha_mae": null,
+      "notes": "CPU end-to-end includes halo refinement and PNG output."
+    },
+    {
+      "id": "balanced_gamma_1_32_despill_1_05",
+      "parameters": {
+        "foreground_score": 0.025,
+        "border_quantile": 0.002,
+        "alpha_gamma": 1.32,
+        "core_despill": 1.05,
+        "core_radius_ratio": 0.16,
+        "halo_strength": 0.9,
+        "halo_profile": "real"
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/outputs/tuning/baseline/balanced_gamma_1_32_despill_1_05",
+      "quality": {
+        "pseudo_mae": 0.0017622702612748577,
+        "background_alpha_mean": 0.0007288874152840839,
+        "foreground_loss_mean": 0.002795653107265631,
+        "green_fringe": 0.013595402447713746,
+        "fragment_pct": 0.12959697883175003,
+        "soft_alpha_pct": 0.9840253665123456
+      },
+      "runtime": {
+        "mean_inference_ms": null,
+        "end_to_end_ms": 576.018,
+        "peak_vram_mb": 0.0
+      },
+      "temporal_alpha_mae": 0.013868142769712469,
+      "notes": "CPU end-to-end includes halo refinement and PNG output."
+    },
+    {
+      "id": "clean_gamma_1_40_despill_1_10",
+      "parameters": {
+        "foreground_score": 0.025,
+        "border_quantile": 0.002,
+        "alpha_gamma": 1.4,
+        "core_despill": 1.1,
+        "core_radius_ratio": 0.16,
+        "halo_strength": 0.9,
+        "halo_profile": "real"
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/outputs/tuning/baseline/clean_gamma_1_40_despill_1_10",
+      "quality": {
+        "pseudo_mae": 0.001746299107455545,
+        "background_alpha_mean": 0.0006565376986852951,
+        "foreground_loss_mean": 0.002836060516225795,
+        "green_fringe": 0.013171156247456869,
+        "fragment_pct": 0.12390086332088732,
+        "soft_alpha_pct": 0.9732831790123456
+      },
+      "runtime": {
+        "mean_inference_ms": null,
+        "end_to_end_ms": 698.33,
+        "peak_vram_mb": 0.0
+      },
+      "temporal_alpha_mae": 0.013903861521216839,
+      "notes": "CPU end-to-end includes halo refinement and PNG output."
+    },
+    {
+      "id": "halo_none",
+      "parameters": {
+        "foreground_score": 0.025,
+        "border_quantile": 0.002,
+        "alpha_gamma": 1.22,
+        "core_despill": 0.9,
+        "core_radius_ratio": 0.16,
+        "halo_strength": 0.9,
+        "halo_profile": "none"
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/outputs/tuning/baseline/halo_none",
+      "quality": {
+        "pseudo_mae": 0.0008591745855584224,
+        "background_alpha_mean": 0.0008310990653828614,
+        "foreground_loss_mean": 0.0008872501057339832,
+        "green_fringe": 0.018425973546173837,
+        "fragment_pct": 0.1345109472301563,
+        "soft_alpha_pct": 0.6903452932098766
+      },
+      "runtime": {
+        "mean_inference_ms": null,
+        "end_to_end_ms": 476.509,
+        "peak_vram_mb": 0.0
+      },
+      "temporal_alpha_mae": null,
+      "notes": "CPU end-to-end includes halo refinement and PNG output."
+    },
+    {
+      "id": "halo_cartoon",
+      "parameters": {
+        "foreground_score": 0.025,
+        "border_quantile": 0.002,
+        "alpha_gamma": 1.22,
+        "core_despill": 0.9,
+        "core_radius_ratio": 0.16,
+        "halo_strength": 0.9,
+        "halo_profile": "cartoon"
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/outputs/tuning/baseline/halo_cartoon",
+      "quality": {
+        "pseudo_mae": 0.0008591745855584224,
+        "background_alpha_mean": 0.0008310990653828614,
+        "foreground_loss_mean": 0.0008872501057339832,
+        "green_fringe": 0.018108350535233814,
+        "fragment_pct": 0.1345109472301563,
+        "soft_alpha_pct": 0.6903452932098766
+      },
+      "runtime": {
+        "mean_inference_ms": null,
+        "end_to_end_ms": 554.505,
+        "peak_vram_mb": 0.0
+      },
+      "temporal_alpha_mae": null,
+      "notes": "CPU end-to-end includes halo refinement and PNG output."
+    }
+  ],
+  "recommendation": {
+    "config_id": "despill_1_10",
+    "reason": "lowest green fringe among foreground/background and temporal-stability guardrail passes"
+  }
+}

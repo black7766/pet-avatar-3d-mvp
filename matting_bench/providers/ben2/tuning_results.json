@@ -1,0 +1,201 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-11",
+  "provider": "ben2",
+  "model": "BEN2 Base",
+  "official_docs": [
+    {
+      "url": "https://github.com/PramaLLC/BEN2/blob/2c99a5da477b5523585bfa5c893888a6e818a8f6/README.md#quick-start-code-inside-cloned-repo",
+      "parameters": [
+        "BEN_Base.inference accepts refine_foreground and defaults it to false.",
+        "The README says refinement costs time but can improve matting edges."
+      ]
+    },
+    {
+      "url": "https://github.com/PramaLLC/BEN2/blob/2c99a5da477b5523585bfa5c893888a6e818a8f6/README.md#batch-image-processing",
+      "parameters": [
+        "inference accepts a PIL image or an image list.",
+        "The README recommends no more than three images for consumer GPUs."
+      ]
+    },
+    {
+      "url": "https://github.com/PramaLLC/BEN2/blob/2c99a5da477b5523585bfa5c893888a6e818a8f6/src/ben2/modeling_ben2.py#L1154-L1225",
+      "parameters": [
+        "Default postprocess uses postprocess_image; refine mode uses raw sigmoid alpha plus refine_foreground_process."
+      ]
+    },
+    {
+      "url": "https://github.com/PramaLLC/BEN2/blob/2c99a5da477b5523585bfa5c893888a6e818a8f6/src/ben2/modeling_ben2.py#L1357-L1386",
+      "parameters": [
+        "Official preprocessing converts to RGB, resizes to 1024x1024 with LANCZOS, normalizes with ImageNet mean/std, and uses float16 on CUDA or float32 on CPU."
+      ]
+    },
+    {
+      "url": "https://github.com/PramaLLC/BEN2/blob/2c99a5da477b5523585bfa5c893888a6e818a8f6/src/ben2/modeling_ben2.py#L1520-L1559",
+      "parameters": [
+        "refine_foreground_process exposes initial blur radius r=90.",
+        "postprocess_image bilinearly restores alpha and applies per-image min-max normalization."
+      ]
+    },
+    {
+      "url": "https://huggingface.co/PramaLLC/BEN2",
+      "parameters": [
+        "Pinned Base safetensors weight and model configuration."
+      ]
+    }
+  ],
+  "dataset": {
+    "smoke": "matting_bench/data/pet_20260710_121221_5ce7716e/smoke",
+    "smoke_frames": 9,
+    "smoke_resolution": [960, 960],
+    "temporal": "matting_bench/data/pet_20260710_121221_5ce7716e/temporal_fast_walk_24_640",
+    "temporal_frames": 24,
+    "temporal_resolution": [640, 640],
+    "evaluator": "matting_bench/evaluate.py",
+    "ground_truth": null,
+    "metric_note": "Quality values are controlled-green-screen pseudo metrics; boundary quality also received visual review."
+  },
+  "configs": [
+    {
+      "id": "default_no_refine",
+      "parameters": {
+        "device": "cuda",
+        "input_size": [1024, 1024],
+        "input_resize": "PIL LANCZOS fixed square",
+        "input_dtype": "float16",
+        "normalize_mean": [0.485, 0.456, 0.406],
+        "normalize_std": [0.229, 0.224, 0.225],
+        "refine_foreground": false,
+        "refine_radius": null,
+        "alpha_postprocess": "bilinear restore plus per-image min-max normalization",
+        "foreground_postprocess": "source RGB",
+        "warmup_runs": 1
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/ben2/evidence/tuning/locked_smoke/default_no_refine",
+      "quality": {
+        "pseudo_mae": 0.005451720937142252,
+        "background_alpha_mean": 0.0005648907164059994,
+        "foreground_loss_mean": 0.010338551157878505,
+        "green_fringe": 0.03692726149327225,
+        "fragment_pct": 0.012797940767203924,
+        "soft_alpha_pct": 1.3106553819444444
+      },
+      "runtime": {
+        "mean_inference_ms": 266.655,
+        "end_to_end_ms": 397.093,
+        "peak_vram_mb": 2587.36
+      },
+      "temporal_alpha_mae": null,
+      "notes": [
+        "This retains BEN2's official refine_foreground=false default.",
+        "The accepted CUDA command held the GPU benchmark lock after two acquisition retries.",
+        "Fastest end-to-end option, but it retains much more green in soft-edge foreground RGB."
+      ]
+    },
+    {
+      "id": "refine_r90",
+      "parameters": {
+        "device": "cuda",
+        "input_size": [1024, 1024],
+        "input_resize": "PIL LANCZOS fixed square",
+        "input_dtype": "float16",
+        "normalize_mean": [0.485, 0.456, 0.406],
+        "normalize_std": [0.229, 0.224, 0.225],
+        "refine_foreground": true,
+        "refine_radius": 90,
+        "alpha_postprocess": "raw sigmoid to 8-bit PIL alpha, then nearest resize",
+        "foreground_postprocess": "refine_foreground_process(r=90)",
+        "warmup_runs": 1
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/ben2/evidence/tuning/locked_recheck/refine_r90",
+      "quality": {
+        "pseudo_mae": 0.005303560735127475,
+        "background_alpha_mean": 0.0005056554962518729,
+        "foreground_loss_mean": 0.010101465974003077,
+        "green_fringe": 0.004709454641366999,
+        "fragment_pct": 0.012795418556681763,
+        "soft_alpha_pct": 1.1822796103395061
+      },
+      "runtime": {
+        "mean_inference_ms": 264.574,
+        "end_to_end_ms": 809.414,
+        "peak_vram_mb": 2587.36
+      },
+      "temporal_alpha_mae": 0.014702843441425459,
+      "notes": [
+        "Runtime and VRAM are from the required independent GPU-lock recheck; the first locked matrix run measured 259.699 ms inference and 711.169 ms end to end.",
+        "Refinement reduces green fringe by about 87 percent versus the official no-refine default, but its CPU foreground estimator roughly doubles total latency.",
+        "The 24-frame temporal run held the GPU lock and used the same parameters."
+      ]
+    },
+    {
+      "id": "refine_r45",
+      "parameters": {
+        "device": "cuda",
+        "input_size": [1024, 1024],
+        "input_resize": "PIL LANCZOS fixed square",
+        "input_dtype": "float16",
+        "normalize_mean": [0.485, 0.456, 0.406],
+        "normalize_std": [0.229, 0.224, 0.225],
+        "refine_foreground": true,
+        "refine_radius": 45,
+        "alpha_postprocess": "raw sigmoid to 8-bit PIL alpha, then nearest resize",
+        "foreground_postprocess": "refine_foreground_process(r=45)",
+        "warmup_runs": 1
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/ben2/evidence/tuning/locked_smoke/refine_r45",
+      "quality": {
+        "pseudo_mae": 0.005303560735127475,
+        "background_alpha_mean": 0.0005056554962518729,
+        "foreground_loss_mean": 0.010101465974003077,
+        "green_fringe": 0.0054443661744395895,
+        "fragment_pct": 0.012795418556681763,
+        "soft_alpha_pct": 1.1822796103395061
+      },
+      "runtime": {
+        "mean_inference_ms": 255.907,
+        "end_to_end_ms": 701.505,
+        "peak_vram_mb": 2587.36
+      },
+      "temporal_alpha_mae": null,
+      "notes": [
+        "Held the shared GPU benchmark lock.",
+        "Alpha is identical to r=90 because radius only changes foreground RGB estimation.",
+        "Slightly faster and still much cleaner than no-refine, but green fringe is higher than at the official r=90 default."
+      ]
+    }
+  ],
+  "recommendation": {
+    "config_id": "refine_r90",
+    "parameters": {
+      "input_size": [1024, 1024],
+      "refine_foreground": true,
+      "refine_radius": 90
+    },
+    "reason": "This is the highest-quality tested BEN2 output: it slightly improves alpha pseudo metrics and cuts green fringe from 0.036927 to 0.004709. The official r=90 radius is cleaner than r=45. Use the no-refine default instead only when the roughly 412 ms/frame recheck latency cost is unacceptable or foreground RGB is refined elsewhere.",
+    "smoke_recheck_output_dir": "matting_bench/providers/ben2/evidence/tuning/locked_recheck/refine_r90",
+    "temporal_output_dir": "matting_bench/providers/ben2/evidence/tuning/locked_temporal/refine_r90",
+    "temporal_alpha_mae": 0.014702843441425459,
+    "gpu_lock_verified": true,
+    "scope_note": "The official Base implementation fixes network input at 1024x1024; no unsupported alternate model resolution was introduced."
+  },
+  "failed_attempts": [
+    {
+      "kind": "infrastructure_lock",
+      "config_id": "default_no_refine",
+      "status": "retried_successfully",
+      "error": "Two lock-acquisition attempts returned OSError [Errno 36] before model launch",
+      "log": "matting_bench/providers/ben2/evidence/tuning/locked_smoke_default_no_refine_retry.log"
+    },
+    {
+      "kind": "infrastructure_lock",
+      "config_id": "refine_r90_and_refine_r45",
+      "status": "retried_successfully",
+      "error": "Initial lock-acquisition attempts returned OSError [Errno 36] before model launch",
+      "log": "matting_bench/providers/ben2/evidence/tuning/locked_smoke_refine_r90.log"
+    }
+  ]
+}

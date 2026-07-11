@@ -63,6 +63,27 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--enable-mkldnn", action="store_true")
     parser.add_argument("--gpu-memory-mb", type=int, default=512)
     parser.add_argument("--gpu-id", type=int, default=0)
+    parser.add_argument(
+        "--max-short",
+        type=int,
+        help=(
+            "Override LimitShort.max_short from deploy.yaml. "
+            "Omit to retain the official model default."
+        ),
+    )
+    parser.add_argument(
+        "--min-short",
+        type=int,
+        help="Override LimitShort.min_short; deploy.yaml leaves it unset by default.",
+    )
+    parser.add_argument(
+        "--resize-mult",
+        type=int,
+        help=(
+            "Override ResizeToIntMult.mult_int from deploy.yaml. "
+            "Omit to retain the official model default."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -108,11 +129,40 @@ def load_deploy_spec(model_dir: Path) -> dict[str, Any]:
         "model_path": model_path,
         "params_path": params_path,
         "max_short": int(limit_short.get("max_short", 512)),
+        "min_short": (
+            int(limit_short["min_short"])
+            if limit_short.get("min_short") is not None
+            else None
+        ),
         "mult_int": int(resize_mult.get("mult_int", 32)),
         "mean": tuple(float(value) for value in normalize.get("mean", (0.5, 0.5, 0.5))),
         "std": tuple(float(value) for value in normalize.get("std", (0.5, 0.5, 0.5))),
         "transforms": list(transform_types),
     }
+
+
+def apply_transform_overrides(
+    spec: dict[str, Any], args: argparse.Namespace
+) -> dict[str, Any]:
+    effective = dict(spec)
+    if args.max_short is not None:
+        effective["max_short"] = args.max_short
+    if args.min_short is not None:
+        effective["min_short"] = args.min_short
+    if args.resize_mult is not None:
+        effective["mult_int"] = args.resize_mult
+
+    for name in ("max_short", "min_short", "mult_int"):
+        value = effective[name]
+        if value is not None and value <= 0:
+            raise ValueError(f"--{name.replace('_', '-')} must be positive")
+    if (
+        effective["max_short"] is not None
+        and effective["min_short"] is not None
+        and effective["min_short"] > effective["max_short"]
+    ):
+        raise ValueError("--min-short must not exceed --max-short")
+    return effective
 
 
 def preprocess_image(
@@ -130,8 +180,14 @@ def preprocess_image(
     restore_shapes.append((height, width))
     short_edge = min(height, width)
     max_short = spec["max_short"]
-    if short_edge > max_short:
-        scale = max_short / float(short_edge)
+    min_short = spec["min_short"]
+    target_short = short_edge
+    if max_short is not None and short_edge > max_short:
+        target_short = max_short
+    elif min_short is not None and short_edge < min_short:
+        target_short = min_short
+    if target_short != short_edge:
+        scale = target_short / float(short_edge)
         resized_width = int(round(width * scale))
         resized_height = int(round(height * scale))
         image = cv2.resize(
@@ -197,6 +253,7 @@ class PaddleMattingPredictor:
         if use_cuda:
             config.enable_use_gpu(args.gpu_memory_mb, args.gpu_id)
             self.device = "cuda"
+            self.memory_device = f"gpu:{args.gpu_id}"
         else:
             config.disable_gpu()
             config.set_cpu_math_library_num_threads(args.cpu_threads)
@@ -204,6 +261,7 @@ class PaddleMattingPredictor:
                 config.set_mkldnn_cache_capacity(10)
                 config.enable_mkldnn()
             self.device = "cpu"
+            self.memory_device = None
 
         self.predictor = create_predictor(config)
         self.input_names = self.predictor.get_input_names()
@@ -215,6 +273,26 @@ class PaddleMattingPredictor:
         self.input_handle = self.predictor.get_input_handle(self.input_names[0])
         self.output_handle = self.predictor.get_output_handle(self.output_names[0])
         self.paddle = paddle
+
+    def reset_peak_memory_stats(self) -> None:
+        if self.memory_device is not None:
+            self.paddle.device.reset_peak_memory_stats(self.memory_device)
+
+    def peak_memory(self) -> dict[str, float | None]:
+        if self.memory_device is None:
+            return {"peak_allocated_mb": None, "peak_reserved_mb": None}
+        return {
+            "peak_allocated_mb": round(
+                self.paddle.device.max_memory_allocated(self.memory_device)
+                / (1024 * 1024),
+                3,
+            ),
+            "peak_reserved_mb": round(
+                self.paddle.device.max_memory_reserved(self.memory_device)
+                / (1024 * 1024),
+                3,
+            ),
+        }
 
     def run(self, tensor: np.ndarray) -> np.ndarray:
         self.input_handle.reshape(tensor.shape)
@@ -251,7 +329,7 @@ def main() -> None:
 
     paths = collect_inputs(input_dir)
     model_dir = args.model_dir.resolve()
-    spec = load_deploy_spec(model_dir)
+    spec = apply_transform_overrides(load_deploy_spec(model_dir), args)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     process_started = time.perf_counter()
@@ -266,6 +344,8 @@ def main() -> None:
         for _ in range(args.warmup_runs):
             predictor.run(warmup_tensor)
         warmup_seconds = time.perf_counter() - warmup_started
+
+    predictor.reset_peak_memory_stats()
 
     records: list[dict[str, Any]] = []
     measured_started = time.perf_counter()
@@ -311,6 +391,7 @@ def main() -> None:
         )
 
     measured_seconds = time.perf_counter() - measured_started
+    peak_memory = predictor.peak_memory()
     inference_ms = [float(record["inference_ms"]) for record in records]
     total_ms = [float(record["total_ms"]) for record in records]
     metrics = {
@@ -330,6 +411,8 @@ def main() -> None:
         "median_inference_ms": round(float(np.median(inference_ms)), 3),
         "p95_inference_ms": round(percentile(inference_ms, 95), 3),
         "mean_total_ms": round(float(np.mean(total_ms)), 3),
+        "peak_vram_mb": peak_memory["peak_allocated_mb"],
+        "peak_reserved_vram_mb": peak_memory["peak_reserved_mb"],
         "process_seconds_excluding_cli_import": round(time.perf_counter() - process_started, 4),
         "model_source": MODEL_SOURCE_URL,
         "model_license_note": (
@@ -342,6 +425,14 @@ def main() -> None:
             spec["config_path"].name: sha256_file(spec["config_path"]),
         },
         "deploy_transforms": spec["transforms"],
+        "effective_transform_parameters": {
+            "LimitShort": {
+                "max_short": spec["max_short"],
+                "min_short": spec["min_short"],
+            },
+            "ResizeToIntMult": {"mult_int": spec["mult_int"]},
+            "Normalize": {"mean": spec["mean"], "std": spec["std"]},
+        },
         "environment": predictor.environment(),
         "per_frame": records,
     }

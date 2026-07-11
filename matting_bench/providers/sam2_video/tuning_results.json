@@ -1,0 +1,297 @@
+{
+  "provider": "official_meta_sam2_1_small_video",
+  "official_docs": [
+    {
+      "url": "https://github.com/facebookresearch/sam2/blob/2b90b9f5ceec907a1c18123530e92e794ad901a4/README.md",
+      "parameters": [
+        "video_predictor",
+        "precision_autocast",
+        "propagate_in_video",
+        "vos_optimized",
+        "compile_image_encoder"
+      ]
+    },
+    {
+      "url": "https://github.com/facebookresearch/sam2/blob/2b90b9f5ceec907a1c18123530e92e794ad901a4/sam2/build_sam.py",
+      "parameters": [
+        "apply_postprocessing",
+        "vos_optimized",
+        "dynamic_multimask_stability_delta",
+        "dynamic_multimask_stability_thresh",
+        "binarize_mask_from_pts_for_mem_enc",
+        "fill_hole_area"
+      ]
+    },
+    {
+      "url": "https://github.com/facebookresearch/sam2/blob/2b90b9f5ceec907a1c18123530e92e794ad901a4/sam2/sam2_video_predictor.py",
+      "parameters": [
+        "offload_video_to_cpu",
+        "offload_state_to_cpu",
+        "async_loading_frames",
+        "start_frame_idx",
+        "max_frame_num_to_track",
+        "reverse",
+        "non_overlap_masks",
+        "clear_non_cond_mem_around_input"
+      ]
+    },
+    {
+      "url": "https://github.com/facebookresearch/sam2/blob/2b90b9f5ceec907a1c18123530e92e794ad901a4/sam2/configs/sam2.1/sam2.1_hiera_s.yaml",
+      "parameters": [
+        "image_size",
+        "num_maskmem",
+        "compile_image_encoder",
+        "use_mask_input_as_output_without_sam",
+        "memory_attention"
+      ]
+    },
+    {
+      "url": "https://github.com/facebookresearch/sam2/blob/2b90b9f5ceec907a1c18123530e92e794ad901a4/INSTALL.md",
+      "parameters": [
+        "optional_cuda_extension",
+        "windows_postprocessing_limit"
+      ]
+    }
+  ],
+  "dataset": {
+    "path": "matting_bench/data/pet_20260710_121221_5ce7716e/temporal_fast_walk_24_640",
+    "frames": 24,
+    "frame_range": [
+      "f_0000.png",
+      "f_0023.png"
+    ],
+    "input_resolution": [
+      640,
+      640
+    ],
+    "model_internal_resolution": [
+      1024,
+      1024
+    ],
+    "sequence_sha256": "550eec0273bc719d663aa8c455683f8deeecb4cb397c989478304674fb484e1e",
+    "reference": "Controlled-green-screen confident-region proxy; not hand-labeled alpha ground truth.",
+    "gpu": "NVIDIA GeForce RTX 2080 Ti 11GB",
+    "gpu_lock": "Every reported CUDA run was launched through matting_bench/run_with_gpu_lock.py."
+  },
+  "configs": [
+    {
+      "id": "default",
+      "parameters": {
+        "mask_threshold": 128,
+        "logit_threshold": 0.0,
+        "precision": "fp16",
+        "offload_video_to_cpu": true,
+        "offload_state_to_cpu": false,
+        "async_loading_frames": false,
+        "apply_postprocessing": true,
+        "vos_optimized": false,
+        "model_internal_image_size": 1024
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/sam2_video/runs/tuning_default",
+      "quality": {
+        "pseudo_mae": 0.0009349504192262733,
+        "background_alpha_mean": 0.0007074688461822612,
+        "foreground_loss_mean": 0.0011624319922702853,
+        "green_fringe": 0.0,
+        "fragment_pct": 0.0,
+        "soft_alpha_pct": 0.0
+      },
+      "runtime": {
+        "mean_inference_ms": 79.804167,
+        "end_to_end_ms": 14203.008,
+        "peak_vram_mb": 712.615
+      },
+      "temporal_alpha_mae": 0.014993578802956186,
+      "diagnostics": {
+        "alpha_type": "binary mask mapped to uint8 alpha",
+        "alpha_values": [
+          0,
+          255
+        ],
+        "green_reference_iou": 0.993051,
+        "reference_alpha_mae": 0.002707,
+        "internal_hole_fraction": 0.000741,
+        "reference_background_leak_fraction": 0.000097,
+        "sequence_sha256": "5939bffa8b3adae4bb406be0a81347b158fd29140ae962d8247579f1b9358d4a"
+      },
+      "notes": "Recommended quality baseline. Final speed and VRAM values come from a dedicated GPU-locked rerun after functional screening. Green-fringe and soft-alpha are structural zeros for binary output."
+    },
+    {
+      "id": "threshold64",
+      "parameters": {
+        "mask_threshold": 64,
+        "logit_threshold": 0.0,
+        "precision": "fp16",
+        "offload_video_to_cpu": true,
+        "offload_state_to_cpu": false,
+        "async_loading_frames": false,
+        "apply_postprocessing": true,
+        "vos_optimized": false,
+        "model_internal_image_size": 1024
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/sam2_video/runs/tuning_threshold64",
+      "quality": {
+        "pseudo_mae": 0.0011549855277432168,
+        "background_alpha_mean": 0.00170362039837831,
+        "foreground_loss_mean": 0.0006063506571081234,
+        "green_fringe": 0.0,
+        "fragment_pct": 0.0,
+        "soft_alpha_pct": 0.0
+      },
+      "runtime": {
+        "mean_inference_ms": 79.023292,
+        "end_to_end_ms": 13872.96,
+        "peak_vram_mb": 712.615
+      },
+      "temporal_alpha_mae": 0.014688232063275316,
+      "diagnostics": {
+        "alpha_type": "binary mask mapped to uint8 alpha",
+        "alpha_values": [
+          0,
+          255
+        ],
+        "green_reference_iou": 0.992891,
+        "reference_alpha_mae": 0.002833,
+        "internal_hole_fraction": 0.000286,
+        "reference_background_leak_fraction": 0.000184,
+        "sequence_sha256": "c9a0def49bd1b8155daa2a86fc6ea4530c76ed296ea26044dc4b497988c71d33"
+      },
+      "notes": "Looser first-frame prompt reduced interior holes and temporal error but more than doubled confident-background alpha leakage versus default."
+    },
+    {
+      "id": "state_cpu",
+      "parameters": {
+        "mask_threshold": 128,
+        "logit_threshold": 0.0,
+        "precision": "fp16",
+        "offload_video_to_cpu": true,
+        "offload_state_to_cpu": true,
+        "async_loading_frames": false,
+        "apply_postprocessing": true,
+        "vos_optimized": false,
+        "model_internal_image_size": 1024
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/sam2_video/runs/tuning_state_cpu",
+      "quality": {
+        "pseudo_mae": 0.0009349504192262733,
+        "background_alpha_mean": 0.0007074688461822612,
+        "foreground_loss_mean": 0.0011624319922702853,
+        "green_fringe": 0.0,
+        "fragment_pct": 0.0,
+        "soft_alpha_pct": 0.0
+      },
+      "runtime": {
+        "mean_inference_ms": 79.797375,
+        "end_to_end_ms": 13795.255,
+        "peak_vram_mb": 696.101
+      },
+      "temporal_alpha_mae": 0.014993578802956186,
+      "diagnostics": {
+        "alpha_type": "binary mask mapped to uint8 alpha",
+        "alpha_values": [
+          0,
+          255
+        ],
+        "green_reference_iou": 0.993051,
+        "reference_alpha_mae": 0.002707,
+        "internal_hole_fraction": 0.000741,
+        "reference_background_leak_fraction": 0.000097,
+        "sequence_sha256": "5939bffa8b3adae4bb406be0a81347b158fd29140ae962d8247579f1b9358d4a"
+      },
+      "notes": "Bit-identical to default. Saved 16.514 MiB peak allocated VRAM with no measurable penalty on 24 frames; official code warns that state offload lowers fps on longer or multi-object workloads."
+    },
+    {
+      "id": "fp32",
+      "parameters": {
+        "mask_threshold": 128,
+        "logit_threshold": 0.0,
+        "precision": "fp32",
+        "offload_video_to_cpu": true,
+        "offload_state_to_cpu": false,
+        "async_loading_frames": false,
+        "apply_postprocessing": true,
+        "vos_optimized": false,
+        "model_internal_image_size": 1024
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/sam2_video/runs/tuning_fp32",
+      "quality": {
+        "pseudo_mae": 0.0009353834393550642,
+        "background_alpha_mean": 0.0007070763203955721,
+        "foreground_loss_mean": 0.0011636905583145563,
+        "green_fringe": 0.0,
+        "fragment_pct": 0.0,
+        "soft_alpha_pct": 0.0
+      },
+      "runtime": {
+        "mean_inference_ms": 176.012167,
+        "end_to_end_ms": 16592.627,
+        "peak_vram_mb": 762.135
+      },
+      "temporal_alpha_mae": 0.014995089995310358,
+      "diagnostics": {
+        "alpha_type": "binary mask mapped to uint8 alpha",
+        "alpha_values": [
+          0,
+          255
+        ],
+        "green_reference_iou": 0.993053,
+        "reference_alpha_mae": 0.002707,
+        "internal_hole_fraction": 0.000741,
+        "reference_background_leak_fraction": 0.000097,
+        "sequence_sha256": "20f8cf7a77e0e76eb0a02b18ebc492b871c77976ac7a13ccbe51d2a7e3a0e21d"
+      },
+      "notes": "No material quality gain. Propagation was 2.21x slower than the final FP16 default and peak allocated VRAM increased by 49.52 MiB."
+    },
+    {
+      "id": "logit_minus0_5",
+      "parameters": {
+        "mask_threshold": 128,
+        "logit_threshold": -0.5,
+        "precision": "fp16",
+        "offload_video_to_cpu": true,
+        "offload_state_to_cpu": false,
+        "async_loading_frames": false,
+        "apply_postprocessing": true,
+        "vos_optimized": false,
+        "model_internal_image_size": 1024
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/sam2_video/runs/tuning_logit_minus0_5",
+      "quality": {
+        "pseudo_mae": 0.00094301601833043,
+        "background_alpha_mean": 0.00137150192555661,
+        "foreground_loss_mean": 0.00051453011110425,
+        "green_fringe": 0.0,
+        "fragment_pct": 0.0,
+        "soft_alpha_pct": 0.0
+      },
+      "runtime": {
+        "mean_inference_ms": 81.343917,
+        "end_to_end_ms": 14931.01,
+        "peak_vram_mb": 712.615
+      },
+      "temporal_alpha_mae": 0.014746164518367985,
+      "diagnostics": {
+        "alpha_type": "binary mask mapped to uint8 alpha",
+        "alpha_values": [
+          0,
+          255
+        ],
+        "green_reference_iou": 0.992431,
+        "reference_alpha_mae": 0.002764,
+        "internal_hole_fraction": 0.000265,
+        "reference_background_leak_fraction": 0.000183,
+        "sequence_sha256": "139c66bf861c8cea122daf0cff6e9a34fc4b415113540b40079c25a545c91464"
+      },
+      "notes": "Expanding the final binary boundary reduced foreground loss and holes, but increased background leakage and reduced reference IoU. It does not create soft alpha."
+    }
+  ],
+  "recommendation": {
+    "config_id": "state_cpu",
+    "reason": "For this bounded 24-frame single-object workload, use frame-0 threshold 128, logit threshold 0, FP16, video CPU offload, state CPU offload, synchronous loading, official postprocessing enabled, and no VOS compilation. It is bit-identical to the quality-best default, reduces peak allocated VRAM by 16.514 MiB, and had no measurable propagation penalty here. For long or multi-object videos, prefer GPU state unless memory pressure justifies the official documented fps cost. SAM 2 output remains binary and must not be treated as a fractional fur matte."
+  }
+}

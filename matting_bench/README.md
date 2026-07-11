@@ -48,3 +48,28 @@ python matting_bench/providers/baseline/infer.py `
 
 The fixed conclusions and model/license links are in `benchmark_catalog.json`.
 The full benchmark report is in `MATTING_MODEL_BENCHMARK_20260710.md`.
+
+## Parameter tuning
+
+Provider-specific tuning results follow `TUNING_SCHEMA.md`. The final sweep contains
+69 configurations across nine providers. It uses a tuned adaptive-green baseline,
+quality guardrails, commercial/fractional-alpha constraints, and a Pareto frontier;
+it deliberately does not collapse matting quality into one weighted score.
+
+```powershell
+python matting_bench/aggregate_tuning.py `
+  --output matting_bench/outputs/tuning/aggregate_final.json `
+  --strict-outputs
+
+python matting_bench/render_tuning_html.py `
+  --aggregate matting_bench/outputs/tuning/aggregate_final.json `
+  --output poc_output/matting_tuning_report_20260711.html
+```
+
+The renderer copies each provider's recommended output into a page-local asset
+directory so the existing `poc_output` HTTP server can display it without exposing
+the model/weight directories.
+
+- Final tuning report: `MATTING_PARAMETER_TUNING_20260711.md`
+- Local dashboard: `http://127.0.0.1:8792/matting_tuning_report_20260711.html`
+- GPU serialization helper: `run_with_gpu_lock.py`

@@ -64,10 +64,14 @@ $python = Join-Path $root '.venvs\birefnet\Scripts\python.exe'
   matting_bench\providers\birefnet\infer.py `
   --input-dir <PNG目录> `
   --output-dir <输出目录> `
-  --device cuda
+  --device cuda `
+  --input-resolution 1024 `
+  --foreground-refinement official-auto
 ```
 
-`--device` 可取 `cuda` 或 `cpu`。CLI 读取输入目录直属的所有 `.png`，在输出目录生成同名 RGBA PNG；CUDA 使用 FP16，CPU 使用 FP32。运行完全离线，默认读取固定本地模型目录。可选 `--metrics-json` 写出逐帧时间和显存记录。
+`--device` 可取 `cuda` 或 `cpu`；`--input-resolution` 可取 `512/768/1024`；`--foreground-refinement` 可取 `official-auto/official-cpu/official-gpu/none`。`official-auto` 在 CUDA 上使用官方 GPU 两阶段前景估计，在 CPU 上使用官方 OpenCV 路径；`none` 只用于消融。CLI 读取输入目录直属的所有 `.png`，在输出目录生成同名 RGBA PNG；CUDA 使用 FP16，CPU 使用 FP32。运行完全离线，默认读取固定本地模型目录。可选 `--metrics-json` 写出逐帧时间和显存记录。
+
+完整参数出处、9 帧 sweep、持锁计时与 24 帧时序结论见 `TUNING_REPORT.md` 和 `tuning_results.json`。
 
 本次两条实跑命令：
 

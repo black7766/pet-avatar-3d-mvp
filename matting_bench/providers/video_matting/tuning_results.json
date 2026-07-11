@@ -1,0 +1,223 @@
+{
+  "provider": "official_matanyone_v1",
+  "official_docs": [
+    {
+      "url": "https://github.com/pq-yang/MatAnyone/blob/e5ddc534c1fff9bb9e54cf476095d29071b7cb4f/README.md",
+      "parameters": [
+        "first_frame_segmentation_mask",
+        "max_size",
+        "warmup",
+        "erode_kernel",
+        "dilate_kernel"
+      ]
+    },
+    {
+      "url": "https://github.com/pq-yang/MatAnyone/blob/e5ddc534c1fff9bb9e54cf476095d29071b7cb4f/evaluation/inference_matanyone_yt.py",
+      "parameters": [
+        "n_warmup",
+        "r_erode",
+        "r_dilate",
+        "max_size",
+        "first_frame_pred"
+      ]
+    },
+    {
+      "url": "https://github.com/pq-yang/MatAnyone/blob/e5ddc534c1fff9bb9e54cf476095d29071b7cb4f/matanyone/config/eval_matanyone_config.yaml",
+      "parameters": [
+        "amp",
+        "max_internal_size",
+        "mem_every",
+        "max_mem_frames",
+        "use_long_term",
+        "long_term",
+        "top_k",
+        "stagger_updates",
+        "chunk_size",
+        "flip_aug"
+      ]
+    },
+    {
+      "url": "https://github.com/pq-yang/MatAnyone/blob/e5ddc534c1fff9bb9e54cf476095d29071b7cb4f/matanyone/inference/inference_core.py",
+      "parameters": [
+        "memory_update_schedule",
+        "first_frame_pred",
+        "max_internal_size",
+        "end"
+      ]
+    }
+  ],
+  "dataset": {
+    "path": "matting_bench/data/pet_20260710_121221_5ce7716e/temporal_fast_walk_24_640",
+    "frames": 24,
+    "frame_range": [
+      "f_0000.png",
+      "f_0023.png"
+    ],
+    "resolution": [
+      640,
+      640
+    ],
+    "sequence_sha256": "550eec0273bc719d663aa8c455683f8deeecb4cb397c989478304674fb484e1e",
+    "reference": "Controlled-green-screen confident-region proxy; not hand-labeled alpha ground truth.",
+    "gpu": "NVIDIA GeForce RTX 2080 Ti 11GB",
+    "gpu_lock": "Every reported CUDA run was launched through matting_bench/run_with_gpu_lock.py."
+  },
+  "configs": [
+    {
+      "id": "default",
+      "parameters": {
+        "decoded_max_size": 640,
+        "max_internal_size": -1,
+        "warmup": 10,
+        "init_kind": "mask",
+        "mask_threshold": 128,
+        "precision": "fp16_autocast",
+        "mem_every": 5,
+        "max_mem_frames": 5,
+        "use_long_term": false
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/video_matting/runs/tuning_default",
+      "quality": {
+        "pseudo_mae": 0.0061503559215149535,
+        "background_alpha_mean": 0.003439732361584902,
+        "foreground_loss_mean": 0.008860979481445005,
+        "green_fringe": 0.008506870828568935,
+        "fragment_pct": 0.00012489252559909033,
+        "soft_alpha_pct": 1.9969584147135417
+      },
+      "runtime": {
+        "mean_inference_ms": 82.733417,
+        "end_to_end_ms": 58841.258,
+        "peak_vram_mb": 697.736
+      },
+      "temporal_alpha_mae": 0.01416969594910093,
+      "diagnostics": {
+        "alpha_type": "fractional probability quantized to uint8",
+        "alpha_unique_value_count": 256,
+        "reference_alpha_mae": 0.004751,
+        "internal_hole_fraction": 0.003665,
+        "reference_background_leak_fraction": 0.003363
+      },
+      "notes": "Pinned official defaults with project mask initialization. First process run paid one-time CUDA/module cache costs, so end-to-end time is not a controlled cross-config ranking."
+    },
+    {
+      "id": "threshold64",
+      "parameters": {
+        "decoded_max_size": 640,
+        "max_internal_size": -1,
+        "warmup": 10,
+        "init_kind": "mask",
+        "mask_threshold": 64,
+        "precision": "fp16_autocast",
+        "mem_every": 5,
+        "max_mem_frames": 5,
+        "use_long_term": false
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/video_matting/runs/tuning_threshold64",
+      "quality": {
+        "pseudo_mae": 0.0034108606899584024,
+        "background_alpha_mean": 0.0034437507759624473,
+        "foreground_loss_mean": 0.0033779706039543576,
+        "green_fringe": 0.01074427121784538,
+        "fragment_pct": 0.00007714335086030266,
+        "soft_alpha_pct": 1.5132548014322917
+      },
+      "runtime": {
+        "mean_inference_ms": 67.075125,
+        "end_to_end_ms": 17823.006,
+        "peak_vram_mb": 697.736
+      },
+      "temporal_alpha_mae": 0.013163637248394281,
+      "diagnostics": {
+        "alpha_type": "fractional probability quantized to uint8",
+        "alpha_unique_value_count": 256,
+        "reference_alpha_mae": 0.003396,
+        "internal_hole_fraction": 0.000888,
+        "reference_background_leak_fraction": 0.003377
+      },
+      "notes": "Looser project-side first-frame threshold retained more low-alpha prompt pixels and reduced holes, with a higher soft-edge green-fringe score than default."
+    },
+    {
+      "id": "warmup1",
+      "parameters": {
+        "decoded_max_size": 640,
+        "max_internal_size": -1,
+        "warmup": 1,
+        "init_kind": "mask",
+        "mask_threshold": 128,
+        "precision": "fp16_autocast",
+        "mem_every": 5,
+        "max_mem_frames": 5,
+        "use_long_term": false
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/video_matting/runs/tuning_warmup1",
+      "quality": {
+        "pseudo_mae": 0.0021751750937255565,
+        "background_alpha_mean": 0.0034340394680233053,
+        "foreground_loss_mean": 0.0009163107194278078,
+        "green_fringe": 0.012533613480627537,
+        "fragment_pct": 0.00008014492884670086,
+        "soft_alpha_pct": 1.3218282063802083
+      },
+      "runtime": {
+        "mean_inference_ms": 83.467083,
+        "end_to_end_ms": 20532.177,
+        "peak_vram_mb": 697.736
+      },
+      "temporal_alpha_mae": 0.012899683828911056,
+      "diagnostics": {
+        "alpha_type": "fractional probability quantized to uint8",
+        "alpha_unique_value_count": 256,
+        "reference_alpha_mae": 0.002823,
+        "internal_hole_fraction": 0.000272,
+        "reference_background_leak_fraction": 0.003359
+      },
+      "notes": "Matches the upstream low-resolution warmup recipe. Best foreground retention, proxy error, temporal error, and internal-hole rate; visual review preserved ears, tail, legs, and body silhouette."
+    },
+    {
+      "id": "mem_every1",
+      "parameters": {
+        "decoded_max_size": 640,
+        "max_internal_size": -1,
+        "warmup": 10,
+        "init_kind": "mask",
+        "mask_threshold": 128,
+        "precision": "fp16_autocast",
+        "mem_every": 1,
+        "max_mem_frames": 5,
+        "use_long_term": false
+      },
+      "status": "ok",
+      "output_dir": "matting_bench/providers/video_matting/runs/tuning_mem_every1",
+      "quality": {
+        "pseudo_mae": 0.007227246445836499,
+        "background_alpha_mean": 0.003441255772486329,
+        "foreground_loss_mean": 0.01101323711918667,
+        "green_fringe": 0.008150029675258944,
+        "fragment_pct": 0.00016959166076109815,
+        "soft_alpha_pct": 2.08758544921875
+      },
+      "runtime": {
+        "mean_inference_ms": 64.720792,
+        "end_to_end_ms": 17759.893,
+        "peak_vram_mb": 697.736
+      },
+      "temporal_alpha_mae": 0.014223524146591839,
+      "diagnostics": {
+        "alpha_type": "fractional probability quantized to uint8",
+        "alpha_unique_value_count": 256,
+        "reference_alpha_mae": 0.005261,
+        "internal_hole_fraction": 0.006133,
+        "reference_background_leak_fraction": 0.003362
+      },
+      "notes": "Writing working memory every frame amplified pet-domain interior errors. The apparent speed lead is run-order noise and is not supported by a VRAM reduction."
+    }
+  ],
+  "recommendation": {
+    "config_id": "warmup1",
+    "reason": "Use binary frame-0 mask threshold 128, one recurrent warmup pass, FP16 autocast, mem_every 5, max_mem_frames 5, and no long-term memory for this 24-frame 640 workload. It produced the lowest pseudo/reference error, foreground loss, temporal alpha MAE, and internal-hole rate without visible silhouette loss. Keep the current green cleanup because MatAnyone predicts alpha only. Recheck soft-edge green spill on broader pet clips before production."
+  }
+}

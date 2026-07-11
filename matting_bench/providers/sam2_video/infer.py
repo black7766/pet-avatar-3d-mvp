@@ -41,6 +41,14 @@ CHECKPOINT_SHA256 = "6d1aa6f30de5c92224f8172114de081d104bbd23dd9dc5c58996f0cad5d
 MODEL_CONFIG = "configs/sam2.1/sam2.1_hiera_s.yaml"
 MODEL_NAME = "SAM 2.1 Hiera Small"
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp"}
+QUALITY_FIELDS = (
+    "pseudo_mae",
+    "background_alpha_mean",
+    "foreground_loss_mean",
+    "green_fringe",
+    "fragment_pct",
+    "soft_alpha_pct",
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -49,8 +57,7 @@ def parse_args() -> argparse.Namespace:
         / "matting_bench"
         / "data"
         / "pet_20260710_121221_5ce7716e"
-        / "full"
-        / "fast_walk"
+        / "temporal_fast_walk_24_640"
     )
     default_output = PROVIDER_DIR / "runs" / "fast_walk_24_sam2_1_small"
     parser = argparse.ArgumentParser(description=__doc__)
@@ -61,7 +68,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mask-threshold", type=int, default=128)
     parser.add_argument("--precision", choices=("fp16", "fp32"), default="fp16")
     parser.add_argument("--object-id", type=int, default=1)
+    parser.add_argument("--logit-threshold", type=float, default=0.0)
+    parser.add_argument(
+        "--offload-video-to-cpu",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
     parser.add_argument("--offload-state-to-cpu", action="store_true")
+    parser.add_argument("--async-loading-frames", action="store_true")
+    parser.add_argument(
+        "--apply-postprocessing",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    parser.add_argument("--vos-optimized", action="store_true")
     parser.add_argument("--keep-staging", action="store_true")
     parser.add_argument("--overwrite", action="store_true")
     return parser.parse_args()
@@ -331,7 +351,13 @@ def autocast_context(torch: Any, precision: str) -> Any:
     return torch.autocast(device_type="cuda", enabled=False)
 
 
-def load_predictor(torch: Any, precision: str) -> tuple[Any, dict[str, Any]]:
+def load_predictor(
+    torch: Any,
+    precision: str,
+    *,
+    apply_postprocessing: bool,
+    vos_optimized: bool,
+) -> tuple[Any, dict[str, Any]]:
     if str(MODEL_REPO) not in sys.path:
         sys.path.insert(0, str(MODEL_REPO))
     from sam2.build_sam import build_sam2_video_predictor
@@ -346,8 +372,8 @@ def load_predictor(torch: Any, precision: str) -> tuple[Any, dict[str, Any]]:
                 str(CHECKPOINT),
                 device="cuda",
                 mode="eval",
-                apply_postprocessing=True,
-                vos_optimized=False,
+                apply_postprocessing=apply_postprocessing,
+                vos_optimized=vos_optimized,
             )
 
     predictor, wall_seconds, cuda_ms = timed_cuda(torch, build)
@@ -356,6 +382,8 @@ def load_predictor(torch: Any, precision: str) -> tuple[Any, dict[str, Any]]:
         "wall_seconds": round(wall_seconds, 6),
         "cuda_elapsed_ms": round(cuda_ms, 3),
         "parameters": int(parameters),
+        "apply_postprocessing": apply_postprocessing,
+        "vos_optimized": vos_optimized,
         "memory": cuda_snapshot(torch),
     }
 
@@ -368,7 +396,10 @@ def run_propagation(
     frame_count: int,
     object_id: int,
     precision: str,
+    logit_threshold: float,
+    offload_video_to_cpu: bool,
     offload_state_to_cpu: bool,
+    async_loading_frames: bool,
 ) -> tuple[list[np.ndarray], dict[str, Any]]:
     torch.cuda.reset_peak_memory_stats()
 
@@ -376,9 +407,9 @@ def run_propagation(
         with autocast_context(torch, precision):
             return predictor.init_state(
                 video_path=str(staging_dir),
-                offload_video_to_cpu=True,
+                offload_video_to_cpu=offload_video_to_cpu,
                 offload_state_to_cpu=offload_state_to_cpu,
-                async_loading_frames=False,
+                async_loading_frames=async_loading_frames,
             )
 
     state, init_wall, init_cuda_ms = timed_cuda(torch, initialize)
@@ -420,7 +451,7 @@ def run_propagation(
             object_index = list(object_ids).index(object_id)
             mask = (
                 mask_logits[object_index, 0]
-                .gt(0.0)
+                .gt(logit_threshold)
                 .detach()
                 .to(device="cpu", dtype=torch.uint8)
                 .numpy()
@@ -451,8 +482,10 @@ def run_propagation(
         "frame_wall_ms_p95": round(float(np.percentile(per_frame_wall_ms, 95)), 3),
         "per_frame_cuda_ms": [round(value, 3) for value in per_frame_cuda_ms],
         "peak_memory": cuda_snapshot(torch),
-        "offload_video_to_cpu": True,
+        "logit_threshold": logit_threshold,
+        "offload_video_to_cpu": offload_video_to_cpu,
         "offload_state_to_cpu": offload_state_to_cpu,
+        "async_loading_frames": async_loading_frames,
     }
 
 
@@ -487,12 +520,26 @@ def diagnostics(
     )
     soft_fractions: list[float] = []
     soft_band_containment: list[float] = []
+    reference_alpha_mae: list[float] = []
+    reference_interior_holes: list[float] = []
+    reference_background_leaks: list[float] = []
     component_counts: list[int] = []
     centroids: list[tuple[float, float] | None] = []
     for mask, alpha in zip(masks, green_alphas, strict=True):
         soft_band = (alpha > 8) & (alpha < 247)
+        interior = alpha >= 250
+        background = alpha <= 5
         soft_fractions.append(float(soft_band.mean()))
         soft_band_containment.append(float(mask[soft_band].mean()) if soft_band.any() else 1.0)
+        reference_alpha_mae.append(
+            float(np.abs(mask.astype(np.float32) - alpha.astype(np.float32) / 255.0).mean())
+        )
+        reference_interior_holes.append(
+            float((~mask & interior).sum() / max(1, int(interior.sum())))
+        )
+        reference_background_leaks.append(
+            float((mask & background).sum() / max(1, int(background.sum())))
+        )
         count, _ = cv2.connectedComponents(mask.astype(np.uint8), connectivity=8)
         component_counts.append(max(0, int(count) - 1))
         centroids.append(mask_centroid(mask))
@@ -504,6 +551,7 @@ def diagnostics(
     area_changes = np.abs(np.diff(areas))
     trend = float(np.polyfit(np.arange(len(reference_iou)), reference_iou, 1)[0])
     return {
+        "alpha_type": "binary mask mapped to uint8 alpha",
         "mask_coverage_mean": round(float(areas.mean()), 6),
         "mask_coverage_min": round(float(areas.min()), 6),
         "mask_coverage_max": round(float(areas.max()), 6),
@@ -517,6 +565,13 @@ def diagnostics(
         "green_reference_iou_min": round(float(reference_iou.min()), 6),
         "green_reference_iou_trend_per_frame": round(trend, 8),
         "green_reference_area_mae": round(float(np.abs(areas - reference_areas).mean()), 6),
+        "green_reference_alpha_mae": round(float(np.mean(reference_alpha_mae)), 6),
+        "green_reference_interior_hole_fraction": round(
+            float(np.mean(reference_interior_holes)), 6
+        ),
+        "green_reference_background_leak_fraction": round(
+            float(np.mean(reference_background_leaks)), 6
+        ),
         "centroid_step_px_mean": round(float(np.mean(centroid_steps)), 3),
         "centroid_step_px_p95": round(float(np.percentile(centroid_steps, 95)), 3),
         "component_count_max": max(component_counts),
@@ -530,6 +585,48 @@ def diagnostics(
         "temporal_metric_caveat": (
             "Raw consecutive IoU includes real pet motion. Green-screen comparisons use the "
             "existing chroma-key result as a proxy, not hand-labeled ground truth."
+        ),
+    }
+
+
+def standardized_benchmark_metrics(
+    frames: list[np.ndarray], masks: list[np.ndarray]
+) -> dict[str, Any]:
+    """Use the repository benchmark metric implementation without writing centrally."""
+    evaluator_path = REPO_ROOT / "matting_bench" / "evaluate.py"
+    spec = importlib.util.spec_from_file_location(
+        "petavatar_sam2_benchmark_evaluator", evaluator_path
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"cannot import benchmark evaluator from {evaluator_path}")
+    module = importlib.util.module_from_spec(spec)
+    previous_bytecode_setting = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.dont_write_bytecode = previous_bytecode_setting
+
+    sources = [frame.astype(np.float32) / 255.0 for frame in frames]
+    alphas = [mask.astype(np.float32) for mask in masks]
+    outputs = [
+        np.dstack([source, alpha])
+        for source, alpha in zip(sources, alphas, strict=True)
+    ]
+    frame_values = [
+        module.frame_metrics(source, output)
+        for source, output in zip(sources, outputs, strict=True)
+    ]
+    mean = module.summarize(frame_values)
+    return {
+        "definition_file": str(evaluator_path),
+        "quality": {field: float(mean[field]) for field in QUALITY_FIELDS},
+        "temporal_alpha_mae": module.temporal_error(sources, alphas),
+        "frames": len(frame_values),
+        "reference_kind": "controlled-green-screen confident-region proxy",
+        "binary_metric_note": (
+            "soft_alpha_pct and soft-edge green_fringe are structural zeros because "
+            "SAM 2 masks contain only 0 and 1"
         ),
     }
 
@@ -580,6 +677,7 @@ def write_outputs(
     input_paths: list[Path],
     frames: list[np.ndarray],
     masks: list[np.ndarray],
+    logit_threshold: float,
 ) -> dict[str, Any]:
     rgba_dir = output_dir / "rgba"
     mask_dir = output_dir / "mask"
@@ -624,7 +722,10 @@ def write_outputs(
         "rgb_policy": "Source RGB is retained byte-for-byte at every pixel.",
         "rgb_mismatch_count": len(rgb_mismatches),
         "rgb_mismatch_names": rgb_mismatches,
-        "alpha_policy": "Binary SAM 2 logit > 0 mask mapped to alpha values 0 and 255.",
+        "alpha_policy": (
+            f"Binary SAM 2 logit > {logit_threshold:g} mask mapped to alpha values "
+            "0 and 255."
+        ),
         "write_and_validate_seconds": round(time.perf_counter() - started, 6),
     }
 
@@ -750,6 +851,10 @@ def main() -> int:
     try:
         if not 0 <= args.mask_threshold <= 255:
             raise ValueError("mask threshold must be in [0, 255]")
+        if not np.isfinite(args.logit_threshold):
+            raise ValueError("logit threshold must be finite")
+        if args.object_id < 1:
+            raise ValueError("object id must be positive")
         model_meta = verify_model_assets()
         input_paths = select_frames(args.input_dir, args.frame_offset, args.frames)
         frames = load_rgb_frames(input_paths)
@@ -781,7 +886,12 @@ def main() -> int:
 
         with warnings.catch_warnings(record=True) as caught_warnings:
             warnings.simplefilter("always")
-            predictor, model_load_meta = load_predictor(torch, args.precision)
+            predictor, model_load_meta = load_predictor(
+                torch,
+                args.precision,
+                apply_postprocessing=args.apply_postprocessing,
+                vos_optimized=args.vos_optimized,
+            )
             masks, inference_meta = run_propagation(
                 torch=torch,
                 predictor=predictor,
@@ -790,11 +900,17 @@ def main() -> int:
                 frame_count=args.frames,
                 object_id=args.object_id,
                 precision=args.precision,
+                logit_threshold=args.logit_threshold,
+                offload_video_to_cpu=args.offload_video_to_cpu,
                 offload_state_to_cpu=args.offload_state_to_cpu,
+                async_loading_frames=args.async_loading_frames,
             )
         warning_messages = list(dict.fromkeys(str(item.message) for item in caught_warnings))
 
-        output_meta = write_outputs(output_dir, input_paths, frames, masks)
+        output_meta = write_outputs(
+            output_dir, input_paths, frames, masks, args.logit_threshold
+        )
+        benchmark_meta = standardized_benchmark_metrics(frames, masks)
         diagnostics_meta = diagnostics(masks, green_masks, green_alphas)
         if not args.keep_staging:
             shutil.rmtree(staging_dir)
@@ -821,6 +937,7 @@ def main() -> int:
             "optional_sam2_cuda_extension_built": False,
             "warning_messages": warning_messages,
         }
+        end_to_end_seconds = time.perf_counter() - run_started
         metrics = {
             "status": "succeeded",
             "provider": "official_meta_sam2_1_video",
@@ -845,10 +962,22 @@ def main() -> int:
                 "initializer_seconds": round(initializer_seconds, 6),
                 "model_load": model_load_meta,
                 "inference": inference_meta,
-                "end_to_end_seconds": round(time.perf_counter() - run_started, 6),
+                "end_to_end_seconds": round(end_to_end_seconds, 6),
             },
             "diagnostics": diagnostics_meta,
+            "benchmark": benchmark_meta,
             "output": output_meta,
+            "tuning_parameters": {
+                "mask_threshold": args.mask_threshold,
+                "logit_threshold": args.logit_threshold,
+                "precision": args.precision,
+                "offload_video_to_cpu": args.offload_video_to_cpu,
+                "offload_state_to_cpu": args.offload_state_to_cpu,
+                "async_loading_frames": args.async_loading_frames,
+                "apply_postprocessing": args.apply_postprocessing,
+                "vos_optimized": args.vos_optimized,
+                "model_internal_image_size": 1024,
+            },
             "limitations": [
                 "SAM 2.1 emits a binary semantic mask, not a fractional alpha matte.",
                 "Fine or semi-transparent fur is either opaque or absent after thresholding.",
