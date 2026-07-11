@@ -46,6 +46,8 @@ Each configuration uses this shape:
     "peak_vram_mb": 0.0
   },
   "temporal_alpha_mae": null,
+  "temporal_output_dir": "matting_bench/outputs/provider/temporal",
+  "temporal_runtime": null,
   "notes": ""
 }
 ```

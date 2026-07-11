@@ -47,3 +47,5 @@ poc_output/matting_benchmark_assets/
 poc_output/matting_benchmark_*.html
 poc_output/matting_tuning_report_*.html
 poc_output/matting_tuning_report_*_assets/
+poc_output/matting_animated_compare_*.html
+poc_output/matting_animated_compare_*_assets/

@@ -73,3 +73,19 @@ the model/weight directories.
 - Final tuning report: `MATTING_PARAMETER_TUNING_20260711.md`
 - Local dashboard: `http://127.0.0.1:8792/matting_tuning_report_20260711.html`
 - GPU serialization helper: `run_with_gpu_lock.py`
+
+## Entity-only animated comparison
+
+Build a page that converts every provider's recommended 24-frame fast-walk output
+to a synchronized transparent WebP. It also reads the real-version generation
+metrics and shows API generation time, local matting time, token usage, per-provider
+runtime, VRAM, static quality metrics, and temporal error.
+
+```powershell
+python matting_bench/render_animated_compare.py
+```
+
+- Local page: `http://127.0.0.1:8792/matting_animated_compare_real_20260711.html`
+- Scope: entity/real version only; no PaiMomo/cute-version assets
+- Playback: 640x640, 24 frames, 6 FPS, 4-second silent loop
+- Controls: production/research filter, checker/white/black background, synchronized replay

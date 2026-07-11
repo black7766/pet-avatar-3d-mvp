@@ -139,6 +139,8 @@ python matting_bench/render_tuning_html.py `
 
 本地总览：`http://127.0.0.1:8792/matting_tuning_report_20260711.html`
 
+实体版动图对比：`http://127.0.0.1:8792/matting_animated_compare_real_20260711.html`
+
 ## 8. 下一阶段建议
 
 1. 保持自研绿幕主链，不为当前受控素材增加默认神经网络成本。
