@@ -37,6 +37,19 @@ PROVIDER_ORDER = {
     "official_meta_sam2_1_small_video": 8,
 }
 
+ACTION_VIEW = {
+    "fast_walk": {
+        "label": "快走",
+        "source_title": "3. 快走绿幕动作源",
+        "source_description": "所有模型使用同一段连续快走帧",
+    },
+    "sleep": {
+        "label": "睡眠",
+        "source_title": "3. 睡眠绿幕动作源",
+        "source_description": "所有模型使用同一段连续睡眠帧",
+    },
+}
+
 PROVIDER_VIEW = {
     "adaptive_green_baseline": {
         "name": "自研自适应绿幕",
@@ -141,6 +154,18 @@ def encode_webp(frame_dir: Path, output: Path, duration_ms: int) -> dict[str, An
     frame_paths = sorted(frame_dir.glob("*.png"))
     if len(frame_paths) != 24:
         raise ValueError(f"expected 24 PNGs in {frame_dir}, got {len(frame_paths)}")
+    newest_source = max(path.stat().st_mtime for path in frame_paths)
+    if output.is_file() and output.stat().st_mtime >= newest_source:
+        with Image.open(output) as image:
+            if getattr(image, "n_frames", 1) == 24 and image.size == (640, 640):
+                return {
+                    "frames": 24,
+                    "width": 640,
+                    "height": 640,
+                    "duration_ms": duration_ms * 24,
+                    "file_mb": output.stat().st_size / (1024 * 1024),
+                    "cached": True,
+                }
     frames: list[Image.Image] = []
     sizes: set[tuple[int, int]] = set()
     for path in frame_paths:
@@ -314,16 +339,19 @@ def main() -> None:
         default=Path("matting_bench/outputs/tuning/aggregate_final.json"),
     )
     parser.add_argument(
+        "--fast-walk-manifest",
+        type=Path,
+        default=Path("matting_bench/outputs/action_compare/fast_walk/manifest.json"),
+    )
+    parser.add_argument(
+        "--sleep-manifest",
+        type=Path,
+        default=Path("matting_bench/outputs/action_compare/sleep/manifest.json"),
+    )
+    parser.add_argument(
         "--source-metrics",
         type=Path,
         default=Path("poc_output/pet_20260710_121221_5ce7716e_real_after/metrics.json"),
-    )
-    parser.add_argument(
-        "--source-frames",
-        type=Path,
-        default=Path(
-            "matting_bench/data/pet_20260710_121221_5ce7716e/temporal_fast_walk_24_640"
-        ),
     )
     parser.add_argument(
         "--original-image",
@@ -340,7 +368,7 @@ def main() -> None:
         type=Path,
         default=Path("poc_output/matting_animated_compare_real_20260711.html"),
     )
-    parser.add_argument("--fps", type=float, default=6.0)
+    parser.add_argument("--fps", type=float, default=24.0)
     args = parser.parse_args()
 
     if not 1.0 <= args.fps <= 24.0:
@@ -352,18 +380,30 @@ def main() -> None:
     assets_dir = output.parent / f"{output.stem}_assets"
     assets_dir.mkdir(parents=True, exist_ok=True)
     duration_ms = round(1000 / args.fps)
+    fps_slug = f"{args.fps:g}".replace(".", "_")
 
-    original_url = copy_image(
-        repo_root / args.original_image,
-        assets_dir / "original_pet.jpg",
-    )
-    entity_url = copy_image(
-        repo_root / args.entity_image,
-        assets_dir / "entity_keyframe.png",
-    )
-    source_webp = assets_dir / "green_source_fast_walk.webp"
-    source_asset = encode_webp(repo_root / args.source_frames, source_webp, duration_ms)
-    source_url = f"/{assets_dir.name}/{source_webp.name}"
+    original_url = copy_image(repo_root / args.original_image, assets_dir / "original_pet.jpg")
+    entity_url = copy_image(repo_root / args.entity_image, assets_dir / "entity_keyframe.png")
+    manifest_paths = {
+        "fast_walk": repo_root / args.fast_walk_manifest,
+        "sleep": repo_root / args.sleep_manifest,
+    }
+    actions: dict[str, dict[str, Any]] = {}
+    for action, manifest_path in manifest_paths.items():
+        manifest = read_json(manifest_path)
+        if manifest.get("action") != action or manifest.get("provider_count") != 9:
+            raise ValueError(f"invalid action manifest: {manifest_path}")
+        evaluation = read_json(repo_root / manifest["evaluation_json"])
+        source_dir = repo_root / manifest["source_dir"]
+        source_webp = assets_dir / f"green_source__{action}__{fps_slug}fps.webp"
+        source_asset = encode_webp(source_dir, source_webp, duration_ms)
+        actions[action] = {
+            "manifest": manifest,
+            "evaluation": evaluation,
+            "source_asset": source_asset,
+            "source_url": f"/{assets_dir.name}/{source_webp.name}",
+            "providers": {},
+        }
 
     cards: list[dict[str, Any]] = []
     for provider in aggregate.get("providers", []):
@@ -372,97 +412,140 @@ def main() -> None:
             (item for item in provider.get("configs", []) if item.get("id") == config_id),
             None,
         )
-        if config is None:
-            continue
         name = provider["provider"]
-        if name not in PROVIDER_VIEW:
+        if config is None or name not in PROVIDER_VIEW:
             continue
-        frame_dir = resolve_temporal_dir(repo_root, provider, config)
-        metrics_path = temporal_metrics_path(frame_dir)
-        runtime = runtime_metrics(name, read_json(metrics_path))
         slug = re.sub(r"[^a-z0-9._-]+", "-", name.lower()).strip("-")
-        webp_path = assets_dir / f"{slug}.webp"
-        asset = encode_webp(frame_dir, webp_path, duration_ms)
+        action_records: dict[str, Any] = {}
+        for action, context in actions.items():
+            entry = context["manifest"]["providers"][name]
+            frame_dir = repo_root / entry["output_dir"]
+            metrics = read_json(repo_root / entry["metrics_json"])
+            runtime = runtime_metrics(name, metrics)
+            evaluated = context["evaluation"]["providers"][entry["evaluation_key"]]
+            webp_path = assets_dir / f"{slug}__{action}__{fps_slug}fps.webp"
+            asset = encode_webp(frame_dir, webp_path, duration_ms)
+            record = {
+                "url": f"/{assets_dir.name}/{webp_path.name}",
+                "runtime": runtime,
+                "quality": evaluated["mean"],
+                "temporal_alpha_mae": evaluated["temporal_alpha_mae"],
+                "asset": asset,
+            }
+            action_records[action] = record
+            context["providers"][name] = record
         cards.append(
             {
                 "provider": name,
                 "config": config_id,
                 "view": PROVIDER_VIEW[name],
-                "runtime": runtime,
-                "quality": config.get("quality") or {},
-                "temporal_alpha_mae": config.get("temporal_alpha_mae"),
                 "eligible": bool(
-                    config.get("eligible_for_final")
-                    and config.get("passes_all_guardrails")
+                    config.get("eligible_for_final") and config.get("passes_all_guardrails")
                 ),
-                "asset": asset,
-                "url": f"/{assets_dir.name}/{webp_path.name}",
+                "actions": action_records,
             }
         )
     cards.sort(key=lambda item: PROVIDER_ORDER[item["provider"]])
 
+    def display_record(record: dict[str, Any]) -> dict[str, str]:
+        runtime = record["runtime"]
+        quality = record["quality"]
+        return {
+            "url": record["url"],
+            "task_seconds": fmt(runtime["task_seconds"], 2, "s"),
+            "core_seconds": fmt(runtime["core_seconds"], 2, "s"),
+            "inference_ms": fmt(runtime["inference_ms"], 1, "ms"),
+            "vram_mb": fmt(runtime["vram_mb"], 0, "MB"),
+            "pseudo_mae": fmt(quality.get("pseudo_mae"), 6),
+            "background_alpha_mean": fmt(quality.get("background_alpha_mean"), 6),
+            "foreground_loss_mean": fmt(quality.get("foreground_loss_mean"), 6),
+            "green_fringe": fmt(quality.get("green_fringe"), 6),
+            "fragment_pct": fmt(quality.get("fragment_pct"), 4, "%"),
+            "soft_alpha_pct": fmt(quality.get("soft_alpha_pct"), 3, "%"),
+            "temporal_alpha_mae": fmt(record.get("temporal_alpha_mae"), 6),
+            "file_mb": fmt(record["asset"]["file_mb"], 2, "MB"),
+            "note": str(runtime["note"]),
+        }
+
+    initial_action = "fast_walk"
+    action_payload: dict[str, Any] = {}
+    for action, context in actions.items():
+        action_payload[action] = {
+            **ACTION_VIEW[action],
+            "source_url": context["source_url"],
+            "loop": (
+                f"24 帧 / {args.fps:g} FPS / "
+                f"{context['source_asset']['duration_ms'] / 1000:.1f}s"
+            ),
+            "providers": {
+                name: display_record(record)
+                for name, record in context["providers"].items()
+            },
+        }
+    payload_json = json.dumps(action_payload, ensure_ascii=False).replace("</", "<\\/")
+
     card_html: list[str] = []
     for item in cards:
         view = item["view"]
-        runtime = item["runtime"]
-        quality = item["quality"]
+        record = display_record(item["actions"][initial_action])
         category = "candidate" if item["eligible"] else "research"
         badge_class = "primary" if item["provider"] == "adaptive_green_baseline" else category
         card_html.append(
             f"""
-            <article class="model-card" data-category="{category}">
+            <article class="model-card" data-category="{category}" data-provider="{html.escape(item['provider'])}">
               <header><div><strong>{html.escape(view['name'])}</strong><small>{html.escape(str(item['config']))}</small></div><span class="badge {badge_class}">{html.escape(view['role'])}</span></header>
-              <div class="motion-stage"><img class="motion" src="{html.escape(item['url'])}" data-src="{html.escape(item['url'])}" alt="{html.escape(view['name'])} 实体版快走抠图动图"></div>
+              <div class="motion-stage"><img class="motion" src="{html.escape(record['url'])}" data-src="{html.escape(record['url'])}" alt="{html.escape(view['name'])} 实体版动作抠图动图"></div>
               <p class="summary">{html.escape(view['summary'])}</p>
               <section class="runtime-grid">
-                <div><span>总任务耗时</span><strong>{fmt(runtime['task_seconds'], 2, 's')}</strong></div>
-                <div><span>24帧核心处理</span><strong>{fmt(runtime['core_seconds'], 2, 's')}</strong></div>
-                <div><span>稳态推理/帧</span><strong>{fmt(runtime['inference_ms'], 1, 'ms')}</strong></div>
-                <div><span>峰值显存</span><strong>{fmt(runtime['vram_mb'], 0, 'MB')}</strong></div>
+                <div><span>总任务耗时</span><strong data-field="task_seconds">{record['task_seconds']}</strong></div>
+                <div><span>24帧核心处理</span><strong data-field="core_seconds">{record['core_seconds']}</strong></div>
+                <div><span>稳态推理/帧</span><strong data-field="inference_ms">{record['inference_ms']}</strong></div>
+                <div><span>峰值显存</span><strong data-field="vram_mb">{record['vram_mb']}</strong></div>
               </section>
               <table class="quality"><tbody>
-                <tr><th>pseudo MAE</th><td>{fmt(quality.get('pseudo_mae'), 6)}</td><th>背景 alpha</th><td>{fmt(quality.get('background_alpha_mean'), 6)}</td></tr>
-                <tr><th>前景损失</th><td>{fmt(quality.get('foreground_loss_mean'), 6)}</td><th>绿边</th><td>{fmt(quality.get('green_fringe'), 6)}</td></tr>
-                <tr><th>碎片率</th><td>{fmt(quality.get('fragment_pct'), 4, '%')}</td><th>软 alpha</th><td>{fmt(quality.get('soft_alpha_pct'), 3, '%')}</td></tr>
-                <tr><th>时序误差</th><td>{fmt(item.get('temporal_alpha_mae'), 6)}</td><th>动图体积</th><td>{fmt(item['asset']['file_mb'], 2, 'MB')}</td></tr>
+                <tr><th>pseudo MAE</th><td data-field="pseudo_mae">{record['pseudo_mae']}</td><th>背景 alpha</th><td data-field="background_alpha_mean">{record['background_alpha_mean']}</td></tr>
+                <tr><th>前景损失</th><td data-field="foreground_loss_mean">{record['foreground_loss_mean']}</td><th>绿边</th><td data-field="green_fringe">{record['green_fringe']}</td></tr>
+                <tr><th>碎片率</th><td data-field="fragment_pct">{record['fragment_pct']}</td><th>软 alpha</th><td data-field="soft_alpha_pct">{record['soft_alpha_pct']}</td></tr>
+                <tr><th>时序误差</th><td data-field="temporal_alpha_mae">{record['temporal_alpha_mae']}</td><th>动图体积</th><td data-field="file_mb">{record['file_mb']}</td></tr>
               </tbody></table>
-              <footer><span>{html.escape(view['alpha'])}</span><span>{html.escape(str(runtime['note']))}</span></footer>
+              <footer><span>{html.escape(view['alpha'])}</span><span data-field="note">{html.escape(record['note'])}</span></footer>
             </article>
             """
         )
 
+    initial = action_payload[initial_action]
     document = f"""<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>实体版宠物 · 抠图模型动图对比</title>
+<title>实体版宠物 · 快走与睡眠抠图动图对比</title>
 <style>
 :root{{--bg:#f2f4f1;--panel:#fff;--text:#18201c;--muted:#68726c;--line:#d8ddd9;--green:#176b55;--green-soft:#e7f3ee;--warm:#8b583f;--warn:#8a5a24}}
 *{{box-sizing:border-box}}body{{margin:0;background:var(--bg);color:var(--text);font:13px/1.45 Inter,"Microsoft YaHei",sans-serif;letter-spacing:0}}button{{font:inherit}}.shell{{width:min(1540px,calc(100% - 32px));margin:auto;padding:22px 0 60px}}
 .top{{display:flex;justify-content:space-between;align-items:end;gap:28px;padding-bottom:16px;border-bottom:1px solid var(--line)}}h1{{margin:3px 0;font-size:28px}}h2{{margin:24px 0 10px;font-size:18px}}p{{margin:0;color:var(--muted)}}.eyebrow{{color:var(--green);font-size:11px;font-weight:700}}.top>p{{max-width:530px}}
 .pipeline{{display:grid;grid-template-columns:1.3fr repeat(4,minmax(125px,.7fr));gap:8px;margin:14px 0}}.pipeline>div{{padding:11px 12px;border:1px solid var(--line);border-radius:7px;background:#fff}}.pipeline .decision{{background:var(--green-soft);border-color:#afd1c5}}.pipeline span{{display:block;color:var(--muted);font-size:11px}}.pipeline strong{{display:block;margin-top:2px;font-size:20px;font-variant-numeric:tabular-nums}}.pipeline .decision strong{{font-size:17px}}
 .source-grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}}.source-item{{overflow:hidden;border:1px solid var(--line);border-radius:8px;background:#fff}}.source-item header{{padding:9px 11px;border-bottom:1px solid var(--line)}}.source-media,.motion-stage{{aspect-ratio:1;background-color:#f7f8f7;background-image:linear-gradient(45deg,#e8ebe8 25%,transparent 25%),linear-gradient(-45deg,#e8ebe8 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#e8ebe8 75%),linear-gradient(-45deg,transparent 75%,#e8ebe8 75%);background-size:20px 20px;background-position:0 0,0 10px,10px -10px,-10px 0}}.source-media img,.motion-stage img{{width:100%;height:100%;object-fit:contain;display:block}}.source-item footer{{display:flex;justify-content:space-between;padding:8px 11px;color:var(--muted);font-size:11px}}
-.section-row{{display:flex;align-items:center;justify-content:space-between;gap:12px}}.controls{{display:flex;gap:5px;overflow:auto;padding:5px 0}}button{{border:1px solid var(--line);border-radius:6px;background:#fff;padding:6px 9px;white-space:nowrap;cursor:pointer}}button.active{{color:#fff;background:var(--green);border-color:var(--green)}}
+.section-row{{display:flex;align-items:center;justify-content:space-between;gap:12px}}.controls{{display:flex;gap:5px;overflow:auto;padding:5px 0}}button{{border:1px solid var(--line);border-radius:6px;background:#fff;padding:6px 9px;white-space:nowrap;cursor:pointer}}button.active{{color:#fff;background:var(--green);border-color:var(--green)}}.action-button{{font-weight:700}}
 .model-grid{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}}.model-card{{overflow:hidden;border:1px solid var(--line);border-radius:8px;background:var(--panel)}}.model-card>header{{display:flex;justify-content:space-between;align-items:start;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line)}}.model-card small{{display:block;color:var(--muted)}}.badge{{padding:2px 6px;border-radius:5px;font-size:10px;white-space:nowrap;background:#f1eee9;color:var(--warm)}}.badge.primary{{background:var(--green-soft);color:var(--green)}}.badge.candidate{{background:#edf3f0;color:#326a59}}.badge.research{{background:#f5eee7;color:var(--warn)}}
 .motion-stage{{aspect-ratio:1}}.model-grid[data-background="white"] .motion-stage{{background:#fff;background-image:none}}.model-grid[data-background="black"] .motion-stage{{background:#111;background-image:none}}.summary{{min-height:48px;padding:9px 12px;border-top:1px solid var(--line)}}
 .runtime-grid{{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}}.runtime-grid div{{padding:8px 9px;border-right:1px solid var(--line)}}.runtime-grid div:last-child{{border-right:0}}.runtime-grid span{{display:block;color:var(--muted);font-size:10px}}.runtime-grid strong{{display:block;margin-top:2px;font-size:15px;font-variant-numeric:tabular-nums}}
 .quality{{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}}.quality th,.quality td{{padding:6px 8px;border-bottom:1px solid #edf0ed;text-align:right}}.quality th{{color:var(--muted);font-size:10px;font-weight:500;text-align:left}}.model-card>footer{{display:flex;justify-content:space-between;gap:12px;padding:8px 11px;color:var(--muted);font-size:10px}}.model-card>footer span:last-child{{text-align:right}}.method{{margin-top:12px;padding:11px 0;border-top:1px solid var(--line);color:var(--muted)}}
 @media(max-width:1100px){{.pipeline{{grid-template-columns:repeat(2,1fr)}}.pipeline .decision{{grid-column:1/-1}}.model-grid{{grid-template-columns:repeat(2,minmax(0,1fr))}}}}@media(max-width:700px){{.top,.section-row{{display:block}}.source-grid,.model-grid,.pipeline{{grid-template-columns:1fr}}.pipeline .decision{{grid-column:auto}}.runtime-grid{{grid-template-columns:repeat(2,1fr)}}.runtime-grid div:nth-child(2){{border-right:0}}.runtime-grid div:nth-child(-n+2){{border-bottom:1px solid var(--line)}}}}
 </style></head><body><main class="shell">
-<section class="top"><div><span class="eyebrow">ENTITY VERSION · FAST WALK</span><h1>实体版宠物抠图模型动图对比</h1><p>同一只宠物、同一段 AI 快走绿幕视频、同一组 24 帧输入。页面不包含萌宠版。</p></div><p>全部动图统一为 640×640、24 帧、{args.fps:g} FPS、{source_asset['duration_ms']/1000:.1f} 秒循环。质量数值越低越好；软 alpha 比例不是越低越好。</p></section>
+<section class="top"><div><span class="eyebrow">ENTITY VERSION · FAST WALK / SLEEP</span><h1>实体版宠物抠图模型动图对比</h1><p>同一只实体宠物，分别比较快走和睡眠两种动作；页面不包含萌宠版。</p></div><p>全部动图统一为 640×640、24 帧、{args.fps:g} FPS、{actions[initial_action]['source_asset']['duration_ms']/1000:.1f} 秒循环。切换动作时图片、时间和质量指标会同步更新。</p></section>
 <section class="pipeline"><div class="decision"><span>当前生产结论</span><strong>自研绿幕主链 + BiRefNet General 异常后备</strong><span>模型只在失败样本触发，避免默认增加 GPU 时间和边缘污染。</span></div><div><span>单只宠物整套生成</span><strong>{pipeline['total_seconds']:.1f}s</strong><span>约 {pipeline['total_seconds']/60:.1f} 分钟</span></div><div><span>API 图像/视频生成</span><strong>{pipeline['api_seconds']:.1f}s</strong><span>{pipeline['image_tasks']} 个图像任务 + {pipeline['video_tasks']} 个视频任务</span></div><div><span>本地抠图与 WebP</span><strong>{pipeline['matte_seconds']:.1f}s</strong><span>idle / sleep / fast_walk 三段</span></div><div><span>API token</span><strong>{pipeline['tokens']:,}</strong><span>图像与视频任务 usage 合计</span></div></section>
-<h2>实体版素材链路</h2><section class="source-grid"><article class="source-item"><header><strong>1. 上传原图</strong><p>用户真实宠物照片</p></header><div class="source-media"><img src="{original_url}" alt="上传的真实宠物照片"></div><footer><span>实体版输入</span><span>不展示萌宠版</span></footer></article><article class="source-item"><header><strong>2. 实体形象首帧</strong><p>Seedream 图生图结果</p></header><div class="source-media"><img src="{entity_url}" alt="生成的实体宠物形象"></div><footer><span>图生图 {pipeline['stylize_seconds']:.1f}s</span><span>全身居中</span></footer></article><article class="source-item"><header><strong>3. 快走绿幕动作源</strong><p>所有模型使用同一段连续帧</p></header><div class="source-media"><img class="motion" src="{source_url}" data-src="{source_url}" alt="实体宠物快走绿幕动作"></div><footer><span>24 帧对比样本</span><span>原视频 720p / 无声</span></footer></article></section>
-<div class="section-row"><h2>九种抠图路径动图对比</h2><div class="controls"><button type="button" data-filter="all" class="active">全部</button><button type="button" data-filter="candidate">生产候选</button><button type="button" data-filter="research">研究对照</button><button type="button" data-background="checker" class="active">棋盘格</button><button type="button" data-background="white">白底</button><button type="button" data-background="black">黑底</button><button type="button" id="replay">↻ 同步重播</button></div></div>
+<h2>实体版素材链路</h2><section class="source-grid"><article class="source-item"><header><strong>1. 上传原图</strong><p>用户真实宠物照片</p></header><div class="source-media"><img src="{original_url}" alt="上传的真实宠物照片"></div><footer><span>实体版输入</span><span>不展示萌宠版</span></footer></article><article class="source-item"><header><strong>2. 实体形象首帧</strong><p>Seedream 图生图结果</p></header><div class="source-media"><img src="{entity_url}" alt="生成的实体宠物形象"></div><footer><span>图生图 {pipeline['stylize_seconds']:.1f}s</span><span>全身居中</span></footer></article><article class="source-item"><header><strong id="source-title">{initial['source_title']}</strong><p id="source-description">{initial['source_description']}</p></header><div class="source-media"><img id="source-motion" class="motion" src="{initial['source_url']}" data-src="{initial['source_url']}" alt="实体宠物动作绿幕源"></div><footer><span id="source-loop">{initial['loop']}</span><span>原视频 720p / 无声</span></footer></article></section>
+<div class="section-row"><h2><span id="action-label">{initial['label']}</span> · 九种抠图路径</h2><div class="controls"><button type="button" data-action="fast_walk" class="action-button active">快走</button><button type="button" data-action="sleep" class="action-button">睡眠</button><button type="button" data-filter="all" class="active">全部</button><button type="button" data-filter="candidate">生产候选</button><button type="button" data-filter="research">研究对照</button><button type="button" data-background="checker" class="active">棋盘格</button><button type="button" data-background="white">白底</button><button type="button" data-background="black">黑底</button><button type="button" id="replay">↻ 同步重播</button></div></div>
 <section class="model-grid" data-background="checker">{''.join(card_html)}</section>
-<p class="method">计时说明：总任务耗时包含各 provider 实际记录的模型加载、预处理、诊断和写盘；24 帧核心处理用于观察模型批次本身；稳态推理排除首帧冷启动。pseudo MAE、背景 alpha、前景损失、绿边、碎片率和软 alpha 来自 idle / fast_walk / sleep 共 9 张 960×960 固定帧；时序误差和本页耗时来自当前 24 帧快走序列。当前没有人工逐像素 alpha 真值，质量指标只用于同源相对比较，并经过黑底、白底和棋盘格人工复核。</p>
+<p class="method">计时和质量指标均来自当前所选动作的同一组 24 帧、640×640 连续序列。总任务耗时包含各 provider 实际记录的模型加载、预处理、诊断和写盘；24 帧核心处理用于观察模型批次本身；稳态推理排除首帧冷启动。当前没有人工逐像素 alpha 真值，指标只用于同源相对比较，并经过黑底、白底和棋盘格人工复核。SAM2 的绿边和软 alpha 为零源于二值输出，不代表毛发质量最好。</p>
 </main><script>
-const grid=document.querySelector('.model-grid');const cards=[...document.querySelectorAll('.model-card')];const filterButtons=[...document.querySelectorAll('button[data-filter]')];const backgroundButtons=[...document.querySelectorAll('button[data-background]')];
-filterButtons.forEach(button=>button.addEventListener('click',()=>{{filterButtons.forEach(item=>item.classList.toggle('active',item===button));cards.forEach(card=>card.hidden=button.dataset.filter!=='all'&&card.dataset.category!==button.dataset.filter)}}));
-backgroundButtons.forEach(button=>button.addEventListener('click',()=>{{backgroundButtons.forEach(item=>item.classList.toggle('active',item===button));grid.dataset.background=button.dataset.background}}));
-document.getElementById('replay').addEventListener('click',()=>{{const stamp=Date.now();document.querySelectorAll('img.motion').forEach(image=>{{const source=image.dataset.src;image.src='';requestAnimationFrame(()=>image.src=source+'?sync='+stamp)}})}});
+const actionData={payload_json};const grid=document.querySelector('.model-grid');const cards=[...document.querySelectorAll('.model-card')];const actionButtons=[...document.querySelectorAll('button[data-action]')];const filterButtons=[...document.querySelectorAll('button[data-filter]')];const backgroundButtons=[...document.querySelectorAll('button[data-background]')];
+function replay(){{const stamp=Date.now();document.querySelectorAll('img.motion').forEach(image=>{{const source=image.dataset.src;const separator=source.includes('?')?'&':'?';image.src=source+separator+'sync='+stamp}})}}
+function applyAction(action){{const selected=actionData[action];actionButtons.forEach(button=>button.classList.toggle('active',button.dataset.action===action));document.getElementById('action-label').textContent=selected.label;document.getElementById('source-title').textContent=selected.source_title;document.getElementById('source-description').textContent=selected.source_description;document.getElementById('source-loop').textContent=selected.loop;const source=document.getElementById('source-motion');source.dataset.src=selected.source_url;cards.forEach(card=>{{const record=selected.providers[card.dataset.provider];const image=card.querySelector('img.motion');image.dataset.src=record.url;card.querySelectorAll('[data-field]').forEach(node=>node.textContent=record[node.dataset.field])}});replay()}}
+actionButtons.forEach(button=>button.addEventListener('click',()=>applyAction(button.dataset.action)));filterButtons.forEach(button=>button.addEventListener('click',()=>{{filterButtons.forEach(item=>item.classList.toggle('active',item===button));cards.forEach(card=>card.hidden=button.dataset.filter!=='all'&&card.dataset.category!==button.dataset.filter)}}));backgroundButtons.forEach(button=>button.addEventListener('click',()=>{{backgroundButtons.forEach(item=>item.classList.toggle('active',item===button));grid.dataset.background=button.dataset.background}}));document.getElementById('replay').addEventListener('click',replay);
 </script></body></html>"""
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(document, encoding="utf-8")
     print(output)
-    print(f"providers={len(cards)} assets={assets_dir}")
+    print(f"providers={len(cards)} actions={len(actions)} assets={assets_dir}")
 
 
 if __name__ == "__main__":
