@@ -21,6 +21,7 @@ DEFAULT_FRAME_COUNT = 96
 
 PROVIDER_NAMES = (
     "adaptive_green_baseline",
+    "adaptive_green_edge_v2",
     "ZhengPeng7/BiRefNet (General)",
     "vitmatte_adaptive_green_hybrid",
     "rembg",
@@ -105,6 +106,19 @@ def commands(
             "cpu",
             "--core-despill",
             "1.10",
+        ],
+        "adaptive_green_edge_v2": [
+            sys.executable,
+            str(BENCH_ROOT / "providers" / "baseline" / "infer.py"),
+            "--input-dir",
+            str(input_dir),
+            "--output-dir",
+            out("adaptive_green_edge_v2"),
+            "--device",
+            "cpu",
+            "--core-despill",
+            "1.10",
+            "--edge-refine",
         ],
         "ZhengPeng7/BiRefNet (General)": [
             str(python_in("birefnet")),
@@ -347,6 +361,8 @@ def main() -> None:
             command = provider_commands[name]
             if name == "adaptive_green_baseline":
                 directory = output_root / "adaptive_green_baseline"
+            elif name == "adaptive_green_edge_v2":
+                directory = output_root / "adaptive_green_edge_v2"
             elif name == "ZhengPeng7/BiRefNet (General)":
                 directory = output_root / "birefnet_general"
             elif name == "vitmatte_adaptive_green_hybrid":
@@ -391,7 +407,11 @@ def main() -> None:
                     raise RuntimeError(
                         f"partial output exists for {name}: {directory}; remove it explicitly before rerun"
                     )
-                run(command, gpu=name != "adaptive_green_baseline")
+                run(
+                    command,
+                    gpu=name
+                    not in {"adaptive_green_baseline", "adaptive_green_edge_v2"},
+                )
             frames = output_frames(directory, args.frame_count)
             if len(frames) != args.frame_count:
                 raise RuntimeError(f"provider {name} produced {len(frames)} frames")

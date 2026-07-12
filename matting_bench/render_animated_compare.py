@@ -7,6 +7,7 @@ page-local assets so the existing poc_output HTTP server can serve them.
 from __future__ import annotations
 
 import argparse
+import copy
 import html
 import json
 import re
@@ -27,14 +28,15 @@ RECOMMENDATION_KEYS = (
 
 PROVIDER_ORDER = {
     "adaptive_green_baseline": 0,
-    "ZhengPeng7/BiRefNet (General)": 1,
-    "vitmatte_adaptive_green_hybrid": 2,
-    "rembg": 3,
-    "ben2": 4,
-    "ZhengPeng7/BiRefNet-matting": 5,
-    "paddle_matting": 6,
-    "official_matanyone_v1": 7,
-    "official_meta_sam2_1_small_video": 8,
+    "adaptive_green_edge_v2": 1,
+    "ZhengPeng7/BiRefNet (General)": 2,
+    "vitmatte_adaptive_green_hybrid": 3,
+    "rembg": 4,
+    "ben2": 5,
+    "ZhengPeng7/BiRefNet-matting": 6,
+    "paddle_matting": 7,
+    "official_matanyone_v1": 8,
+    "official_meta_sam2_1_small_video": 9,
 }
 
 ACTION_VIEW = {
@@ -56,6 +58,12 @@ PROVIDER_VIEW = {
         "role": "当前生产主链",
         "summary": "不占 GPU，毛发保留、背景纯净和工程成本最均衡。",
         "alpha": "软 alpha",
+    },
+    "adaptive_green_edge_v2": {
+        "name": "自研边缘优化 v2",
+        "role": "优化候选",
+        "summary": "窄带抗锯齿并用邻近内部毛色重建尾巴、爪部等高曲率边缘。",
+        "alpha": "亚像素软 alpha",
     },
     "ZhengPeng7/BiRefNet (General)": {
         "name": "BiRefNet General",
@@ -224,6 +232,15 @@ def runtime_metrics(
             "frame_ms": float(data["mean_ms_per_frame"]),
             "vram_mb": 0.0,
             "note": "CPU 全流程，含 alpha、去绿和 PNG 写盘",
+        }
+    if provider == "adaptive_green_edge_v2":
+        return {
+            "task_seconds": float(data["total_seconds"]),
+            "core_seconds": float(data["total_seconds"]),
+            "inference_ms": None,
+            "frame_ms": float(data["mean_ms_per_frame"]),
+            "vram_mb": 0.0,
+            "note": "CPU 全流程，含窄带抗锯齿、边缘颜色重建和 PNG 写盘",
         }
     if provider == "ben2":
         summary = data["summary"]
@@ -396,7 +413,10 @@ def main() -> None:
     actions: dict[str, dict[str, Any]] = {}
     for action, manifest_path in manifest_paths.items():
         manifest = read_json(manifest_path)
-        if manifest.get("action") != action or manifest.get("provider_count") != 9:
+        if (
+            manifest.get("action") != action
+            or manifest.get("provider_count") != len(PROVIDER_VIEW)
+        ):
             raise ValueError(f"invalid action manifest: {manifest_path}")
         evaluation = read_json(repo_root / manifest["evaluation_json"])
         source_dir = repo_root / manifest["source_dir"]
@@ -410,8 +430,18 @@ def main() -> None:
             "providers": {},
         }
 
+    aggregate_providers = list(aggregate.get("providers", []))
+    baseline_provider = next(
+        item
+        for item in aggregate_providers
+        if item["provider"] == "adaptive_green_baseline"
+    )
+    edge_provider = copy.deepcopy(baseline_provider)
+    edge_provider["provider"] = "adaptive_green_edge_v2"
+    aggregate_providers.insert(1, edge_provider)
+
     cards: list[dict[str, Any]] = []
-    for provider in aggregate.get("providers", []):
+    for provider in aggregate_providers:
         config_id = recommendation_id(provider)
         config = next(
             (item for item in provider.get("configs", []) if item.get("id") == config_id),
@@ -542,7 +572,7 @@ def main() -> None:
 <section class="top"><div><span class="eyebrow">ENTITY VERSION · FAST WALK / SLEEP</span><h1>实体版宠物抠图模型动图对比</h1><p>同一只实体宠物，分别比较快走和睡眠两种完整大动作；页面不包含萌宠版。</p></div><p>全部动图统一为 640×640、{actions[initial_action]['source_asset']['frames']} 帧、{args.fps:g} FPS、{actions[initial_action]['source_asset']['duration_ms']/1000:.1f} 秒循环。切换动作时图片、时间和质量指标会同步更新。</p></section>
 <section class="pipeline"><div class="decision"><span>当前生产结论</span><strong>自研绿幕主链 + BiRefNet General 异常后备</strong><span>模型只在失败样本触发，避免默认增加 GPU 时间和边缘污染。</span></div><div><span>单只宠物整套生成</span><strong>{pipeline['total_seconds']:.1f}s</strong><span>约 {pipeline['total_seconds']/60:.1f} 分钟</span></div><div><span>API 图像/视频生成</span><strong>{pipeline['api_seconds']:.1f}s</strong><span>{pipeline['image_tasks']} 个图像任务 + {pipeline['video_tasks']} 个视频任务</span></div><div><span>本地抠图与 WebP</span><strong>{pipeline['matte_seconds']:.1f}s</strong><span>idle / sleep / fast_walk 三段</span></div><div><span>API token</span><strong>{pipeline['tokens']:,}</strong><span>图像与视频任务 usage 合计</span></div></section>
 <h2>实体版素材链路</h2><section class="source-grid"><article class="source-item"><header><strong>1. 上传原图</strong><p>用户真实宠物照片</p></header><div class="source-media"><img src="{original_url}" alt="上传的真实宠物照片"></div><footer><span>实体版输入</span><span>不展示萌宠版</span></footer></article><article class="source-item"><header><strong>2. 实体形象首帧</strong><p>Seedream 图生图结果</p></header><div class="source-media"><img src="{entity_url}" alt="生成的实体宠物形象"></div><footer><span>图生图 {pipeline['stylize_seconds']:.1f}s</span><span>全身居中</span></footer></article><article class="source-item"><header><strong id="source-title">{initial['source_title']}</strong><p id="source-description">{initial['source_description']}</p></header><div class="source-media"><img id="source-motion" class="motion" src="{initial['source_url']}" data-src="{initial['source_url']}" alt="实体宠物动作绿幕源"></div><footer><span id="source-loop">{initial['loop']}</span><span>原视频 720p / 无声</span></footer></article></section>
-<div class="section-row"><h2><span id="action-label">{initial['label']}</span> · 九种抠图路径</h2><div class="controls"><button type="button" data-action="fast_walk" class="action-button active">快走</button><button type="button" data-action="sleep" class="action-button">睡眠</button><button type="button" data-filter="all">全部</button><button type="button" data-filter="candidate" class="active">生产候选</button><button type="button" data-filter="research">研究对照</button><button type="button" data-background="checker" class="active">棋盘格</button><button type="button" data-background="white">白底</button><button type="button" data-background="black">黑底</button><button type="button" id="replay">↻ 同步重播</button></div></div>
+<div class="section-row"><h2><span id="action-label">{initial['label']}</span> · 十种抠图路径</h2><div class="controls"><button type="button" data-action="fast_walk" class="action-button active">快走</button><button type="button" data-action="sleep" class="action-button">睡眠</button><button type="button" data-filter="all">全部</button><button type="button" data-filter="candidate" class="active">生产候选</button><button type="button" data-filter="research">研究对照</button><button type="button" data-background="checker" class="active">棋盘格</button><button type="button" data-background="white">白底</button><button type="button" data-background="black">黑底</button><button type="button" id="replay">↻ 同步重播</button></div></div>
 <section class="model-grid" data-background="checker">{''.join(card_html)}</section>
 <p class="method">计时和质量指标均来自当前所选动作的完整 96 帧、640×640 连续序列。总任务耗时包含各 provider 实际记录的模型加载、预处理、诊断和写盘；全序列核心处理用于观察模型批次本身；稳态推理排除首帧冷启动。当前没有人工逐像素 alpha 真值，指标只用于同源相对比较，并经过黑底、白底和棋盘格人工复核。SAM2 的绿边和软 alpha 为零源于二值输出，不代表毛发质量最好。</p>
 </main><script>

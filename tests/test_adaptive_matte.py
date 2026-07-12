@@ -7,6 +7,7 @@ from poc import (
     adaptive_green_matte_frame,
     assess_rgba_frames,
     edge_profile_for_pet,
+    refine_adaptive_edge,
     refine_reframed_halo,
     suppress_opaque_key_halo,
 )
@@ -128,6 +129,41 @@ class AdaptiveGreenMatteTest(unittest.TestCase):
 
         self.assertAlmostEqual(cartoon_delta, source_delta, places=5)
         self.assertLess(real_delta, source_delta * 0.75)
+
+    def test_edge_refine_adds_subpixel_alpha_without_expanding_far_background(self):
+        rgb = np.zeros((80, 80, 3), dtype=np.float32)
+        alpha = np.zeros((80, 80), dtype=np.float32)
+        for y in range(12, 68):
+            end = 55 + (2 if y % 4 < 2 else 0)
+            alpha[y, 18:end] = 1.0
+            rgb[y, 18:end] = (0.34, 0.27, 0.20)
+
+        _, refined = refine_adaptive_edge(rgb, alpha, profile="real")
+
+        soft_pixels = (refined > 0.02) & (refined < 0.98)
+        self.assertGreater(int(soft_pixels.sum()), 120)
+        self.assertEqual(float(refined[:, 62:].max()), 0.0)
+        self.assertEqual(float(refined[30, 30]), 1.0)
+
+    def test_edge_refine_rebuilds_green_and_overbright_rim_from_core_color(self):
+        rgb = np.zeros((80, 80, 3), dtype=np.float32)
+        alpha = np.zeros((80, 80), dtype=np.float32)
+        alpha[12:68, 12:68] = 1.0
+        rgb[12:68, 12:68] = (0.34, 0.27, 0.20)
+        rgb[12:15, 12:68] = (0.80, 0.98, 0.18)
+
+        refined_rgb, refined_alpha = refine_adaptive_edge(rgb, alpha, profile="real")
+        before_bias = rgb[13, 40, 1] - max(rgb[13, 40, 0], rgb[13, 40, 2])
+        after_bias = refined_rgb[13, 40, 1] - max(
+            refined_rgb[13, 40, 0], refined_rgb[13, 40, 2]
+        )
+        before_luma = float(np.dot(rgb[13, 40], (0.299, 0.587, 0.114)))
+        after_luma = float(np.dot(refined_rgb[13, 40], (0.299, 0.587, 0.114)))
+
+        self.assertLess(after_bias, before_bias * 0.25)
+        self.assertLess(after_luma, before_luma - 0.12)
+        self.assertLess(float(refined_alpha[12:15, 40].min()), 1.0)
+        np.testing.assert_allclose(refined_rgb[40, 40], rgb[40, 40], atol=1e-6)
 
 
 if __name__ == "__main__":

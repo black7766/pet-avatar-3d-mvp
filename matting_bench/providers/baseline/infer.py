@@ -43,6 +43,11 @@ def main() -> None:
     parser.add_argument(
         "--halo-profile", choices=("real", "cartoon", "none"), default="real"
     )
+    parser.add_argument(
+        "--edge-refine",
+        action="store_true",
+        help="anti-alias a narrow silhouette band and rebuild contaminated edge color",
+    )
     args = parser.parse_args()
 
     if not 0.001 <= args.foreground_score <= 0.10:
@@ -83,6 +88,10 @@ def main() -> None:
             clean_rgb, clean_alpha = poc.refine_reframed_halo(
                 rgba[:, :, :3], rgba[:, :, 3], profile=args.halo_profile
             )
+        if args.edge_refine:
+            clean_rgb, clean_alpha = poc.refine_adaptive_edge(
+                clean_rgb, clean_alpha, profile=args.halo_profile
+            )
         clean_rgb[clean_alpha == 0.0] = 0.0
         packed = np.dstack((np.clip(clean_rgb, 0.0, 1.0), clean_alpha))
         result = Image.fromarray((packed * 255.0 + 0.5).astype(np.uint8), "RGBA")
@@ -90,7 +99,9 @@ def main() -> None:
         times.append(time.perf_counter() - frame_started)
     elapsed = time.perf_counter() - started
     metrics = {
-        "provider": "adaptive_green_baseline",
+        "provider": (
+            "adaptive_green_edge_v2" if args.edge_refine else "adaptive_green_baseline"
+        ),
         "device": "cpu",
         "frames": len(paths),
         "total_seconds": round(elapsed, 4),
@@ -103,6 +114,7 @@ def main() -> None:
             "core_radius_ratio": args.core_radius_ratio,
             "halo_strength": args.halo_strength,
             "halo_profile": args.halo_profile,
+            "edge_refine": args.edge_refine,
         },
         "profile": {
             key: value.tolist() if hasattr(value, "tolist") else value

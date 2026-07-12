@@ -72,6 +72,7 @@ GREEN_CORE_DESPILL_STRENGTH = float(os.environ.get("PETAVATAR_GREEN_CORE_DESPILL
 GREEN_CORE_DESPILL_RADIUS_RATIO = float(os.environ.get("PETAVATAR_GREEN_CORE_RADIUS_RATIO", "0.16"))
 GREEN_OPAQUE_HALO_RADIUS = float(os.environ.get("PETAVATAR_GREEN_HALO_RADIUS", "8"))
 GREEN_OPAQUE_HALO_STRENGTH = float(os.environ.get("PETAVATAR_GREEN_HALO_STRENGTH", "0.90"))
+GREEN_EDGE_REFINE = os.environ.get("PETAVATAR_GREEN_EDGE_REFINE", "1") != "0"
 EDGE_PROFILE = os.environ.get("PETAVATAR_EDGE_PROFILE", "auto").strip().lower()
 if EDGE_PROFILE not in {"auto", "real", "cartoon"}:
     raise ValueError("PETAVATAR_EDGE_PROFILE must be auto, real, or cartoon")
@@ -1164,6 +1165,105 @@ def refine_reframed_halo(rgb, alpha, profile="cartoon"):
     return clean_rgb, clean_alpha
 
 
+def refine_adaptive_edge(rgb, alpha, profile="real"):
+    """Anti-alias the narrow silhouette band and rebuild contaminated edge color.
+
+    Green-screen thresholds can leave one-pixel stair steps on thin tails and paws.
+    This pass changes only a three-pixel contour band. Any newly softened pixels
+    borrow color from the nearest opaque foreground, preventing a green or bright
+    fringe when composited over light and dark backgrounds.
+    """
+    import cv2
+    import numpy as np
+
+    clean_rgb = np.clip(rgb.astype(np.float32, copy=True), 0.0, 1.0)
+    source_alpha = np.clip(alpha.astype(np.float32, copy=False), 0.0, 1.0)
+    solid = source_alpha >= 0.50
+    if not solid.any():
+        return clean_rgb, source_alpha.copy()
+
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    closed = cv2.morphologyEx(solid.astype(np.uint8), cv2.MORPH_CLOSE, kernel)
+    contour_alpha = cv2.GaussianBlur(
+        closed.astype(np.float32), (0, 0), sigmaX=0.72, sigmaY=0.72
+    )
+    outer = cv2.dilate(closed, kernel, iterations=2).astype(bool)
+    inner = cv2.erode(closed, kernel, iterations=2).astype(bool)
+    contour_band = outer & ~inner
+
+    clean_alpha = source_alpha.copy()
+    target = source_alpha * 0.42 + contour_alpha * 0.58
+    # Preserve fine semi-transparent fur while suppressing isolated staircase teeth.
+    target = np.maximum(target, source_alpha * 0.88)
+    clean_alpha[contour_band] = target[contour_band]
+    clean_alpha[~outer & (source_alpha < 0.035)] = 0.0
+    clean_alpha[clean_alpha < 0.012] = 0.0
+    clean_alpha[clean_alpha > 0.992] = 1.0
+
+    inner_distance = cv2.distanceTransform(
+        solid.astype(np.uint8), cv2.DIST_L2, 5
+    )
+    core = (source_alpha >= 0.90) & (inner_distance >= 7.0)
+    if not core.any():
+        core = (source_alpha >= 0.90) & (inner_distance >= 3.0)
+    if not core.any():
+        return clean_rgb, clean_alpha
+    _, nearest_labels = cv2.distanceTransformWithLabels(
+        (~core).astype(np.uint8),
+        cv2.DIST_L2,
+        5,
+        labelType=cv2.DIST_LABEL_PIXEL,
+    )
+    core_labels = nearest_labels[core]
+    color_lut = np.zeros((int(nearest_labels.max()) + 1, 3), dtype=np.float32)
+    color_lut[core_labels] = clean_rgb[core]
+    nearest_core = color_lut[nearest_labels]
+
+    red, green, blue = (
+        clean_rgb[:, :, 0],
+        clean_rgb[:, :, 1],
+        clean_rgb[:, :, 2],
+    )
+    luminance = red * 0.299 + green * 0.587 + blue * 0.114
+    core_luminance = (
+        nearest_core[:, :, 0] * 0.299
+        + nearest_core[:, :, 1] * 0.587
+        + nearest_core[:, :, 2] * 0.114
+    )
+    green_bias = green - (red * 0.65 + blue * 0.35)
+    expansion = np.clip((clean_alpha - source_alpha) / 0.30, 0.0, 1.0)
+    glow = np.clip((luminance - core_luminance - 0.055) / 0.22, 0.0, 1.0)
+    spill = np.clip((green_bias - 0.008) / 0.16, 0.0, 1.0)
+    edge_pixels = contour_band & (clean_alpha > 0.01)
+    color_weight = np.clip(
+        expansion * 0.72 + np.maximum(glow, spill) * 0.78,
+        0.0,
+        0.92,
+    )
+    color_weight *= edge_pixels
+    clean_rgb = (
+        clean_rgb * (1.0 - color_weight[:, :, None])
+        + nearest_core * color_weight[:, :, None]
+    )
+
+    # A final conservative cap removes residual green and over-bright edge light.
+    red, green, blue = (
+        clean_rgb[:, :, 0],
+        clean_rgb[:, :, 1],
+        clean_rgb[:, :, 2],
+    )
+    max_rb = np.maximum(red, blue)
+    green[edge_pixels] = np.minimum(green[edge_pixels], max_rb[edge_pixels] + 0.008)
+    corrected_luminance = red * 0.299 + green * 0.587 + blue * 0.114
+    max_luminance = core_luminance + (0.08 if profile == "real" else 0.16)
+    tone_scale = np.clip(
+        max_luminance / np.maximum(corrected_luminance, 0.02), 0.72, 1.0
+    )
+    clean_rgb[edge_pixels] *= tone_scale[edge_pixels, None]
+    clean_rgb[clean_alpha == 0.0] = 0.0
+    return np.clip(clean_rgb, 0.0, 1.0), clean_alpha
+
+
 def profile_green_screen(raw_frames):
     """Build one clip-level green profile so alpha does not pulse frame to frame."""
     import cv2
@@ -1915,6 +2015,11 @@ def reframe_loop_frames(frames, edge_profile="cartoon"):
         clean_rgb, clean_alpha = refine_reframed_halo(
             canvas_arr[:, :, :3], canvas_arr[:, :, 3], profile=edge_profile
         )
+        edge_refine_enabled = GREEN_EDGE_REFINE and edge_profile == "real"
+        if edge_refine_enabled:
+            clean_rgb, clean_alpha = refine_adaptive_edge(
+                clean_rgb, clean_alpha, profile=edge_profile
+            )
         clean_rgb[clean_alpha == 0.0] = 0.0
         cleaned = np.dstack([np.clip(clean_rgb, 0.0, 1.0), clean_alpha])
         out.append(Image.fromarray((cleaned * 255.0 + 0.5).astype(np.uint8), "RGBA"))
@@ -1931,6 +2036,9 @@ def reframe_loop_frames(frames, edge_profile="cartoon"):
         "scale": round(scale, 4),
         "paste": [paste_x, paste_y],
         "target_size": [new_w, new_h],
+        "edge_refine": (
+            "v2" if GREEN_EDGE_REFINE and edge_profile == "real" else "disabled"
+        ),
     }
 
 

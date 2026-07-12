@@ -92,5 +92,8 @@ python matting_bench/render_animated_compare.py
 - Actions: entity-version `fast_walk` and `sleep`, switchable on the same page
 - Playback: 640x640, 96 real consecutive frames, 19.2 FPS, 5-second silent loop
 - Metrics: runtime and quality values switch with the selected action
+- Self-developed variants: original adaptive green baseline and `edge_v2`
+- `edge_v2`: 2-3px contour anti-aliasing plus nearest-core color reconstruction
+- Production default: enabled for entity/real assets only; set `PETAVATAR_GREEN_EDGE_REFINE=0` to roll back
 - Controls: production/research filter, checker/white/black background, synchronized replay
 - Loading: production candidates load first; hidden research animations load on demand
