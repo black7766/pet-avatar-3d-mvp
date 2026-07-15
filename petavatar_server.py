@@ -421,11 +421,21 @@ def subprocess_env() -> dict[str, str]:
     env.setdefault("PETAVATAR_WEBP_QUALITY", "94")
     env.setdefault("PETAVATAR_SINGLE_SOURCE", "0")
     env.setdefault("PETAVATAR_LOCK_STATE_LAST_FRAME", "1")
-    env.setdefault("PETAVATAR_CLIP_DURATION", "4")
+    env.setdefault("PETAVATAR_CLIP_DURATION", "5")
     env.setdefault("PETAVATAR_CLIP_RESOLUTION", "720p")
     env.setdefault("PETAVATAR_PARALLEL_STATE_FRAMES", "2")
     env.setdefault("PETAVATAR_MATTE_PIPELINE", "memory")
     env.setdefault("PETAVATAR_PARALLEL_MATTE", "3")
+    env.setdefault("PETAVATAR_PRODUCTION_PIPELINE", "airgap_motion_v4")
+    env.setdefault("PETAVATAR_GREEN_TEMPORAL_REFINE", "1")
+    env.setdefault("PETAVATAR_TEMPORAL_FLOW_SIZE", "384")
+    env.setdefault("PETAVATAR_GREEN_MOTION_ALPHA_REFINE", "1")
+    env.setdefault("PETAVATAR_GREEN_MOTION_THRESHOLD", "10")
+    env.setdefault("PETAVATAR_GREEN_MOTION_DILATE", "4")
+    env.setdefault("PETAVATAR_GREEN_PRESERVE_LOWER_MOTION", "1")
+    env.setdefault("PETAVATAR_REAL_ALPHA_EDGE_CONTRAST", "1.18")
+    env.setdefault("PETAVATAR_SAM2_STRUCTURAL_REFINE", "0")
+    env.setdefault("PETAVATAR_SAM2_STRUCTURAL_CLIPS", "fast_walk")
     env.setdefault("PETAVATAR_ANIMATE_POLL_SECONDS", "8")
     return env
 
@@ -871,6 +881,7 @@ class Handler(SimpleHTTPRequestHandler):
       <div class="links">{links}</div>
     </article>""")
         card_html = "\n".join(cards)
+        grid_class = "grid single" if len(view_pets) == 1 else "grid"
         body = f"""<!doctype html>
 <html lang="en">
 <head>
@@ -882,6 +893,7 @@ class Handler(SimpleHTTPRequestHandler):
     main {{ width: min(1180px, 94vw); margin: 28px auto; display: grid; gap: 18px; }}
     .top {{ display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }}
     .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 18px; align-items: start; }}
+    .grid.single {{ grid-template-columns: minmax(0, 640px); justify-content: center; }}
     .card {{ background: #fffaf3; border: 1px solid rgba(40,30,20,.14); border-radius: 8px; overflow: hidden; }}
     .card header {{ display: flex; justify-content: space-between; gap: 12px; padding: 12px 14px; border-bottom: 1px solid rgba(40,30,20,.12); }}
     .stage {{ position: relative; width: 100%; aspect-ratio: 1; background: #f7f4ee; overflow: hidden; }}
@@ -900,7 +912,7 @@ class Handler(SimpleHTTPRequestHandler):
     <div><strong>{pet_html}</strong> <code>{html.escape(' / '.join(CLIPS))}</code></div>
     <div class="buttons">{buttons}</div>
   </div>
-  <section class="grid">{card_html}
+  <section class="{grid_class}">{card_html}
   </section>
 </main>
 <script>

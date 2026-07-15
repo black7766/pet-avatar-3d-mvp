@@ -22,6 +22,7 @@ DEFAULT_FRAME_COUNT = 96
 PROVIDER_NAMES = (
     "adaptive_green_baseline",
     "adaptive_green_edge_v2",
+    "adaptive_green_temporal_v3",
     "ZhengPeng7/BiRefNet (General)",
     "vitmatte_adaptive_green_hybrid",
     "rembg",
@@ -119,6 +120,20 @@ def commands(
             "--core-despill",
             "1.10",
             "--edge-refine",
+        ],
+        "adaptive_green_temporal_v3": [
+            sys.executable,
+            str(BENCH_ROOT / "providers" / "baseline" / "infer.py"),
+            "--input-dir",
+            str(input_dir),
+            "--output-dir",
+            out("adaptive_green_temporal_v3"),
+            "--device",
+            "cpu",
+            "--core-despill",
+            "1.10",
+            "--edge-refine",
+            "--temporal-refine",
         ],
         "ZhengPeng7/BiRefNet (General)": [
             str(python_in("birefnet")),
@@ -363,6 +378,8 @@ def main() -> None:
                 directory = output_root / "adaptive_green_baseline"
             elif name == "adaptive_green_edge_v2":
                 directory = output_root / "adaptive_green_edge_v2"
+            elif name == "adaptive_green_temporal_v3":
+                directory = output_root / "adaptive_green_temporal_v3"
             elif name == "ZhengPeng7/BiRefNet (General)":
                 directory = output_root / "birefnet_general"
             elif name == "vitmatte_adaptive_green_hybrid":
@@ -410,7 +427,11 @@ def main() -> None:
                 run(
                     command,
                     gpu=name
-                    not in {"adaptive_green_baseline", "adaptive_green_edge_v2"},
+                    not in {
+                        "adaptive_green_baseline",
+                        "adaptive_green_edge_v2",
+                        "adaptive_green_temporal_v3",
+                    },
                 )
             frames = output_frames(directory, args.frame_count)
             if len(frames) != args.frame_count:

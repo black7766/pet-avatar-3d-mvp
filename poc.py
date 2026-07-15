@@ -39,13 +39,21 @@ ARK_BASE = "https://ark.cn-beijing.volces.com/api/v3"
 # 2026-06-11 经 GET /models + 实弹验证的模型 ID
 MODEL_STYLIZE = "doubao-seedream-4-5-251128"        # 图生图主测（2K 原生，最小 368 万像素）
 MODEL_STYLIZE_ALT = "doubao-seedream-5-0-260128"    # 对照组
-MODEL_ANIMATE = "doubao-seedance-1-5-pro-251215"    # 已验证支持首尾帧 flf2v
+MODEL_ANIMATE = os.environ.get(
+    "PETAVATAR_ANIMATE_MODEL", "doubao-seedance-1-5-pro-251215"
+)  # Production can opt into Seedance 2.0 without changing code.
 IMAGE_SIZE = "2048x2048"
 IMAGE_SIZE_PX = 2048
+IMAGE_SEED_RAW = os.environ.get("PETAVATAR_IMAGE_SEED", "").strip()
+IMAGE_SEED = int(IMAGE_SEED_RAW) if IMAGE_SEED_RAW else None
+IMAGE_GUIDANCE_RAW = os.environ.get("PETAVATAR_IMAGE_GUIDANCE_SCALE", "").strip()
+IMAGE_GUIDANCE_SCALE = float(IMAGE_GUIDANCE_RAW) if IMAGE_GUIDANCE_RAW else None
+if IMAGE_GUIDANCE_SCALE is not None and not 1.0 <= IMAGE_GUIDANCE_SCALE <= 10.0:
+    raise ValueError("PETAVATAR_IMAGE_GUIDANCE_SCALE must be between 1 and 10")
 CLIP_ORDER = ("idle", "fast_walk", "sleep")
 STATE_FRAME_CLIPS = {"sleep", "fast_walk"}
 STATE_SHEET_CLIPS = ("idle", "fast_walk", "sleep")
-SINGLE_SOURCE_ANIMATION = os.environ.get("PETAVATAR_SINGLE_SOURCE", "1") != "0"
+SINGLE_SOURCE_ANIMATION = os.environ.get("PETAVATAR_SINGLE_SOURCE", "0") != "0"
 LOCK_STATE_LAST_FRAME = os.environ.get("PETAVATAR_LOCK_STATE_LAST_FRAME", "0") != "0"
 CLIP_DURATION_SECONDS = int(os.environ.get("PETAVATAR_CLIP_DURATION", "5"))
 if not 4 <= CLIP_DURATION_SECONDS <= 12:
@@ -72,7 +80,40 @@ GREEN_CORE_DESPILL_STRENGTH = float(os.environ.get("PETAVATAR_GREEN_CORE_DESPILL
 GREEN_CORE_DESPILL_RADIUS_RATIO = float(os.environ.get("PETAVATAR_GREEN_CORE_RADIUS_RATIO", "0.16"))
 GREEN_OPAQUE_HALO_RADIUS = float(os.environ.get("PETAVATAR_GREEN_HALO_RADIUS", "8"))
 GREEN_OPAQUE_HALO_STRENGTH = float(os.environ.get("PETAVATAR_GREEN_HALO_STRENGTH", "0.90"))
+GREEN_BRIGHT_FEATURE_THICKNESS = float(
+    os.environ.get("PETAVATAR_GREEN_BRIGHT_FEATURE_THICKNESS", "3.4")
+)
 GREEN_EDGE_REFINE = os.environ.get("PETAVATAR_GREEN_EDGE_REFINE", "1") != "0"
+PRODUCTION_PIPELINE_VERSION = os.environ.get(
+    "PETAVATAR_PRODUCTION_PIPELINE", "airgap_motion_v4"
+).strip()
+GREEN_TEMPORAL_REFINE = os.environ.get("PETAVATAR_GREEN_TEMPORAL_REFINE", "1") != "0"
+GREEN_TEMPORAL_FLOW_SIZE = int(os.environ.get("PETAVATAR_TEMPORAL_FLOW_SIZE", "384"))
+if not 192 <= GREEN_TEMPORAL_FLOW_SIZE <= 640:
+    raise ValueError("PETAVATAR_TEMPORAL_FLOW_SIZE must be between 192 and 640")
+GREEN_MOTION_ALPHA_REFINE = os.environ.get(
+    "PETAVATAR_GREEN_MOTION_ALPHA_REFINE", "1"
+) != "0"
+GREEN_MOTION_THRESHOLD = int(os.environ.get("PETAVATAR_GREEN_MOTION_THRESHOLD", "10"))
+GREEN_MOTION_DILATE = int(os.environ.get("PETAVATAR_GREEN_MOTION_DILATE", "4"))
+GREEN_PRESERVE_LOWER_MOTION = os.environ.get(
+    "PETAVATAR_GREEN_PRESERVE_LOWER_MOTION", "1"
+) != "0"
+REAL_ALPHA_EDGE_CONTRAST = float(
+    os.environ.get("PETAVATAR_REAL_ALPHA_EDGE_CONTRAST", "1.18")
+)
+if not 1 <= GREEN_MOTION_THRESHOLD <= 64:
+    raise ValueError("PETAVATAR_GREEN_MOTION_THRESHOLD must be between 1 and 64")
+if not 0 <= GREEN_MOTION_DILATE <= 12:
+    raise ValueError("PETAVATAR_GREEN_MOTION_DILATE must be between 0 and 12")
+if not 1.0 <= REAL_ALPHA_EDGE_CONTRAST <= 2.0:
+    raise ValueError("PETAVATAR_REAL_ALPHA_EDGE_CONTRAST must be between 1.0 and 2.0")
+SAM2_STRUCTURAL_REFINE = os.environ.get("PETAVATAR_SAM2_STRUCTURAL_REFINE", "0") != "0"
+SAM2_STRUCTURAL_CLIPS = {
+    item.strip()
+    for item in os.environ.get("PETAVATAR_SAM2_STRUCTURAL_CLIPS", "fast_walk").split(",")
+    if item.strip()
+}
 EDGE_PROFILE = os.environ.get("PETAVATAR_EDGE_PROFILE", "auto").strip().lower()
 if EDGE_PROFILE not in {"auto", "real", "cartoon"}:
     raise ValueError("PETAVATAR_EDGE_PROFILE must be auto, real, or cartoon")
@@ -299,6 +340,16 @@ def state_frame_safe(path: Path):
     return ok, info
 
 
+def image_generation_controls(seed_offset: int = 0) -> dict:
+    """Return optional reproducibility controls accepted by Seedream."""
+    controls = {}
+    if IMAGE_SEED is not None:
+        controls["seed"] = IMAGE_SEED + seed_offset
+    if IMAGE_GUIDANCE_SCALE is not None:
+        controls["guidance_scale"] = IMAGE_GUIDANCE_SCALE
+    return controls
+
+
 # ---------- step 1: stylize ----------
 
 def step_stylize(pet: str, style: str, model: str = MODEL_STYLIZE):
@@ -324,6 +375,7 @@ def step_stylize(pet: str, style: str, model: str = MODEL_STYLIZE):
                 "size": IMAGE_SIZE,
                 "response_format": "url",
                 "watermark": False,
+                **image_generation_controls(seed_offset=i - 1),
             }
             resp = ark_request("/images/generations", body)
             download(resp["data"][0]["url"], dest)
@@ -331,6 +383,7 @@ def step_stylize(pet: str, style: str, model: str = MODEL_STYLIZE):
             print(f"[stylize] 候选 {dest.name} 完成 {dt}s")
             record_metric(pet_dir, "stylize", {"model": model, "style": st,
                                                "file": dest.name, "seconds": dt,
+                                               "image_controls": image_generation_controls(seed_offset=i - 1),
                                                "usage": resp.get("usage")})
     print(f"[stylize] 完成 → {cand_dir}/，人工挑选后执行：python3 poc.py --pet {pet} --choose <档位_序号>")
 
@@ -609,6 +662,7 @@ def step_state_sheet(pet: str, style: str, model: str = MODEL_STYLIZE):
             "size": IMAGE_SIZE,
             "response_format": "url",
             "watermark": False,
+            **image_generation_controls(),
         }
         resp = ark_request("/images/generations", body)
         download(resp["data"][0]["url"], sheet)
@@ -630,6 +684,7 @@ def step_state_sheet(pet: str, style: str, model: str = MODEL_STYLIZE):
             "seconds": dt,
             "cells": list(STATE_SHEET_CLIPS),
             "bounds": cell_bounds,
+            "image_controls": image_generation_controls(),
             "usage": resp.get("usage") if resp else None,
         },
     )
@@ -694,6 +749,7 @@ def _legacy_step_state_frames(pet: str, clips: list[str], model: str = MODEL_STY
             "size": IMAGE_SIZE,
             "response_format": "url",
             "watermark": False,
+            **image_generation_controls(seed_offset=CLIP_ORDER.index(clip) * 100),
         }
         resp = ark_request("/images/generations", body)
         download(resp["data"][0]["url"], raw_dest)
@@ -707,6 +763,7 @@ def _legacy_step_state_frames(pet: str, clips: list[str], model: str = MODEL_STY
         print(f"[state:{clip}] {state_dest.name} 完成 {dt}s")
         record_metric(pet_dir, "state_frame", {"model": model, "clip": clip,
                                                "file": state_dest.name, "seconds": dt,
+                                               "image_controls": image_generation_controls(seed_offset=CLIP_ORDER.index(clip) * 100),
                                                "usage": resp.get("usage")})
 
 
@@ -760,6 +817,9 @@ def _generate_state_frame(pet_dir: Path, chosen_uri: str, clip: str, model: str)
             "size": IMAGE_SIZE,
             "response_format": "url",
             "watermark": False,
+            **image_generation_controls(
+                seed_offset=CLIP_ORDER.index(clip) * 100 + attempt - 1
+            ),
         }
         resp = ark_request("/images/generations", body)
         _merge_usage(usage_total, resp.get("usage"))
@@ -791,6 +851,9 @@ def _generate_state_frame(pet_dir: Path, chosen_uri: str, clip: str, model: str)
         "safe": ok,
         "bounds": bounds,
         "attempts": attempt,
+        "image_controls": image_generation_controls(
+            seed_offset=CLIP_ORDER.index(clip) * 100 + attempt - 1
+        ),
         "usage": usage_total,
     })
     if not ok:
@@ -868,6 +931,7 @@ def finish_animate_task(pet_dir: Path, clip: str, task_id: str, task_status: dic
     dt = round(time.time() - started_at, 1)
     print(f"[animate:{clip}] raw_{clip}.mp4 已保存并去音轨（{dt}s）")
     record_metric(pet_dir, "animate", {"model": MODEL_ANIMATE, "clip": clip,
+                                       "pipeline_version": PRODUCTION_PIPELINE_VERSION,
                                        "task": task_id, "seconds": dt,
                                        "requested_duration_seconds": CLIP_DURATION_SECONDS,
                                        "requested_resolution": CLIP_RESOLUTION,
@@ -1022,6 +1086,36 @@ def edge_profile_for_pet(pet: str) -> str:
     return "real"
 
 
+def _bright_feature_protect_mask(rgb, alpha):
+    """Mask legitimate bright pet markings (white paws, chest patches) near the silhouette.
+
+    Baked key-light halos hug the outline as a rim only a couple of pixels thick, while a
+    real white or cream marking is a compact blob with its own interior. Any low-green-bias
+    bright component thicker than the rim scale is pet color, so halo cleanup must neither
+    recolor it toward darker surrounding fur nor cap its luminance.
+    """
+    import cv2
+    import numpy as np
+
+    red, green, blue = rgb[:, :, 0], rgb[:, :, 1], rgb[:, :, 2]
+    luminance = red * 0.299 + green * 0.587 + blue * 0.114
+    green_bias = green - (red * 0.65 + blue * 0.35)
+    bright = (alpha > 0.55) & (luminance > 0.50) & (green_bias < 0.045)
+    if not bright.any():
+        return np.zeros(bright.shape, dtype=bool)
+
+    thickness = cv2.distanceTransform(bright.astype(np.uint8), cv2.DIST_L2, 5)
+    count, labels = cv2.connectedComponents(bright.astype(np.uint8), 8)
+    max_thickness = np.zeros(count, dtype=np.float32)
+    np.maximum.at(max_thickness, labels.ravel(), thickness.ravel())
+    protect = bright & (max_thickness[labels] >= GREEN_BRIGHT_FEATURE_THICKNESS)
+    if protect.any():
+        protect = cv2.dilate(
+            protect.astype(np.uint8), np.ones((3, 3), np.uint8), iterations=2
+        ).astype(bool) & (alpha > 0.30)
+    return protect
+
+
 def suppress_opaque_key_halo(rgb, alpha, profile="cartoon", return_details=False):
     """Pull baked yellow-green edge light back toward nearby interior fur color.
 
@@ -1041,9 +1135,16 @@ def suppress_opaque_key_halo(rgb, alpha, profile="cartoon", return_details=False
 
     halo_radius = GREEN_OPAQUE_HALO_RADIUS * (1.5 if profile == "real" else 1.0)
     inner_distance = cv2.distanceTransform(solid.astype(np.uint8), cv2.DIST_L2, 5)
+    bright_feature = _bright_feature_protect_mask(clean, alpha)
+    # A white paw is too thin to contain a regular deep-core pixel, so its nearest
+    # reference would be darker leg fur and the whole paw would read as bright halo.
+    # Let protected bright blobs contribute their own interior as reference color.
     deep_core = (
         (alpha > 0.985)
-        & (inner_distance >= max(10.0, halo_radius * 1.25))
+        & (
+            (inner_distance >= max(10.0, halo_radius * 1.25))
+            | (bright_feature & (inner_distance >= 2.5))
+        )
     )
     if not deep_core.any():
         if return_details:
@@ -1109,7 +1210,8 @@ def suppress_opaque_key_halo(rgb, alpha, profile="cartoon", return_details=False
         )
         warm_bright_halo = np.zeros_like(edge_band)
     halo = edge_band & (
-        yellow_green_halo | neutral_bright_halo | warm_bright_halo
+        yellow_green_halo
+        | ((neutral_bright_halo | warm_bright_halo) & ~bright_feature)
     )
     if not halo.any():
         if return_details:
@@ -1192,10 +1294,15 @@ def refine_adaptive_edge(rgb, alpha, profile="real"):
     contour_band = outer & ~inner
 
     clean_alpha = source_alpha.copy()
+    # Anti-alias only where the hard silhouette deviates from its smoothed contour —
+    # the signature of a staircase tooth or notch. Smooth edge segments already match
+    # the blurred contour, and blending them anyway would double the soft band width
+    # (0.9px -> 1.9px) and read as a blurry outline over any background.
+    jagged = contour_band & (np.abs(source_alpha - contour_alpha) > 0.28)
     target = source_alpha * 0.42 + contour_alpha * 0.58
     # Preserve fine semi-transparent fur while suppressing isolated staircase teeth.
     target = np.maximum(target, source_alpha * 0.88)
-    clean_alpha[contour_band] = target[contour_band]
+    clean_alpha[jagged] = target[jagged]
     clean_alpha[~outer & (source_alpha < 0.035)] = 0.0
     clean_alpha[clean_alpha < 0.012] = 0.0
     clean_alpha[clean_alpha > 0.992] = 1.0
@@ -1203,9 +1310,13 @@ def refine_adaptive_edge(rgb, alpha, profile="real"):
     inner_distance = cv2.distanceTransform(
         solid.astype(np.uint8), cv2.DIST_L2, 5
     )
+    bright_feature = _bright_feature_protect_mask(clean_rgb, clean_alpha)
     core = (source_alpha >= 0.90) & (inner_distance >= 7.0)
     if not core.any():
         core = (source_alpha >= 0.90) & (inner_distance >= 3.0)
+    # White paws rarely reach the regular core depth; without their own reference
+    # pixels the contour band would borrow darker fur color and dim the paw rim.
+    core |= bright_feature & (source_alpha >= 0.90) & (inner_distance >= 2.0)
     if not core.any():
         return clean_rgb, clean_alpha
     _, nearest_labels = cv2.distanceTransformWithLabels(
@@ -1233,6 +1344,7 @@ def refine_adaptive_edge(rgb, alpha, profile="real"):
     green_bias = green - (red * 0.65 + blue * 0.35)
     expansion = np.clip((clean_alpha - source_alpha) / 0.30, 0.0, 1.0)
     glow = np.clip((luminance - core_luminance - 0.055) / 0.22, 0.0, 1.0)
+    glow[bright_feature] = 0.0
     spill = np.clip((green_bias - 0.008) / 0.16, 0.0, 1.0)
     edge_pixels = contour_band & (clean_alpha > 0.01)
     color_weight = np.clip(
@@ -1259,9 +1371,446 @@ def refine_adaptive_edge(rgb, alpha, profile="real"):
     tone_scale = np.clip(
         max_luminance / np.maximum(corrected_luminance, 0.02), 0.72, 1.0
     )
-    clean_rgb[edge_pixels] *= tone_scale[edge_pixels, None]
+    tone_pixels = edge_pixels & ~bright_feature
+    clean_rgb[tone_pixels] *= tone_scale[tone_pixels, None]
     clean_rgb[clean_alpha == 0.0] = 0.0
     return np.clip(clean_rgb, 0.0, 1.0), clean_alpha
+
+
+def _remove_unsupported_temporal_fragments(
+    rgba_stack,
+    warped_supports,
+    support_ratio=0.25,
+    max_fragment_area_ratio=0.0015,
+):
+    """Remove only small detached components without flow-aligned neighbor support."""
+    import cv2
+    import numpy as np
+
+    if not rgba_stack:
+        return {"single_frame_fragments_removed": 0, "fragment_pixels_removed": 0}
+    height, width = rgba_stack[0].shape[:2]
+    kernel = np.ones((3, 3), np.uint8)
+    max_fragment_area = max(96, int(height * width * max_fragment_area_ratio))
+    removed_fragments = 0
+    removed_pixels = 0
+    protected_large_components = 0
+
+    for index, frame in enumerate(rgba_stack):
+        alpha = frame[:, :, 3]
+        solid = alpha > 0.5
+        if not solid.any():
+            continue
+        _, solid_labels, solid_stats, _ = cv2.connectedComponentsWithStats(
+            solid.astype(np.uint8), 8
+        )
+        main_label = 1 + int(np.argmax(solid_stats[1:, cv2.CC_STAT_AREA]))
+        main_mask = solid_labels == main_label
+        supports = warped_supports[index]
+        if not supports:
+            continue
+        neighbor_support = cv2.dilate(
+            np.logical_or.reduce(supports).astype(np.uint8), kernel, iterations=1
+        ).astype(bool)
+        visible = alpha > 0.05
+        component_count, component_labels, component_stats, _ = (
+            cv2.connectedComponentsWithStats(visible.astype(np.uint8), 8)
+        )
+        for label in range(1, component_count):
+            component = component_labels == label
+            if (component & main_mask).any():
+                continue
+            area = int(component_stats[label, cv2.CC_STAT_AREA])
+            if area > max_fragment_area:
+                protected_large_components += 1
+                continue
+            supported = int((component & neighbor_support).sum())
+            if supported >= max(3, int(area * support_ratio)):
+                continue
+            alpha[component] = 0.0
+            frame[:, :, :3][component] = 0.0
+            removed_fragments += 1
+            removed_pixels += area
+        frame[:, :, 3] = alpha
+
+    return {
+        "single_frame_fragments_removed": removed_fragments,
+        "fragment_pixels_removed": removed_pixels,
+        "protected_large_components": protected_large_components,
+        "max_fragment_area": max_fragment_area,
+        "fragment_support_ratio": support_ratio,
+    }
+
+
+def fuse_structural_support_masks(
+    rgba_frames,
+    mask_paths,
+    core_distance=2.5,
+    core_alpha_floor=0.985,
+    boundary_alpha_scale=0.92,
+):
+    """Repair structural alpha dropouts without replacing the soft matte boundary.
+
+    A propagated segmentation mask is deliberately used only as an interior support prior.
+    Opaque pixels safely inside the tracked subject receive a high alpha floor, while a
+    one-pixel antialiased mask boundary can only raise severely missing alpha. Existing
+    chroma-key fur, whiskers, and fractional pixels outside the mask are never reduced.
+    """
+    import cv2
+    import numpy as np
+    from PIL import Image
+
+    paths = list(mask_paths)
+    if len(paths) < len(rgba_frames):
+        raise ValueError(
+            f"structural mask count {len(paths)} is smaller than frame count {len(rgba_frames)}"
+        )
+
+    repaired_frames = []
+    repaired_pixels = 0
+    severe_holes = 0
+    alpha_added = 0.0
+    for frame, mask_path in zip(rgba_frames, paths):
+        rgba = np.asarray(frame.convert("RGBA")).astype(np.float32) / 255.0
+        mask = np.asarray(Image.open(mask_path).convert("L")) > 127
+        if mask.shape != rgba.shape[:2]:
+            mask = cv2.resize(
+                mask.astype(np.uint8),
+                (rgba.shape[1], rgba.shape[0]),
+                interpolation=cv2.INTER_NEAREST,
+            ).astype(bool)
+
+        inside_distance = cv2.distanceTransform(
+            mask.astype(np.uint8), cv2.DIST_L2, 5
+        )
+        core = inside_distance >= core_distance
+        soft_support = cv2.GaussianBlur(
+            mask.astype(np.float32), (0, 0), 0.75
+        ) * boundary_alpha_scale
+        support_alpha = np.where(core, core_alpha_floor, soft_support)
+
+        alpha = rgba[:, :, 3]
+        repair = mask & (support_alpha > alpha + 1e-4)
+        severe = repair & (alpha < 0.30)
+        repaired_pixels += int(repair.sum())
+        severe_holes += int(severe.sum())
+        alpha_added += float((support_alpha[repair] - alpha[repair]).sum())
+
+        # Very low-alpha chroma pixels may have no useful RGB left. Reconstruct only those
+        # repaired holes from the nearest reliable foreground core; non-severe pixels keep
+        # the chroma-recovered texture already produced by the self-developed matte.
+        if severe.any():
+            color_core = alpha > 0.90
+            if color_core.any():
+                _, nearest_labels = cv2.distanceTransformWithLabels(
+                    (~color_core).astype(np.uint8),
+                    cv2.DIST_L2,
+                    5,
+                    labelType=cv2.DIST_LABEL_PIXEL,
+                )
+                core_labels = nearest_labels[color_core]
+                color_lut = np.zeros(
+                    (int(nearest_labels.max()) + 1, 3), dtype=np.float32
+                )
+                color_lut[core_labels] = rgba[:, :, :3][color_core]
+                rgba[:, :, :3][severe] = color_lut[nearest_labels][severe]
+
+        alpha[repair] = support_alpha[repair]
+        rgba[:, :, 3] = alpha
+        rgba[:, :, :3][alpha == 0.0] = 0.0
+        repaired_frames.append(
+            Image.fromarray((np.clip(rgba, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8), "RGBA")
+        )
+
+    return repaired_frames, {
+        "provider": "sam2_structural_support",
+        "frames": len(repaired_frames),
+        "core_distance": core_distance,
+        "core_alpha_floor": core_alpha_floor,
+        "boundary_alpha_scale": boundary_alpha_scale,
+        "repaired_pixels": repaired_pixels,
+        "severe_holes": severe_holes,
+        "alpha_added": round(alpha_added, 2),
+    }
+
+
+def run_sam2_structural_masks(video, pet, clip, frame_count):
+    """Run the local Apache-2.0 SAM2 tracker and return per-frame support masks."""
+    safe_name = re.sub(r"[^A-Za-z0-9_.-]+", "_", f"{pet}_{clip}")
+    data_root = ROOT / "matting_bench" / "data" / "production_structural"
+    input_dir = data_root / safe_name
+    provider_dir = ROOT / "matting_bench" / "providers" / "sam2_video"
+    output_dir = provider_dir / "runs" / f"production_{safe_name}"
+    provider_python = ROOT / ".venvs" / "sam2_video" / "Scripts" / "python.exe"
+    provider_script = provider_dir / "infer.py"
+    checkpoint = ROOT / ".models" / "sam2_video" / "checkpoints" / "sam2.1_hiera_small.pt"
+    if not provider_python.exists() or not provider_script.exists() or not checkpoint.exists():
+        raise RuntimeError("SAM2 structural environment or checkpoint is missing")
+
+    if input_dir.exists():
+        shutil.rmtree(input_dir)
+    input_dir.mkdir(parents=True)
+    subprocess.run(
+        [
+            ffmpeg_exe(),
+            "-y",
+            "-loglevel",
+            "error",
+            "-i",
+            str(video),
+            "-vf",
+            f"fps={WEBP_FPS},scale={WEBP_WIDTH}:{WEBP_WIDTH}:flags=lanczos",
+            str(input_dir / "f_%04d.png"),
+        ],
+        check=True,
+    )
+    available = len(list(input_dir.glob("f_*.png")))
+    use_frames = min(frame_count, available)
+    if use_frames < frame_count:
+        raise RuntimeError(
+            f"SAM2 input contains {available} frames, expected at least {frame_count}"
+        )
+
+    started = time.time()
+    log_path = output_dir.parent / f"production_{safe_name}.log"
+    command = [
+        str(provider_python),
+        str(provider_script),
+        "--input-dir",
+        str(input_dir),
+        "--output-dir",
+        str(output_dir),
+        "--frames",
+        str(use_frames),
+        "--mask-threshold",
+        "128",
+        "--logit-threshold",
+        "0",
+        "--precision",
+        "fp16",
+        "--offload-video-to-cpu",
+        "--offload-state-to-cpu",
+        "--overwrite",
+    ]
+    with log_path.open("w", encoding="utf-8") as log:
+        subprocess.run(
+            command,
+            cwd=ROOT,
+            check=True,
+            stdout=log,
+            stderr=subprocess.STDOUT,
+            timeout=300,
+        )
+    masks = sorted((output_dir / "mask").glob("f_*.png"))[:frame_count]
+    if len(masks) != frame_count:
+        raise RuntimeError(
+            f"SAM2 returned {len(masks)} masks, expected {frame_count}"
+        )
+    provider_metrics = {}
+    metrics_path = output_dir / "metrics.json"
+    if metrics_path.exists():
+        provider_metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+    return masks, {
+        "provider": "SAM 2.1 Hiera Small",
+        "license": "Apache-2.0",
+        "seconds": round(time.time() - started, 2),
+        "frames": frame_count,
+        "gpu": provider_metrics.get("runtime", {}).get("gpu"),
+        "timing": provider_metrics.get("timing", {}),
+        "output_dir": str(output_dir.relative_to(ROOT)),
+    }
+
+
+def stabilize_alpha_temporal(
+    rgba_stack,
+    source_rgbs=None,
+    flow_size=480,
+    static_weight=0.65,
+    band_weight=0.50,
+    bidirectional=True,
+    preserve_lower_motion=False,
+):
+    """Flow-gated temporal stabilization for a full clip of RGBA frames.
+
+    Per-frame keying makes semi-transparent fur pixels flip between frames even when the
+    underlying video barely changes, and lets one-frame fragments pop in and out. This pass
+    warps the previous stabilized alpha onto the current frame with dense backward optical
+    flow and blends it in only where the warp is photometrically verified, so real motion
+    (legs, tail) is never ghosted. A second pass removes visible components that exist in
+    a single frame only. RGB values are left untouched except under fully removed pixels.
+
+    rgba_stack: list of float32 (H, W, 4) arrays in [0, 1]; alphas are edited in place.
+    source_rgbs: optional list of float32 (H, W, 3) source frames used for flow and the
+    photometric gate; when absent the RGBA frames composited over mid-gray are used.
+    """
+    import cv2
+    import numpy as np
+
+    count = len(rgba_stack)
+    if count < 3:
+        return rgba_stack, {"temporal_frames": count, "note": "clip too short"}
+
+    height, width = rgba_stack[0].shape[:2]
+    base_frames = [frame.copy() for frame in rgba_stack]
+    lower_motion_masks = []
+    for frame in base_frames:
+        alpha = frame[:, :, 3]
+        ys, _ = np.where(alpha > 0.55)
+        mask = np.zeros((height, width), dtype=bool)
+        if preserve_lower_motion and ys.size:
+            y0, y1 = int(ys.min()), int(ys.max())
+            cutoff = y0 + int(round((y1 - y0 + 1) * 0.52))
+            mask[cutoff:, :] = True
+        lower_motion_masks.append(mask)
+    if source_rgbs is None:
+        source_rgbs = [
+            frame[:, :, :3] * frame[:, :, 3:4] + 0.5 * (1.0 - frame[:, :, 3:4])
+            for frame in rgba_stack
+        ]
+    grays = [
+        cv2.resize(
+            cv2.cvtColor((rgb * 255.0).astype(np.uint8), cv2.COLOR_RGB2GRAY),
+            (flow_size, flow_size),
+        )
+        for rgb in source_rgbs
+    ]
+    grid_x, grid_y = np.meshgrid(
+        np.arange(width, dtype=np.float32), np.arange(height, dtype=np.float32)
+    )
+    kernel = np.ones((3, 3), np.uint8)
+    scale_x = width / float(flow_size)
+    scale_y = height / float(flow_size)
+    blend_weights = []
+    warped_supports = [[] for _ in range(count)]
+
+    def smooth_pass(pairs):
+        for index, neighbor in pairs:
+            current = rgba_stack[index]
+            current_alpha = current[:, :, 3]
+            neighbor_alpha = rgba_stack[neighbor][:, :, 3]
+            flow_small = cv2.calcOpticalFlowFarneback(
+                grays[index], grays[neighbor], None, 0.5, 3, 21, 3, 5, 1.2, 0
+            )
+            flow = cv2.resize(flow_small, (width, height))
+            map_x = grid_x + flow[:, :, 0] * scale_x
+            map_y = grid_y + flow[:, :, 1] * scale_y
+            warped_alpha = cv2.remap(
+                neighbor_alpha, map_x, map_y, cv2.INTER_LINEAR,
+                borderMode=cv2.BORDER_CONSTANT, borderValue=0.0,
+            )
+            warped_supports[index].append(warped_alpha > 0.05)
+            warped_rgb = cv2.remap(
+                source_rgbs[neighbor], map_x, map_y, cv2.INTER_LINEAR,
+                borderMode=cv2.BORDER_CONSTANT, borderValue=0.0,
+            )
+            photometric_error = cv2.blur(
+                np.abs(warped_rgb - source_rgbs[index]).mean(axis=2), (3, 3)
+            )
+            reliability = np.clip(1.0 - photometric_error / 0.09, 0.0, 1.0)
+
+            soft_band = cv2.dilate(
+                ((current_alpha > 0.02) & (current_alpha < 0.98)).astype(np.uint8),
+                kernel,
+            ).astype(bool)
+            static = (
+                cv2.blur(
+                    np.abs(source_rgbs[index] - source_rgbs[neighbor]).mean(axis=2),
+                    (3, 3),
+                )
+                < 0.006
+            )
+            weight = reliability * np.where(
+                static, static_weight, np.where(soft_band, band_weight, 0.0)
+            )
+            stabilized = current_alpha + weight * (warped_alpha - current_alpha)
+            stabilized[stabilized < 0.012] = 0.0
+            stabilized[stabilized > 0.992] = 1.0
+            changed = np.abs(stabilized - current_alpha) > 1e-4
+            if changed.any():
+                blend_weights.append(float(weight[changed].mean()))
+            current[:, :, 3] = stabilized
+            current[:, :, :3][stabilized == 0.0] = 0.0
+
+    smooth_pass([(index, index - 1) for index in range(1, count)])
+    if bidirectional:
+        smooth_pass([(index, index + 1) for index in range(count - 2, -1, -1)])
+
+    fragment_stats = _remove_unsupported_temporal_fragments(
+        rgba_stack, warped_supports
+    )
+
+    restored_motion_pixels = 0
+    if preserve_lower_motion:
+        # Fast locomotion can move a paw farther than dense flow can track. Bidirectional
+        # alpha blending then pulls the previous paw silhouette into the current frame and
+        # creates a translucent duplicate that flashes during playback. Preserve the
+        # spatially keyed current-frame silhouette in the lower motion zone while retaining
+        # temporal stabilization on fur, head, torso, and tail.
+        for frame, base_frame, mask in zip(
+            rgba_stack, base_frames, lower_motion_masks
+        ):
+            changed = mask & (np.abs(frame[:, :, 3] - base_frame[:, :, 3]) > 1e-4)
+            restored_motion_pixels += int(changed.sum())
+            frame[mask] = base_frame[mask]
+
+    stats = {
+        "temporal_frames": count,
+        "flow_size": flow_size,
+        "static_weight": static_weight,
+        "band_weight": band_weight,
+        "bidirectional": bidirectional,
+        "preserve_lower_motion": preserve_lower_motion,
+        "restored_motion_pixels": restored_motion_pixels,
+        "mean_blend_weight": (
+            round(float(np.mean(blend_weights)), 4) if blend_weights else 0.0
+        ),
+        **fragment_stats,
+    }
+    return rgba_stack, stats
+
+
+def sharpen_alpha_transitions(rgba_frames, strength=1.18):
+    """Compress an overly wide soft-alpha band without moving the 50% contour.
+
+    Odds-domain contrast keeps alpha 0, 0.5, and 1 fixed. Values below 0.5 become
+    slightly more transparent and values above 0.5 slightly more opaque, so short
+    fur reads cleanly while the subject footprint and antialiasing remain stable.
+    """
+    import numpy as np
+    from PIL import Image
+
+    if strength <= 1.0:
+        return rgba_frames, {
+            "strength": strength,
+            "changed_pixels": 0,
+            "mean_alpha_delta": 0.0,
+        }
+
+    output = []
+    changed_pixels = 0
+    alpha_delta = 0.0
+    for frame in rgba_frames:
+        rgba = np.asarray(frame.convert("RGBA")).copy()
+        alpha = rgba[:, :, 3].astype(np.float32) / 255.0
+        transition = (alpha > 0.0) & (alpha < 1.0)
+        probability = np.clip(alpha, 1e-4, 1.0 - 1e-4)
+        odds = np.power(probability / (1.0 - probability), strength)
+        sharpened = odds / (1.0 + odds)
+        updated = alpha.copy()
+        updated[transition] = sharpened[transition]
+        quantized = np.rint(updated * 255.0).astype(np.uint8)
+        changed = quantized != rgba[:, :, 3]
+        changed_pixels += int(changed.sum())
+        alpha_delta += float(np.abs(updated[changed] - alpha[changed]).sum())
+        rgba[:, :, 3] = quantized
+        output.append(Image.fromarray(rgba, "RGBA"))
+
+    return output, {
+        "strength": strength,
+        "changed_pixels": changed_pixels,
+        "mean_alpha_delta": round(alpha_delta / max(changed_pixels, 1), 6),
+        "contour_anchor": 0.5,
+    }
 
 
 def profile_green_screen(raw_frames):
@@ -1300,7 +1849,7 @@ def profile_green_screen(raw_frames):
     }
 
 
-def adaptive_green_matte_frame(img, profile):
+def adaptive_green_matte_frame(img, profile, motion_mask=None):
     """Recover a clean RGBA frame from a green-screen RGB frame.
 
     RGB-distance chroma keying treats a dark green shadow as foreground because the shadow is
@@ -1308,6 +1857,13 @@ def adaptive_green_matte_frame(img, profile):
     brightness change, so it removes those shadows without eroding white or cream body pixels.
     Only green regions connected to the canvas border are keyed, protecting green details that
     may legitimately occur inside the pet or its clothing.
+
+    motion_mask marks pixels that change against neighbor frames. The normalized-dominance
+    ramp underestimates coverage for motion-blurred fur (a dark leg at 50% real coverage keys
+    to ~0.16 alpha), which visually amputates fast-moving legs and tails. Inside the motion
+    mask only, alpha is lifted to a linear un-mix estimate measured against the local
+    background's green excess, so blur smears keep their true weight while static edges and
+    keyed shadows stay exactly as tuned.
     """
     import cv2
     import numpy as np
@@ -1351,6 +1907,32 @@ def adaptive_green_matte_frame(img, profile):
     )
     keyed_alpha = np.power(keyed_alpha, GREEN_MATTE_ALPHA_GAMMA)
     alpha[reachable] = keyed_alpha[reachable]
+    if motion_mask is not None and motion_mask.any():
+        # Linear un-mix: for c = t*fur + (1-t)*bg the green excess scales with (1-t), so
+        # 1 - excess/local_bg_excess tracks true blur coverage far better than the
+        # normalized ramp. The local background estimate keeps the formula valid under
+        # uneven lighting, and pixels at or above bg_floor (pure green of any brightness,
+        # including contact shadows) are never lifted.
+        excess = np.clip(g - np.maximum(rgb[:, :, 0], rgb[:, :, 2]), 0.0, None)
+        confident_bg = reachable & (score >= profile["bg_floor"])
+        window = max(31, (min(height, width) // 16) | 1)
+        support = cv2.blur(confident_bg.astype(np.float32), (window, window))
+        local_excess = cv2.blur(np.where(confident_bg, excess, 0.0), (window, window))
+        key_rgb_profile = profile["key_rgb"]
+        key_excess = float(
+            max(key_rgb_profile[1] - max(key_rgb_profile[0], key_rgb_profile[2]), 0.10)
+        )
+        local_excess = np.where(
+            support > 0.02, local_excess / np.maximum(support, 1e-4), key_excess
+        )
+        coverage = 1.0 - np.clip(excess / np.maximum(local_excess, 0.10), 0.0, 1.0)
+        lift = (
+            motion_mask
+            & reachable
+            & (score < profile["bg_floor"])
+            & (coverage > 0.05)
+        )
+        alpha[lift] = np.maximum(alpha[lift], coverage[lift])
     alpha[alpha < 0.035] = 0.0
     alpha[alpha > 0.995] = 1.0
     alpha[:2, :] = 0.0
@@ -1519,6 +2101,33 @@ def profile_green_arrays(rgb_frames):
     }
 
 
+def _frame_motion_masks(rgb_frames, threshold=10, dilate_iterations=4):
+    """Per-frame masks of pixels that differ from either neighbor frame.
+
+    The green backdrop is static, so motion marks exactly the pet plus its blur smears.
+    A generous dilation keeps the faint outer tail of each smear inside the mask.
+    """
+    import cv2
+    import numpy as np
+
+    count = len(rgb_frames)
+    kernel = np.ones((3, 3), np.uint8)
+    masks = []
+    for index in range(count):
+        current = rgb_frames[index].astype(np.int16)
+        diff = np.zeros(current.shape[:2], dtype=np.int16)
+        for neighbor in (index - 1, index + 1):
+            if 0 <= neighbor < count:
+                neighbor_diff = np.abs(
+                    current - rgb_frames[neighbor].astype(np.int16)
+                ).mean(axis=2)
+                diff = np.maximum(diff, neighbor_diff.astype(np.int16))
+        mask = (diff > threshold).astype(np.uint8)
+        mask = cv2.dilate(mask, kernel, iterations=dilate_iterations)
+        masks.append(mask.astype(bool))
+    return masks
+
+
 def extract_adaptive_green_frames_memory(video: Path):
     """Decode once to memory and return pre-cleaned RGBA frames without PNG round trips."""
     import numpy as np
@@ -1540,9 +2149,20 @@ def extract_adaptive_green_frames_memory(video: Path):
 
     profile = profile_green_arrays(rgb_frames)
     matte_started = time.time()
+    motion_masks = (
+        _frame_motion_masks(
+            rgb_frames,
+            threshold=GREEN_MOTION_THRESHOLD,
+            dilate_iterations=GREEN_MOTION_DILATE,
+        )
+        if GREEN_MOTION_ALPHA_REFINE
+        else [None] * len(rgb_frames)
+    )
     rgba_frames = [
-        adaptive_green_matte_frame(Image.fromarray(frame, "RGB"), profile)
-        for frame in rgb_frames
+        adaptive_green_matte_frame(
+            Image.fromarray(frame, "RGB"), profile, motion_mask=motion_masks[index]
+        )
+        for index, frame in enumerate(rgb_frames)
     ]
     matte_seconds = round(time.time() - matte_started, 2)
     profile_meta = {
@@ -1550,6 +2170,10 @@ def extract_adaptive_green_frames_memory(video: Path):
         "bg_floor": round(float(profile["bg_floor"]), 4),
         "key_rgb": [round(float(value) * 255) for value in profile["key_rgb"]],
         "sampled_frames": profile["sampled_frames"],
+        "pipeline_version": PRODUCTION_PIPELINE_VERSION,
+        "motion_alpha_refine": GREEN_MOTION_ALPHA_REFINE,
+        "motion_threshold": GREEN_MOTION_THRESHOLD if GREEN_MOTION_ALPHA_REFINE else None,
+        "motion_dilate": GREEN_MOTION_DILATE if GREEN_MOTION_ALPHA_REFINE else None,
         "decode_seconds": decode_seconds,
         "alpha_seconds": matte_seconds,
     }
@@ -2135,6 +2759,27 @@ def step_matte_memory(pet: str, clip: str):
         print(f"[matte:{clip}] memory matte unavailable ({exc}); using legacy chromakey")
         return step_matte_legacy(pet, clip)
 
+    structural_meta = None
+    if (
+        SAM2_STRUCTURAL_REFINE
+        and edge_profile_for_pet(pet) == "real"
+        and clip in SAM2_STRUCTURAL_CLIPS
+    ):
+        try:
+            masks, provider_meta = run_sam2_structural_masks(
+                video, pet, clip, len(source_frames)
+            )
+            source_frames, fusion_meta = fuse_structural_support_masks(
+                source_frames, masks
+            )
+            structural_meta = {**provider_meta, "fusion": fusion_meta}
+            print(
+                f"[matte:{clip}] SAM2 structural support repaired "
+                f"{fusion_meta['repaired_pixels']} pixels in {provider_meta['seconds']}s"
+            )
+        except Exception as exc:
+            print(f"[matte:{clip}] SAM2 structural support unavailable ({exc}); continue baseline")
+
     residual, mid_visible = assess_rgba_frames(source_frames)
     if mid_visible < 0.04:
         print(f"[matte:{clip}] memory matte subject coverage {mid_visible:.1%}; using legacy chromakey")
@@ -2163,6 +2808,35 @@ def step_matte_memory(pet: str, clip: str):
     webp_frames, reframe = reframe_loop_frames(
         webp_frames, edge_profile_for_pet(pet)
     )
+    if GREEN_TEMPORAL_REFINE and edge_profile_for_pet(pet) == "real":
+        import numpy as np
+        from PIL import Image as PILImage
+
+        stack = [
+            np.asarray(frame.convert("RGBA")).astype(np.float32) / 255.0
+            for frame in webp_frames
+        ]
+        stack, temporal_meta = stabilize_alpha_temporal(
+            stack,
+            flow_size=GREEN_TEMPORAL_FLOW_SIZE,
+            preserve_lower_motion=(
+                GREEN_PRESERVE_LOWER_MOTION and clip in ("walk", "fast_walk")
+            ),
+        )
+        webp_frames = [
+            PILImage.fromarray((frame * 255.0 + 0.5).astype(np.uint8), "RGBA")
+            for frame in stack
+        ]
+        if isinstance(reframe, dict):
+            reframe["temporal_refine"] = temporal_meta
+            if structural_meta:
+                reframe["structural_support"] = structural_meta
+    if edge_profile_for_pet(pet) == "real" and REAL_ALPHA_EDGE_CONTRAST > 1.0:
+        webp_frames, edge_contrast_meta = sharpen_alpha_transitions(
+            webp_frames, strength=REAL_ALPHA_EDGE_CONTRAST
+        )
+        if isinstance(reframe, dict):
+            reframe["alpha_edge_contrast"] = edge_contrast_meta
     webp_frames[0].save(
         out,
         save_all=True,
@@ -2204,6 +2878,7 @@ def step_matte_memory(pet: str, clip: str):
         "similarity": "adaptive",
         "green_residual": round(residual, 4),
         "matte_mode": "adaptive_green_memory",
+        "pipeline_version": PRODUCTION_PIPELINE_VERSION,
         "matte_profile": matte_profile,
         "loop_meta": loop_meta,
         "reframe": reframe,

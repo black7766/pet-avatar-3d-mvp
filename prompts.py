@@ -20,17 +20,38 @@
 # v5（2026-06-11 深夜定稿）：v4 的皮克斯/CG 词汇把图拽向动漫质感、丢了真实感
 # （用户：与自己宠物像才能产生感情）→ 全部换成真实摄影语言。
 # 割裂感照样成立：摄影里轮廓光叫 hair light，是影棚宠物摄影标准布光，不依赖 CG 措辞。
-_COMMON_TAIL = (
+_COMMON_TAIL_BASE = (
     "真实照片质感：这是一张专业宠物摄影棚实拍的高清照片，"
     "不是CG、不是3D动画、不是插画、不是皮克斯风格；"
     "神态生动：目光温和地平视镜头看着主人，眼睛里有自然的眼神光，耳朵自然放松；"
     "构图：与宠物眼睛同高的平视视角（绝不仰拍、绝不俯拍、宠物不抬头），"
     "正面端坐面向镜头、全身完整入镜居中，占画面约七到八成高度，头顶留呼吸空间；"
+)
+
+# 2026-07-13：实体版（real）与轮廓光解耦。hair light 会把白/黄亮边烘焙进不透明毛尖，
+# 绿幕抠除后形成任何 alpha 后处理都无法完全修复的光圈（见 matting_bench 上游提示词研究
+# §2.3）。real 档改用主体/背景分离照明的哑光绿幕描述；cute/figurine 保留 hair light。
+_COMMON_TAIL_RIMLIGHT = (
+    _COMMON_TAIL_BASE +
     "影棚布光：柔和主光，背后轮廓光（hair light）沿毛发边缘勾出细细的自然亮边、"
     "把宠物从背景中清晰分离，毛发根根分明、真实细腻；"
     "明亮的标准绿幕背景（高饱和高亮度纯绿色 #00FF00，禁止深绿暗绿，"
     "无阴影、无渐变、无地面、无任何环境元素）"
 )
+
+_COMMON_TAIL_MATTE = (
+    _COMMON_TAIL_BASE +
+    "影棚布光：柔和中性正面主光打在宠物身上，毛发根根分明、真实细腻，"
+    "宠物照明与背景照明彼此独立；禁止轮廓光、逆光、发光亮边、过曝毛尖和绿色反光；"
+    "这是用于透明合成的单色抠像底板，不是摄影棚场景、不是无缝背景纸，也没有地面平面或地平线；"
+    "背景从四角到宠物脚底、尾巴下方都必须是完全相同的均匀哑光中高亮度标准色度绿，"
+    "禁止接触阴影、投影、脚底暗区、渐变、光晕、反射和任何环境元素；"
+    "宠物全身占画面高度百分之七十到七十八，脚掌下方保留百分之十以上纯绿安全区，"
+    "耳尖、脚掌、腹部和完整尾巴均不得贴边或被裁切"
+)
+
+# 兼容旧引用：默认尾缀保持带轮廓光的原行为。
+_COMMON_TAIL = _COMMON_TAIL_RIMLIGHT
 
 _IDENTITY_LOCK = (
     "只从输入照片提取宠物身份特征：毛色、花纹、斑纹分布、耳朵形状、眼睛颜色、鼻子、脸型、体型、尾巴和毛发质感；"
@@ -72,7 +93,7 @@ STYLE_PROMPTS = {
         "Use soft neutral diffuse studio lighting from the camera side. No rim light, no backlight, no edge glow, no overexposed fur outline, no green reflected light, and no green or yellow color spill on fur. "
         "把照片中的宠物身份原样还原：完整保留它的毛色、花纹、斑纹分布、毛发长短质感、"
         "耳朵眼睛鼻子的形状比例和体型特征，主人必须一眼认出就是自家宠物；"
-        "绝不卡通化、绝不动漫化、不改变任何身份特征；" + _COMMON_TAIL
+        "绝不卡通化、绝不动漫化、不改变任何身份特征；" + _COMMON_TAIL_MATTE
     ),
     # B 档：写实偏可爱 — 保留备选
     "cute": (
@@ -133,131 +154,8 @@ STATE_SHEET_PROMPTS = {
 
 DEFAULT_STYLE = "real"
 
-# ---------- ② 动作片段库（图生视频）----------
-# idle 使用首尾帧锁同一张图，保证静息状态机切换不跳变。
-# sleep / walk / run 这类硬件状态动画只锁首帧，不锁尾帧；状态已发生后直接播放稳定循环。
-_ACTION_LOCK = (
-    "动作生成统一规范：把首帧当作已经标准化好的同一只宠物角色模型，只继承首帧外观，"
-    "不要根据原始上传照片重新推断姿态；每段动画必须从正面端坐的标准姿态开始，前0.3秒保持静止，"
-    "全程保持同一体型比例、同一五官、同一毛色花纹、同一尾巴长度，不能站起来、趴下、翻身、跳出画面、身体拉长或脸部变形；"
-)
+# ---------- ② 动作配置 ----------
+# 动作文字与锁定生产约束位于 prompt_config/。修改动作只编辑 actions.py。
+from prompt_config import CLIP_PROMPTS, STATE_FRAME_PROMPTS
 
-_CLIP_TAIL = (
-    "；身体保持在画面原位不走出画面；镜头完全固定不动；"
-    "最后0.8秒必须完全回到首帧的正面端坐姿态并保持静止，尾巴、耳朵、身体轮廓、前爪位置与首帧一致；"
-    "纯绿色背景始终保持纯色静止无任何变化"
-    " --resolution 720p --duration 5 --camerafixed true --watermark false --generate_audio false"
-)
-
-CLIP_PROMPTS = {
-    # 静息循环（正脸陪伴 + 适当左右转头互动，2026-06-11 用户定稿）
-    "idle": (
-        _ACTION_LOCK +
-        "idle 静息状态循环：宠物始终正对镜头端坐，目光看向观众，只做轻微呼吸起伏、自然眨眼、"
-        "尾巴尖小幅摆动；头部最多向左和向右各转动10到15度，然后回到正视镜头，"
-        "动作安静稳定，最后回到与开头相同的正面端坐初始姿态" + _CLIP_TAIL
-    ),
-}
 DEFAULT_CLIP = "idle"
-
-# ---------- ③ 状态首帧图（Seedream 图生图）----------
-# run / walk / sleep 不能直接拿端坐 chosen.png 做 Seedance first_frame；
-# 需要先生成对应状态的静态首帧，否则视频必然从静息端坐过渡到目标状态。
-_STATE_FRAME_RULE = (
-    "基于输入宠物角色图，生成同一只宠物的状态动画首帧图。"
-    "必须严格保持同一只宠物的身份、毛色、花纹、五官、体型比例、毛发质感和当前3D/写实风格；"
-    "只改变姿态到指定状态，不改变品种、脸型、颜色或角色风格；"
-    "完整全身入镜，宠物位于画面中心，手机App动画资产构图；"
-    "明亮标准绿幕背景 #00FF00，无阴影、无接触阴影、无地面投影、无灰黑拖影、无运动残影、无渐变、无地面、无道具、无文字、无其他动物、无人手。"
-    "Use neutral diffuse frontal lighting on the pet. No rim light, no backlight, no glowing or overexposed fur edge, and no green-screen reflection on the body, paws, or tail. "
-)
-
-STATE_FRAME_PROMPTS = {
-    "run": (
-        _STATE_FRAME_RULE +
-        "生成奔跑状态首帧：宠物已经处于奔跑或小跑中的中间步态，四肢呈自然奔跑姿势，身体略有前进动势，"
-        "耳朵、尾巴和毛发有速度感，但不要生成脚底阴影、接触阴影、地面暗斑或黑色运动拖影；宠物仍完整居中，不要从端坐姿态开始，不要站立静止，不要坐下。"
-    ),
-    "walk": (
-        _STATE_FRAME_RULE +
-        "生成走动状态首帧：宠物已经处于自然行走中的中间步态，一只前爪自然前伸、另一侧后腿配合迈步，"
-        "身体平稳，尾巴和耳朵自然摆动，宠物完整居中；不要从端坐姿态开始，不要站立静止，不要坐下。"
-    ),
-    "sleep": (
-        _STATE_FRAME_RULE +
-        "生成睡觉状态首帧：严格采用参考姿态式的低伏趴睡，正面偏 3/4 视角，全身完整入镜，广角全身构图，宠物整体只占画面约 60%，上下左右都有明显绿色留白，"
-        "胸腹低伏，前爪在脸下方并拢或自然叠放，头部放低并轻轻趴在两只前爪上，双眼闭合，表情放松，尾巴向后或侧后方自然伸出且完整可见；"
-        "不要近景特写，不要大头照，不要让脸部占满画面，不要裁切耳朵、身体、前爪或尾巴，不要侧躺，不要蜷缩成球，不要露出肚皮，不要睁眼，不要抬头。"
-    ),
-}
-
-# ---------- ④ 产品状态循环提示词（2026-06-23）----------
-# 硬件上报 sleep/walk/run 时，宠物已经处于该状态；App 不需要展示入睡、起步或停止的过渡过程。
-# 因此这些片段应从第一帧就处于目标状态，并在目标状态内无缝循环。
-_STATE_LOOP_RULE = (
-    "产品状态动画统一规则：硬件上报状态时，宠物已经处于该状态；首帧图已经是目标状态首帧，"
-    "视频第一帧必须继承首帧图的目标姿态，"
-    "不要展示从静息进入该状态的过渡过程，也不要展示离开该状态的过程；"
-    "全程保持同一只宠物的身份、毛色、花纹、五官、体型比例和3D风格；"
-    "镜头固定，完整全身入镜，宠物保持画面中心，纯绿色背景，动作稳定、连续、可无缝循环；"
-    "禁止跳帧、闪回到初始坐姿、变脸、变体型、出现人手、碗、毯子、窝或其他道具；"
-    "Keep neutral diffuse subject lighting constant in every frame. No rim light, no backlight, no glowing white or yellow fur outline, and no green-screen bounce or color spill on fur, paws, belly, or tail. "
-)
-
-_STATE_LOOP_TAIL = (
-    "首帧和尾帧必须保持同一状态下的相近姿态，循环时不能突然切回静息姿态；"
-    "纯绿色背景始终保持纯色静止无任何变化"
-    " --resolution 720p --duration 5 --camerafixed true --watermark false --generate_audio false"
-)
-
-CLIP_PROMPTS["sleep"] = (
-    _STATE_LOOP_RULE +
-    "Strict sleep-loop requirement: the pet is already asleep from frame 1. Eyes must remain fully closed for the entire clip. The head must remain low and resting on or very close to the front paws. Only subtle breathing is allowed. No opening eyes, no looking at camera, no lifting head, no waking up, no getting up, no rolling, no transition into or out of sleep. "
-    "sleep 睡眠状态循环：视频第一帧就已经是宠物睡着后的稳定低伏趴睡姿态，正面偏 3/4 视角，全身完整入镜，广角全身构图，宠物整体只占画面约 60%，上下左右都有明显绿色留白，"
-    "胸腹低伏，前爪在脸下方并拢或自然叠放，头部放低并轻轻趴在两只前爪上，双眼闭合，表情放松，尾巴向后或侧后方自然伸出且完整可见；"
-    "整段只保留轻微、规律的睡眠呼吸起伏，偶尔耳朵或爪子极轻微抽动；不要侧躺，不要蜷缩成球，不要翻身；"
-    "不要出现从坐姿趴下、从站姿倒下、打哈欠入睡、抬头醒来、睁眼、起身、翻身、走动或任何入睡/醒来过渡；"
-    "不要出现床、毯子、宠物窝、碗、食物、人手或其他道具；"
-    + _STATE_LOOP_TAIL
-)
-
-CLIP_PROMPTS["walk"] = (
-    _STATE_LOOP_RULE +
-    "walk 行走状态循环：视频第一帧就已经是宠物正在自然行走的状态，四肢按稳定步态循环，"
-    "身体有轻微上下起伏，尾巴和耳朵随步态自然摆动；宠物保持画面中心，可以原地踏步或极小幅位移，"
-    "但不要走出画面，不要切换镜头；不要展示从静息站起来、开始走、停下、坐回静息或回头看主人；"
-    + _STATE_LOOP_TAIL
-)
-
-CLIP_PROMPTS["run"] = (
-    _STATE_LOOP_RULE +
-    "run 奔跑状态循环：视频第一帧就已经是宠物正在奔跑或小跑的状态，四肢有清晰、连续、有节奏的奔跑循环，"
-    "身体弹跳自然，耳朵、尾巴和毛发随速度轻微摆动；不要生成脚底阴影、地面暗斑、接触阴影、黑色拖影或背景残影；宠物保持画面中心，可以原地奔跑或极小幅位移，"
-    "但不要冲出画面，不要改变镜头；不要展示从静息启动、加速过程、刹停、坐下或回到静息姿态；"
-    + _STATE_LOOP_TAIL
-)
-
-# Current product state set: idle / fast_walk / sleep.
-# Keep a single locomotion state to avoid duplicated walking/running assets.
-STATE_FRAME_PROMPTS["fast_walk"] = (
-    _STATE_FRAME_RULE
-    + "Generate the first frame for fast_walk: the pet is already in a brisk walking loop pose, mid-stride, full body visible, centered, with a stable body, natural alternating legs, ears and tail subtly following motion. "
-    "It must look like fast walking, not running, jumping, sitting, standing still, or transitioning from idle. "
-    "Use pure bright green #00FF00 background, no floor, no ground shadow, no contact shadow, no dark shadow under the pet, no motion trail, no props, no text."
-)
-
-CLIP_PROMPTS["fast_walk"] = (
-    _STATE_LOOP_RULE
-    + "fast_walk brisk-walk state loop: the first frame is already a stable brisk-walking pose, and the entire 5-second clip remains inside that state. "
-    "Create a smooth treadmill-style in-place brisk walking cycle with natural alternating legs, subtle body bob, ear and tail secondary motion, full body always centered and fully visible. "
-    "Lock the pet's body yaw, facing direction, and three-quarter viewing angle to the first frame for the entire clip. The head and torso must keep facing the same screen direction. "
-    "Never rotate around the vertical axis, never turn around, never show the back view, never orbit, never walk in a circle, never cross the frame, and never drift sideways. Only the gait cycle and subtle secondary motion may change. "
-    "Do not show acceleration, start-from-idle, stop, sit-down, jump, run, sprint, or return to idle. "
-    "Avoid any floor, black shadow, contact shadow, dark smear, motion trail, props, text, or camera movement. "
-    + _STATE_LOOP_TAIL
-)
-
-CLIP_PROMPTS.pop("run", None)
-CLIP_PROMPTS.pop("walk", None)
-STATE_FRAME_PROMPTS.pop("run", None)
-STATE_FRAME_PROMPTS.pop("walk", None)

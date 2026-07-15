@@ -92,8 +92,115 @@ python matting_bench/render_animated_compare.py
 - Actions: entity-version `fast_walk` and `sleep`, switchable on the same page
 - Playback: 640x640, 96 real consecutive frames, 19.2 FPS, 5-second silent loop
 - Metrics: runtime and quality values switch with the selected action
-- Self-developed variants: original adaptive green baseline and `edge_v2`
+- Self-developed variants: original adaptive green baseline, `edge_v2`, and `temporal_v3`
 - `edge_v2`: 2-3px contour anti-aliasing plus nearest-core color reconstruction
-- Production default: enabled for entity/real assets only; set `PETAVATAR_GREEN_EDGE_REFINE=0` to roll back
+- `temporal_v3`: `edge_v2` plus bidirectional flow-gated temporal alpha fusion
+  (photometrically verified Farneback warp, static/soft-band weights 0.65/0.50)
+  and flow-aligned adjacent-frame fragment voting. Large detached body components
+  are protected from fragment removal.
+- Production default: `edge_v2` and `temporal_v3` are enabled for entity/real assets
+  by `petavatar_server.py`; temporal flow runs at 384 px. Set
+  `PETAVATAR_GREEN_TEMPORAL_REFINE=0` to roll back to per-frame `edge_v2`, or set
+  `PETAVATAR_TEMPORAL_FLOW_SIZE=320|384|480` for an explicit quality/speed tradeoff.
 - Controls: production/research filter, checker/white/black background, synchronized replay
 - Loading: production candidates load first; hidden research animations load on demand
+
+## 2026-07-14 production A/B
+
+```powershell
+python matting_bench/run_production_temporal_ab.py --flow-size 384
+python matting_bench/run_real_lighting_prompt_ab.py
+```
+
+- Temporal page: `http://127.0.0.1:8792/temporal_v3_production_ab_20260714.html`
+- Lighting-prompt page: `http://127.0.0.1:8792/real_lighting_prompt_ab_20260714.html`
+- Fixed report: `PRODUCTION_OPTIMIZATION_AB_20260714.md`
+
+## 2026-07-15 structural support for moving limbs
+
+The production `fast_walk` pipeline now combines the self-developed soft chroma
+alpha with SAM 2.1 Hiera Small as an interior-only structural prior. SAM2 does
+not replace the outside contour, so fractional fur, whiskers, and the tail tip
+remain controlled by the adaptive-green matte. It only raises alpha inside a
+tracked subject mask and reconstructs color for severe internal holes.
+
+- Optional enhancement switch: `PETAVATAR_SAM2_STRUCTURAL_REFINE=1`
+- Default scope: `PETAVATAR_SAM2_STRUCTURAL_CLIPS=fast_walk`
+- Production default is off; V4 uses motion-aware adaptive green plus temporal_v3
+- Failure behavior: log the provider error and continue with temporal_v3
+- A/B page: `http://127.0.0.1:8792/structural_hybrid_ab_20260715.html`
+- Test clip result: 163,278 reinforced pixels, 48,014 severe holes repaired,
+  temporal fragment count 343 -> 320, WebP 4.62 MB -> 4.56 MB
+- Local cost: zero API tokens; cold SAM2 job 90.23 seconds for 120 frames,
+  including model/process initialization, while propagation itself is 9.23 seconds
+
+The next speed optimization is a persistent SAM2 worker that keeps the model in
+GPU memory. The current subprocess implementation is intentionally isolated and
+safe for the existing demo server, but pays cold-start overhead on every job.
+
+## 2026-07-15 upstream side-view locomotion
+
+The primary fast-walk failure was traced to source generation rather than alpha
+recovery: the previous three-quarter view rotated toward the camera during the
+clip, causing leg occlusion, tail reconstruction, and large silhouette changes.
+The production prompt now generates a fixed near-side keyframe and one compact,
+repeated four-beat walk cycle with a low-amplitude tail.
+
+- Dynamic A/B: `http://127.0.0.1:8792/upstream_sideview_production_ab_20260715.html`
+- Same pet, Seedance 1.5, 720p, 5 seconds, 120 output frames
+- Silhouette width CV: 25.84% -> 3.53%
+- Silhouette area CV: 16.22% -> 2.66%
+- Horizontal centroid range: 70.7 px -> 23.5 px
+- Output fragment ratio: 0.0186% -> 0.0015%
+- New candidate uses temporal_v3 without SAM2: 70.7 seconds local processing
+
+`poc.py` accepts `PETAVATAR_ANIMATE_MODEL` for controlled model A/B. The account
+lists `doubao-seedance-2-0-260128`, but task creation currently returns
+`ModelNotOpen`; do not switch the server default until that model is activated.
+
+## 2026-07-15 upstream no-ground locomotion
+
+The remaining paw defects were traced to contact lighting already baked into the
+source video. Mentioning an invisible baseline still caused the video model to
+infer a physical floor, contact shadow, paw compression, and a green brightness
+gradient. The production prompt now describes a suspended animation-software
+walk-cycle preview over a flat 2D compositing fill. It requires a continuous
+uniform green band below every complete paw and explicitly forbids any rendered
+surface, contact patch, ambient occlusion, reflection, or floor gradient.
+
+- Dynamic A/B: `http://127.0.0.1:8792/upstream_ground_airgap_ab_20260715.html`
+- Source/background confidence: 0.6544 -> 0.8235
+- Output loop seam: 0.004400 -> 0.001345
+- Temporal fragments removed: 311 -> 247
+- WebP size: 4.71 MB -> 4.19 MB
+- Local temporal_v3 processing: 70.7 s -> 70.0 s
+- Test configuration: Seedance 1.5, 720p, 5 seconds, temporal_v3, no SAM2
+
+The transparent asset intentionally contains no floor or baked shadow. Product
+clients should align the lowest visible paw to their desktop/app baseline and
+render a separate stable ellipse shadow beneath the pet when visual grounding is
+needed. This keeps contact lighting temporally stable and independent of matting.
+
+## Production default: airgap_motion_v4
+
+Both production stages now use the V4 path by default:
+
+- Generation: no physical floor, suspended locomotion cycle, full paws, and a
+  uniform 2D green compositing fill below the lowest paw.
+- Matting: motion-aware linear alpha un-mixing restores blurred dark limbs and
+  tails without reviving pure-green contact shadows.
+- Temporal pass: bidirectional flow remains enabled, but the current-frame lower
+  motion silhouette is protected for `fast_walk` to prevent translucent duplicate
+  paws and amputated legs.
+- SAM2 is opt-in rather than part of the default path. Set
+  `PETAVATAR_SAM2_STRUCTURAL_REFINE=1` only for an explicit structural A/B.
+- Metrics record `pipeline_version: airgap_motion_v4` for new video and matte jobs.
+
+Rollback controls are `PETAVATAR_GREEN_MOTION_ALPHA_REFINE=0`,
+`PETAVATAR_GREEN_PRESERVE_LOWER_MOTION=0`, and
+`PETAVATAR_GREEN_TEMPORAL_REFINE=0`.
+
+For real/entity assets, V4 also applies a final odds-domain alpha contrast of
+`1.18`. This keeps alpha 0, 0.5, and 1 fixed while compressing an overly broad
+semi-transparent transition, so the silhouette does not shrink or move. Disable
+it with `PETAVATAR_REAL_ALPHA_EDGE_CONTRAST=1.0`.

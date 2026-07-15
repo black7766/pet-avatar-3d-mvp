@@ -10,6 +10,7 @@ poc_output/**/raw_*.mp4
 poc_output/**/raw_*.mov
 poc_output/**/raw_*.webm
 poc_output/**/state_*_raw.jpeg
+poc_output/**/task_*.json
 poc_output/**/candidates/
 poc_output/**/*.download
 poc_output/**/*.tmp
@@ -26,6 +27,10 @@ logs/
 poc_output/server_*.log
 poc_output/_ab_*/
 poc_output/_inspect_*/
+poc_output/_inspect_*
+poc_output/_debug_*
+poc_output/*_ab_20*.html
+poc_output/*_ab_20*/
 
 # Local matting model lab. Keep adapters and reports, ignore heavy runtimes/assets.
 .models/

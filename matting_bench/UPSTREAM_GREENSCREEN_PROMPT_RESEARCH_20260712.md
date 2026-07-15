@@ -232,6 +232,7 @@ Maintain clean-frame detail with no motion blur, temporal ghosting, fur smearing
 - “no motion blur” 是生成约束，不是已确认的独立数值参数。
 - 单次 A/B 好样本不能证明稳定性。正式定版至少覆盖短毛/长毛、深色/浅色、蓬松尾/细尾和带绿色配件样本。
 - 上游优化不能完全消除半透明毛发的色污染，最终仍需要本地 despill、边缘融合和时序处理。
+
 ## 11. 最小实测结果（2026-07-12）
 
 - Seedance 任务：`cgt-20260712172952-stlls`，720p、5 秒、无声，usage `108,900` tokens。

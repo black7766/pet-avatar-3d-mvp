@@ -1,0 +1,256 @@
+{
+  "stylize": [
+    {
+      "model": "doubao-seedream-4-5-251128",
+      "style": "paimomo3d",
+      "file": "paimomo3d_1.jpeg",
+      "seconds": 190.8,
+      "usage": {
+        "generated_images": 1,
+        "output_tokens": 16384,
+        "total_tokens": 16384
+      }
+    }
+  ],
+  "animate": [
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "fast_walk",
+      "task": "cgt-20260709134723-97dwd",
+      "seconds": 58.2,
+      "generate_audio": false,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    },
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "idle",
+      "task": "cgt-20260709134717-xq2kh",
+      "seconds": 93.8,
+      "generate_audio": false,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    },
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "sleep",
+      "task": "cgt-20260709134726-gjb6s",
+      "seconds": 131.4,
+      "generate_audio": false,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    }
+  ],
+  "matte": [
+    {
+      "clip": "idle",
+      "key_color": "0x18D917",
+      "frames": 120,
+      "webp_frames": 108,
+      "loop_close_frames": 8,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 94,
+      "webp_method": 4,
+      "webp_mb": 4.45,
+      "seconds": 23.5,
+      "similarity": "adaptive",
+      "green_residual": 0.0,
+      "matte_mode": "adaptive_green_memory",
+      "matte_profile": {
+        "mode": "adaptive_green_memory",
+        "bg_floor": 0.8423,
+        "key_rgb": [
+          24,
+          217,
+          23
+        ],
+        "sampled_frames": 12,
+        "decode_seconds": 1.42,
+        "alpha_seconds": 12.99,
+        "encode_seconds": 8.74
+      },
+      "loop_meta": null,
+      "reframe": {
+        "source_bbox": [
+          71,
+          55,
+          490,
+          594
+        ],
+        "source_margins": {
+          "left": 71,
+          "top": 55,
+          "right": 150,
+          "bottom": 46
+        },
+        "source_edge_risk": {
+          "left": false,
+          "top": false,
+          "right": false,
+          "bottom": false
+        },
+        "crop": [
+          47,
+          31,
+          514,
+          618
+        ],
+        "scale": 0.8501,
+        "paste": [
+          121,
+          103
+        ],
+        "target_size": [
+          397,
+          499
+        ]
+      }
+    },
+    {
+      "clip": "fast_walk",
+      "key_color": "0x23FC16",
+      "frames": 120,
+      "webp_frames": 108,
+      "loop_close_frames": 8,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 94,
+      "webp_method": 4,
+      "webp_mb": 4.07,
+      "seconds": 25.7,
+      "similarity": "adaptive",
+      "green_residual": 0.0,
+      "matte_mode": "adaptive_green_memory",
+      "matte_profile": {
+        "mode": "adaptive_green_memory",
+        "bg_floor": 0.8182,
+        "key_rgb": [
+          35,
+          252,
+          22
+        ],
+        "sampled_frames": 12,
+        "decode_seconds": 1.45,
+        "alpha_seconds": 13.72,
+        "encode_seconds": 10.19
+      },
+      "loop_meta": {
+        "mode": "best_span",
+        "source_frames": 120,
+        "selected": [
+          0,
+          119
+        ],
+        "selected_frames": 120,
+        "seam_diff": 0.002412
+      },
+      "reframe": {
+        "source_bbox": [
+          66,
+          55,
+          588,
+          597
+        ],
+        "source_margins": {
+          "left": 66,
+          "top": 55,
+          "right": 52,
+          "bottom": 43
+        },
+        "source_edge_risk": {
+          "left": false,
+          "top": false,
+          "right": false,
+          "bottom": false
+        },
+        "crop": [
+          42,
+          31,
+          612,
+          621
+        ],
+        "scale": 0.8458,
+        "paste": [
+          79,
+          103
+        ],
+        "target_size": [
+          482,
+          499
+        ]
+      }
+    },
+    {
+      "clip": "sleep",
+      "key_color": "0x0BE50D",
+      "frames": 120,
+      "webp_frames": 108,
+      "loop_close_frames": 8,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 94,
+      "webp_method": 4,
+      "webp_mb": 4.47,
+      "seconds": 23.8,
+      "similarity": "adaptive",
+      "green_residual": 0.0,
+      "matte_mode": "adaptive_green_memory",
+      "matte_profile": {
+        "mode": "adaptive_green_memory",
+        "bg_floor": 0.8924,
+        "key_rgb": [
+          11,
+          229,
+          13
+        ],
+        "sampled_frames": 12,
+        "decode_seconds": 1.45,
+        "alpha_seconds": 13.29,
+        "encode_seconds": 8.69
+      },
+      "loop_meta": null,
+      "reframe": {
+        "source_bbox": [
+          70,
+          53,
+          488,
+          594
+        ],
+        "source_margins": {
+          "left": 70,
+          "top": 53,
+          "right": 152,
+          "bottom": 46
+        },
+        "source_edge_risk": {
+          "left": false,
+          "top": false,
+          "right": false,
+          "bottom": false
+        },
+        "crop": [
+          46,
+          29,
+          512,
+          618
+        ],
+        "scale": 0.8472,
+        "paste": [
+          122,
+          103
+        ],
+        "target_size": [
+          395,
+          499
+        ]
+      }
+    }
+  ]
+}

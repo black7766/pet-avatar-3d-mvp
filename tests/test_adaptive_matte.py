@@ -9,11 +9,28 @@ from poc import (
     edge_profile_for_pet,
     refine_adaptive_edge,
     refine_reframed_halo,
+    sharpen_alpha_transitions,
     suppress_opaque_key_halo,
 )
 
 
 class AdaptiveGreenMatteTest(unittest.TestCase):
+    def test_alpha_contrast_sharpens_transition_without_moving_half_contour(self):
+        rgba = np.zeros((1, 5, 4), dtype=np.uint8)
+        rgba[0, :, :3] = 120
+        rgba[0, :, 3] = (0, 64, 128, 192, 255)
+        frames, stats = sharpen_alpha_transitions(
+            [Image.fromarray(rgba, "RGBA")], strength=1.18
+        )
+        result = np.asarray(frames[0])[:, :, 3]
+
+        self.assertEqual(int(result[0, 0]), 0)
+        self.assertLess(int(result[0, 1]), 64)
+        self.assertEqual(int(result[0, 2]), 128)
+        self.assertGreater(int(result[0, 3]), 192)
+        self.assertEqual(int(result[0, 4]), 255)
+        self.assertEqual(stats["contour_anchor"], 0.5)
+
     def test_green_identity_detail_is_not_counted_as_edge_spill(self):
         rgba = np.zeros((64, 64, 4), dtype=np.uint8)
         rgba[12:52, 12:52] = (130, 100, 70, 255)
@@ -110,6 +127,65 @@ class AdaptiveGreenMatteTest(unittest.TestCase):
         self.assertEqual(real_alpha[40, 40], 1.0)
         np.testing.assert_allclose(cartoon_alpha, alpha, atol=1e-6)
 
+    def test_motion_mask_lifts_blurred_dark_fur_but_not_shadows(self):
+        # A dark leg motion-blurred to 50% coverage keys to ~0.16 alpha on the normalized
+        # ramp, visually amputating the limb. With a motion mask the linear un-mix estimate
+        # must restore roughly the true coverage, while a keyed contact shadow (pure green
+        # at lower brightness) stays removed even inside the motion mask.
+        key = np.array([0.106, 0.886, 0.110], dtype=np.float32)
+        fur = np.array([0.30, 0.25, 0.15], dtype=np.float32)
+        rgb = np.tile(key, (96, 96, 1)).astype(np.float32)
+        rgb[20:60, 30:44] = fur  # solid leg
+        for column, t in zip(range(44, 64), np.linspace(0.9, 0.1, 20)):
+            rgb[20:60, column] = t * fur + (1.0 - t) * key  # blur smear
+        rgb[70:80, 30:60] = key * 0.45  # dark green contact shadow
+        image = Image.fromarray((rgb * 255).astype(np.uint8), "RGB")
+        profile = {
+            "bg_floor": 0.8235,
+            "key_rgb": key,
+            "sampled_frames": 1,
+        }
+        motion_mask = np.zeros((96, 96), dtype=bool)
+        motion_mask[10:90, 20:70] = True
+
+        static = np.asarray(adaptive_green_matte_frame(image, profile))
+        lifted = np.asarray(adaptive_green_matte_frame(image, profile, motion_mask=motion_mask))
+
+        half_coverage_alpha_static = int(static[40, 52, 3])
+        half_coverage_alpha_lifted = int(lifted[40, 52, 3])
+        self.assertLess(half_coverage_alpha_static, 90)
+        self.assertGreater(half_coverage_alpha_lifted, 100, "blur smear was not lifted")
+        self.assertLess(
+            abs(half_coverage_alpha_lifted - 128), 55,
+            "lifted alpha should approximate true coverage",
+        )
+        self.assertLess(int(lifted[74, 45, 3]), 10, "contact shadow was lifted")
+        self.assertGreater(int(lifted[40, 35, 3]), 245, "solid leg must stay opaque")
+
+    def test_white_paw_on_dark_leg_survives_real_halo_suppression(self):
+        # A thick white marking near the silhouette is pet color, not key bounce:
+        # it must keep its brightness even though the nearest deep fur is much darker.
+        rgb = np.zeros((90, 90, 3), dtype=np.float32)
+        alpha = np.zeros((90, 90), dtype=np.float32)
+        alpha[10:80, 30:52] = 1.0
+        rgb[10:80, 30:52] = (0.30, 0.24, 0.16)
+        paw = (slice(62, 80), slice(30, 52))
+        rgb[paw] = (0.93, 0.91, 0.88)
+        white_before = rgb[71, 40].copy()
+
+        cleaned, halo, _ = suppress_opaque_key_halo(
+            rgb, alpha, profile="real", return_details=True
+        )
+        self.assertFalse(halo[paw].any(), "white paw was flagged as key halo")
+        np.testing.assert_allclose(cleaned[71, 40], white_before, atol=0.02)
+
+        refined_rgb, _ = refine_adaptive_edge(cleaned, alpha, profile="real")
+        paw_luma = float(np.dot(refined_rgb[71, 40], (0.299, 0.587, 0.114)))
+        self.assertGreater(paw_luma, 0.80, "edge refine dimmed the white paw")
+
+        _, feather_alpha = refine_reframed_halo(rgb, alpha, profile="real")
+        self.assertEqual(float(feather_alpha[paw].min()), 1.0)
+
     def test_edge_profile_keeps_cartoon_and_real_assets_separate(self):
         self.assertEqual(edge_profile_for_pet("pet_123_real"), "real")
         self.assertEqual(edge_profile_for_pet("pet_123_paimomo"), "cartoon")
@@ -141,7 +217,11 @@ class AdaptiveGreenMatteTest(unittest.TestCase):
         _, refined = refine_adaptive_edge(rgb, alpha, profile="real")
 
         soft_pixels = (refined > 0.02) & (refined < 0.98)
-        self.assertGreater(int(soft_pixels.sum()), 120)
+        self.assertGreater(int(soft_pixels.sum()), 60)
+        self.assertLess(
+            int(soft_pixels.sum()), 120,
+            "smooth contour was expanded into an unnecessarily wide soft band",
+        )
         self.assertEqual(float(refined[:, 62:].max()), 0.0)
         self.assertEqual(float(refined[30, 30]), 1.0)
 
@@ -162,7 +242,10 @@ class AdaptiveGreenMatteTest(unittest.TestCase):
 
         self.assertLess(after_bias, before_bias * 0.25)
         self.assertLess(after_luma, before_luma - 0.12)
-        self.assertLess(float(refined_alpha[12:15, 40].min()), 1.0)
+        self.assertEqual(
+            float(refined_alpha[12:15, 40].min()), 1.0,
+            "a smooth opaque edge should be color-corrected without forced feathering",
+        )
         np.testing.assert_allclose(refined_rgb[40, 40], rgb[40, 40], atol=1e-6)
 
 

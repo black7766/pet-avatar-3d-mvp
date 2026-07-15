@@ -180,15 +180,26 @@
       "key_color": "0x1EFC18",
       "frames": 120,
       "webp_frames": 105,
-      "loop_close_frames": 0,
+      "loop_close_frames": 8,
       "webp_fps": 24,
       "webp_width": 640,
-      "webp_quality": 90,
-      "webp_method": 2,
-      "webp_mb": 3.83,
-      "seconds": 72.8,
-      "similarity": "0.085",
+      "webp_quality": 94,
+      "webp_method": 4,
+      "webp_mb": 4.36,
+      "seconds": 26.7,
+      "similarity": "adaptive",
       "green_residual": 0.0,
+      "matte_mode": "adaptive_green",
+      "matte_profile": {
+        "mode": "adaptive_green",
+        "bg_floor": 0.6547,
+        "key_rgb": [
+          33,
+          249,
+          25
+        ],
+        "sampled_frames": 12
+      },
       "loop_meta": {
         "mode": "best_span",
         "source_frames": 120,
@@ -197,40 +208,40 @@
           119
         ],
         "selected_frames": 117,
-        "seam_diff": 0.063195
+        "seam_diff": 0.063621
       },
       "reframe": {
         "source_bbox": [
-          0,
+          2,
           68,
-          640,
-          640
+          638,
+          602
         ],
         "source_margins": {
-          "left": 0,
+          "left": 2,
           "top": 68,
-          "right": 0,
-          "bottom": 0
+          "right": 2,
+          "bottom": 38
         },
         "source_edge_risk": {
           "left": true,
           "top": false,
           "right": true,
-          "bottom": true
+          "bottom": false
         },
         "crop": [
           0,
           40,
           640,
-          640
+          630
         ],
-        "scale": 0.8317,
+        "scale": 0.8458,
         "paste": [
-          54,
+          49,
           103
         ],
         "target_size": [
-          532,
+          541,
           499
         ]
       }

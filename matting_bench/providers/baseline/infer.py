@@ -48,6 +48,17 @@ def main() -> None:
         action="store_true",
         help="anti-alias a narrow silhouette band and rebuild contaminated edge color",
     )
+    parser.add_argument(
+        "--temporal-refine",
+        action="store_true",
+        help="flow-gated clip-level alpha stabilization plus single-frame fragment removal",
+    )
+    parser.add_argument(
+        "--temporal-flow-size",
+        type=int,
+        default=poc.GREEN_TEMPORAL_FLOW_SIZE,
+        help="square optical-flow working resolution for temporal refinement",
+    )
     args = parser.parse_args()
 
     if not 0.001 <= args.foreground_score <= 0.10:
@@ -62,6 +73,8 @@ def main() -> None:
         raise SystemExit("--core-radius-ratio must be in [0.02, 0.40]")
     if not 0.0 <= args.halo_strength <= 1.5:
         raise SystemExit("--halo-strength must be in [0, 1.5]")
+    if not 192 <= args.temporal_flow_size <= 640:
+        raise SystemExit("--temporal-flow-size must be in [192, 640]")
 
     poc.GREEN_MATTE_FOREGROUND_SCORE = args.foreground_score
     poc.GREEN_MATTE_BORDER_QUANTILE = args.border_quantile
@@ -78,8 +91,12 @@ def main() -> None:
     profile = poc.profile_green_screen(paths)
     args.output_dir.mkdir(parents=True, exist_ok=True)
     times = []
+    rgba_stack = []
+    source_stack = []
+    temporal_stats = None
     for path, frame in zip(paths, frames):
         frame_started = time.perf_counter()
+        source_rgb = np.asarray(frame, dtype=np.float32) / 255.0
         result = poc.adaptive_green_matte_frame(frame, profile)
         rgba = np.asarray(result, dtype=np.float32) / 255.0
         if args.halo_profile == "none":
@@ -93,15 +110,38 @@ def main() -> None:
                 clean_rgb, clean_alpha, profile=args.halo_profile
             )
         clean_rgb[clean_alpha == 0.0] = 0.0
-        packed = np.dstack((np.clip(clean_rgb, 0.0, 1.0), clean_alpha))
-        result = Image.fromarray((packed * 255.0 + 0.5).astype(np.uint8), "RGBA")
-        result.save(args.output_dir / path.name)
+        packed = np.dstack((np.clip(clean_rgb, 0.0, 1.0), clean_alpha)).astype(
+            np.float32
+        )
         times.append(time.perf_counter() - frame_started)
+        if args.temporal_refine:
+            rgba_stack.append(packed)
+            source_stack.append(source_rgb)
+        else:
+            result = Image.fromarray((packed * 255.0 + 0.5).astype(np.uint8), "RGBA")
+            result.save(args.output_dir / path.name)
+    if args.temporal_refine:
+        temporal_started = time.perf_counter()
+        rgba_stack, temporal_stats = poc.stabilize_alpha_temporal(
+            rgba_stack,
+            source_rgbs=source_stack,
+            flow_size=args.temporal_flow_size,
+        )
+        temporal_stats["temporal_seconds"] = round(
+            time.perf_counter() - temporal_started, 4
+        )
+        for path, packed in zip(paths, rgba_stack):
+            result = Image.fromarray((packed * 255.0 + 0.5).astype(np.uint8), "RGBA")
+            result.save(args.output_dir / path.name)
     elapsed = time.perf_counter() - started
+    if args.temporal_refine:
+        provider_name = "adaptive_green_temporal_v3"
+    elif args.edge_refine:
+        provider_name = "adaptive_green_edge_v2"
+    else:
+        provider_name = "adaptive_green_baseline"
     metrics = {
-        "provider": (
-            "adaptive_green_edge_v2" if args.edge_refine else "adaptive_green_baseline"
-        ),
+        "provider": provider_name,
         "device": "cpu",
         "frames": len(paths),
         "total_seconds": round(elapsed, 4),
@@ -115,7 +155,10 @@ def main() -> None:
             "halo_strength": args.halo_strength,
             "halo_profile": args.halo_profile,
             "edge_refine": args.edge_refine,
+            "temporal_refine": args.temporal_refine,
+            "temporal_flow_size": args.temporal_flow_size,
         },
+        "temporal": temporal_stats,
         "profile": {
             key: value.tolist() if hasattr(value, "tolist") else value
             for key, value in profile.items()

@@ -1,0 +1,426 @@
+{
+  "stylize": [
+    {
+      "model": "doubao-seedream-4-5-251128",
+      "style": "real",
+      "file": "real_1.jpeg",
+      "seconds": 20.1,
+      "image_controls": {},
+      "usage": {
+        "generated_images": 1,
+        "output_tokens": 16384,
+        "total_tokens": 16384
+      }
+    }
+  ],
+  "state_frame": [
+    {
+      "model": "doubao-seedream-4-5-251128",
+      "clip": "sleep",
+      "file": "state_sleep.png",
+      "seconds": 18.7,
+      "safe": true,
+      "bounds": {
+        "bbox": [
+          246,
+          706,
+          1803,
+          1342
+        ],
+        "margins": {
+          "left": 246,
+          "top": 706,
+          "right": 245,
+          "bottom": 706
+        },
+        "size": [
+          2048,
+          2048
+        ],
+        "min_required_margin": 81,
+        "safe": true
+      },
+      "attempts": 1,
+      "image_controls": {},
+      "usage": {
+        "generated_images": 1,
+        "output_tokens": 16384,
+        "total_tokens": 16384
+      }
+    },
+    {
+      "model": "doubao-seedream-4-5-251128",
+      "clip": "fast_walk",
+      "file": "state_fast_walk.png",
+      "seconds": 27.0,
+      "safe": true,
+      "bounds": {
+        "bbox": [
+          245,
+          437,
+          1803,
+          1610
+        ],
+        "margins": {
+          "left": 245,
+          "top": 437,
+          "right": 245,
+          "bottom": 438
+        },
+        "size": [
+          2048,
+          2048
+        ],
+        "min_required_margin": 81,
+        "safe": true
+      },
+      "attempts": 1,
+      "image_controls": {
+        "seed": 20260816,
+        "guidance_scale": 5.5
+      },
+      "usage": {
+        "generated_images": 1,
+        "output_tokens": 16384,
+        "total_tokens": 16384
+      }
+    }
+  ],
+  "animate": [
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "sleep",
+      "pipeline_version": "airgap_motion_v4",
+      "task": "cgt-20260715155149-xpdmf",
+      "seconds": 58.0,
+      "requested_duration_seconds": 5,
+      "requested_resolution": "720p",
+      "generate_audio": false,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    },
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "idle",
+      "pipeline_version": "airgap_motion_v4",
+      "task": "cgt-20260715155145-5scrk",
+      "seconds": 81.0,
+      "requested_duration_seconds": 5,
+      "requested_resolution": "720p",
+      "generate_audio": false,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    },
+    {
+      "model": "doubao-seedance-1-5-pro-251215",
+      "clip": "fast_walk",
+      "pipeline_version": "airgap_motion_v4",
+      "task": "cgt-20260715161257-27lnz",
+      "seconds": 77.8,
+      "requested_duration_seconds": 5,
+      "requested_resolution": "720p",
+      "generate_audio": false,
+      "usage": {
+        "completion_tokens": 108900,
+        "total_tokens": 108900
+      }
+    }
+  ],
+  "matte": [
+    {
+      "clip": "idle",
+      "key_color": "0x12E10D",
+      "frames": 120,
+      "webp_frames": 120,
+      "loop_close_frames": 0,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 94,
+      "webp_method": 4,
+      "webp_mb": 4.15,
+      "seconds": 216.9,
+      "similarity": "adaptive",
+      "green_residual": 0.0,
+      "matte_mode": "adaptive_green_memory",
+      "pipeline_version": "airgap_motion_v4",
+      "matte_profile": {
+        "mode": "adaptive_green_memory",
+        "bg_floor": 0.8214,
+        "key_rgb": [
+          18,
+          225,
+          13
+        ],
+        "sampled_frames": 12,
+        "pipeline_version": "airgap_motion_v4",
+        "motion_alpha_refine": true,
+        "motion_threshold": 10,
+        "motion_dilate": 4,
+        "decode_seconds": 4.05,
+        "alpha_seconds": 49.95,
+        "encode_seconds": 161.75
+      },
+      "loop_meta": {
+        "mode": "locked_endpoints",
+        "source_frames": 120,
+        "selected_frames": 120,
+        "seam_diff": 0.00149
+      },
+      "reframe": {
+        "source_bbox": [
+          198,
+          53,
+          576,
+          609
+        ],
+        "source_margins": {
+          "left": 198,
+          "top": 53,
+          "right": 64,
+          "bottom": 31
+        },
+        "source_edge_risk": {
+          "left": false,
+          "top": false,
+          "right": false,
+          "bottom": false
+        },
+        "crop": [
+          173,
+          28,
+          601,
+          634
+        ],
+        "scale": 0.8234,
+        "paste": [
+          144,
+          103
+        ],
+        "target_size": [
+          352,
+          499
+        ],
+        "edge_refine": "v2",
+        "temporal_refine": {
+          "temporal_frames": 120,
+          "flow_size": 384,
+          "static_weight": 0.65,
+          "band_weight": 0.5,
+          "bidirectional": true,
+          "preserve_lower_motion": false,
+          "restored_motion_pixels": 0,
+          "mean_blend_weight": 0.4303,
+          "single_frame_fragments_removed": 111,
+          "fragment_pixels_removed": 155,
+          "protected_large_components": 0,
+          "max_fragment_area": 614,
+          "fragment_support_ratio": 0.25
+        },
+        "alpha_edge_contrast": {
+          "strength": 1.18,
+          "changed_pixels": 635759,
+          "mean_alpha_delta": 0.021645,
+          "contour_anchor": 0.5
+        }
+      }
+    },
+    {
+      "clip": "sleep",
+      "key_color": "0x2DEF26",
+      "frames": 120,
+      "webp_frames": 120,
+      "loop_close_frames": 0,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 94,
+      "webp_method": 4,
+      "webp_mb": 3.5,
+      "seconds": 224.1,
+      "similarity": "adaptive",
+      "green_residual": 0.0,
+      "matte_mode": "adaptive_green_memory",
+      "pipeline_version": "airgap_motion_v4",
+      "matte_profile": {
+        "mode": "adaptive_green_memory",
+        "bg_floor": 0.7573,
+        "key_rgb": [
+          45,
+          239,
+          38
+        ],
+        "sampled_frames": 12,
+        "pipeline_version": "airgap_motion_v4",
+        "motion_alpha_refine": true,
+        "motion_threshold": 10,
+        "motion_dilate": 4,
+        "decode_seconds": 4.05,
+        "alpha_seconds": 51.24,
+        "encode_seconds": 167.68
+      },
+      "loop_meta": {
+        "mode": "locked_endpoints",
+        "source_frames": 120,
+        "selected_frames": 120,
+        "seam_diff": 0.002088
+      },
+      "reframe": {
+        "source_bbox": [
+          70,
+          214,
+          564,
+          420
+        ],
+        "source_margins": {
+          "left": 70,
+          "top": 214,
+          "right": 76,
+          "bottom": 220
+        },
+        "source_edge_risk": {
+          "left": false,
+          "top": false,
+          "right": false,
+          "bottom": false
+        },
+        "crop": [
+          48,
+          192,
+          586,
+          442
+        ],
+        "scale": 1.0223,
+        "paste": [
+          45,
+          346
+        ],
+        "target_size": [
+          550,
+          256
+        ],
+        "edge_refine": "v2",
+        "temporal_refine": {
+          "temporal_frames": 120,
+          "flow_size": 384,
+          "static_weight": 0.65,
+          "band_weight": 0.5,
+          "bidirectional": true,
+          "preserve_lower_motion": false,
+          "restored_motion_pixels": 0,
+          "mean_blend_weight": 0.4775,
+          "single_frame_fragments_removed": 67,
+          "fragment_pixels_removed": 85,
+          "protected_large_components": 0,
+          "max_fragment_area": 614,
+          "fragment_support_ratio": 0.25
+        },
+        "alpha_edge_contrast": {
+          "strength": 1.18,
+          "changed_pixels": 545650,
+          "mean_alpha_delta": 0.021168,
+          "contour_anchor": 0.5
+        }
+      }
+    },
+    {
+      "clip": "fast_walk",
+      "key_color": "0x17D718",
+      "frames": 120,
+      "webp_frames": 120,
+      "loop_close_frames": 0,
+      "webp_fps": 24,
+      "webp_width": 640,
+      "webp_quality": 94,
+      "webp_method": 4,
+      "webp_mb": 4.73,
+      "seconds": 229.4,
+      "similarity": "adaptive",
+      "green_residual": 0.0,
+      "matte_mode": "adaptive_green_memory",
+      "pipeline_version": "airgap_motion_v4",
+      "matte_profile": {
+        "mode": "adaptive_green_memory",
+        "bg_floor": 0.7109,
+        "key_rgb": [
+          23,
+          215,
+          24
+        ],
+        "sampled_frames": 12,
+        "pipeline_version": "airgap_motion_v4",
+        "motion_alpha_refine": true,
+        "motion_threshold": 10,
+        "motion_dilate": 4,
+        "decode_seconds": 4.54,
+        "alpha_seconds": 51.82,
+        "encode_seconds": 172.01
+      },
+      "loop_meta": {
+        "mode": "locked_endpoints",
+        "source_frames": 120,
+        "selected_frames": 120,
+        "seam_diff": 0.002321
+      },
+      "reframe": {
+        "source_bbox": [
+          50,
+          136,
+          574,
+          509
+        ],
+        "source_margins": {
+          "left": 50,
+          "top": 136,
+          "right": 66,
+          "bottom": 131
+        },
+        "source_edge_risk": {
+          "left": false,
+          "top": false,
+          "right": false,
+          "bottom": false
+        },
+        "crop": [
+          27,
+          113,
+          597,
+          532
+        ],
+        "scale": 0.9649,
+        "paste": [
+          45,
+          198
+        ],
+        "target_size": [
+          550,
+          404
+        ],
+        "edge_refine": "v2",
+        "temporal_refine": {
+          "temporal_frames": 120,
+          "flow_size": 384,
+          "static_weight": 0.65,
+          "band_weight": 0.5,
+          "bidirectional": true,
+          "preserve_lower_motion": true,
+          "restored_motion_pixels": 693910,
+          "mean_blend_weight": 0.3229,
+          "single_frame_fragments_removed": 523,
+          "fragment_pixels_removed": 667,
+          "protected_large_components": 0,
+          "max_fragment_area": 614,
+          "fragment_support_ratio": 0.25
+        },
+        "alpha_edge_contrast": {
+          "strength": 1.18,
+          "changed_pixels": 847141,
+          "mean_alpha_delta": 0.021924,
+          "contour_anchor": 0.5
+        }
+      }
+    }
+  ]
+}
